@@ -1,8 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from skimage import data, filters, morphology, restoration, transform, registration
-from scipy.ndimage import map_coordinates
+from skimage import data, filters, morphology, restoration, transform, registration, exposure
+from scipy.ndimage import map_coordinates, binary_fill_holes
 from skimage.io import imread
+import cv2
 
 image = imread('./duke_original/image/Subject_05_24.png', as_gray=True) # currently testing for a single image on the DUKE dataset, we can use a for loop for every image.
 #TODO: Hepsini .png'ye çevirebilecek bir şey yaz.
@@ -32,6 +33,10 @@ def remove_background(image, threshold):
     mask = morphology.remove_small_objects(mask, min_size=500) # removes isolated small objects within the mask.
     return image * mask # the mask is applied here.
 
+def remove_background_otsu(image): # uses otsu thresholding to remove the background.
+    _, otsu_threshold = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    return otsu_threshold
+
 def plot_multiple_thresholds(image, thresholds):
     plt.figure(figsize=(15, 8))
     
@@ -50,7 +55,7 @@ def plot_multiple_thresholds(image, thresholds):
     plt.tight_layout()
     plt.show()
 
-threshold_values = [0.01, 0.05, 0.1, 0.15, 0.2, 0.3, 0.5]
+threshold_values = [0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.28, 0.3, 0.5]
 
 
 def denoise_image(image):
@@ -107,3 +112,15 @@ normalized_image = normalize_intensity(image)
 original_vs_preprocessed_plot(image, normalized_image, "Original Image", "Normalized Image") # looks like this is the only method that worked.
 
 plot_multiple_thresholds(normalized_image, threshold_values) # the thresholds definitely matter, however the closing and remove small objects operations didn't do much.
+
+otsu_thresholded_image = remove_background_otsu(np.uint8(cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX)))
+original_vs_preprocessed_plot(image, otsu_thresholded_image, "Original Image", "Image with Otsu Thresholding")
+
+
+def adapted_thresholding(image): # uses adapted thresholding to remove the background.
+    smoothed_image = cv2.blur(image, (49, 49))
+    bw_image = np.where(image > smoothed_image, 255, 0).astype(np.uint8)
+    return bw_image
+
+smoothed_image = adapted_thresholding(np.uint8(cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX)))
+original_vs_preprocessed_plot(image, smoothed_image, "Original Image", "Image with Adaptive Thresholding")
