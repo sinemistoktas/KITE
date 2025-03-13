@@ -4,9 +4,9 @@ from skimage import data, filters, morphology, restoration, transform, registrat
 from scipy.ndimage import map_coordinates, binary_fill_holes
 from skimage.io import imread
 import cv2
+import os
 
-image = imread('./duke_original/image/Subject_05_24.png', as_gray=True) # currently testing for a single image on the DUKE dataset, we can use a for loop for every image.
-#TODO: Hepsini .png'ye çevirebilecek bir şey yaz.
+input_directory = "./retouch"
 
 # the preprocessing examples were done with the help of Par Kragsterman:
 # https://about.cmrad.com/articles/the-ultimate-guide-to-preprocessing-medical-images-techniques-tools-and-best-practices-for-enhanced-diagnosis
@@ -61,16 +61,8 @@ threshold_values = [0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.28, 0.3, 0.5]
 def denoise_image(image):
     return restoration.denoise_wavelet(image, method= "BayesShrink", mode="soft", rescale_sigma= True) #wavelet based denoising
 
-denoised_image = denoise_image(image)
-original_vs_preprocessed_plot(image, denoised_image, "Original Image", "Denoised Image Using Wavelets") # looks like not much happens. maybe this is not needed.
-
-
 def resample_image(image, target_shape): # resampling = changing the pixel size of an image without altering its resolution.
     return transform.resize(image, target_shape, order=3, mode= "reflect", anti_aliasing= True)
-
-resampled_image = resample_image(denoised_image, (250,500))
-original_vs_preprocessed_plot(image, resampled_image, "Original Image", "Resampled Image") # looks like this will not be needed either. the size seems ideal but maybe
-# we can ask çiğdem hoca.
 
 # Image Registration: The process of aligning two images from different modalities or time points.
 # I don't think this is needed in our application but here it is:
@@ -97,10 +89,6 @@ def translate_image(image, tx=30, ty=20):
     
     return moved_image
 
-moved_image = translate_image(image)
-registered_image = register_images(image, moved_image)
-original_vs_preprocessed_plot(moved_image, registered_image, "Distorted Image", "Registered Image According to the Original Reference")
-
 
 def normalize_intensity(image, min_percentile= 0.5, max_percentile=99.5): # normalize the image intensities to ensure consistency across the dataset.
     min_val = np.percentile(image, min_percentile)
@@ -108,19 +96,43 @@ def normalize_intensity(image, min_percentile= 0.5, max_percentile=99.5): # norm
     normalized_img = (image - min_val) / (max_val - min_val)
     return np.clip(normalized_img, 0, 1) # further ensures that no possible out-of-range values are present.
 
-normalized_image = normalize_intensity(image)
-original_vs_preprocessed_plot(image, normalized_image, "Original Image", "Normalized Image") # looks like this is the only method that worked.
-
-plot_multiple_thresholds(normalized_image, threshold_values) # the thresholds definitely matter, however the closing and remove small objects operations didn't do much.
-
-otsu_thresholded_image = remove_background_otsu(np.uint8(cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX)))
-original_vs_preprocessed_plot(image, otsu_thresholded_image, "Original Image", "Image with Otsu Thresholding")
-
-
 def adapted_thresholding(image): # uses adapted thresholding to remove the background.
     smoothed_image = cv2.blur(image, (49, 49))
     bw_image = np.where(image > smoothed_image, 255, 0).astype(np.uint8)
     return bw_image
 
-smoothed_image = adapted_thresholding(np.uint8(cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX)))
-original_vs_preprocessed_plot(image, smoothed_image, "Original Image", "Image with Adaptive Thresholding")
+for filename in os.listdir(input_directory):
+
+    if filename.lower().endswith(".npz"): # if condition to check if the file is an .npz file (retouch dataset)
+        npz_path = os.path.join(input_directory, filename)
+        try:
+            np_data = np.load(npz_path)
+            for key in np_data:
+                image = np_data[key]
+        except Exception as e:
+            print(f"Failed to load {filename}: {e}")
+    else:
+        image_path = os.path.join(input_directory, filename)
+        image = imread(image_path, as_gray= True)
+
+    denoised_image = denoise_image(image)
+    original_vs_preprocessed_plot(image, denoised_image, "Original Image", "Denoised Image Using Wavelets") # looks like not much happens. maybe this is not needed.
+
+    resampled_image = resample_image(denoised_image, (250,500))
+    original_vs_preprocessed_plot(image, resampled_image, "Original Image", "Resampled Image") # looks like this will not be needed either. the size seems ideal but maybe
+    # we can ask çiğdem hoca.
+
+    moved_image = translate_image(image)
+    registered_image = register_images(image, moved_image)
+    original_vs_preprocessed_plot(moved_image, registered_image, "Distorted Image", "Registered Image According to the Original Reference")
+
+    normalized_image = normalize_intensity(image)
+    original_vs_preprocessed_plot(image, normalized_image, "Original Image", "Normalized Image") # looks like this is the only method that worked.
+
+    plot_multiple_thresholds(normalized_image, threshold_values) # the thresholds definitely matter, however the closing and remove small objects operations didn't do much.
+
+    otsu_thresholded_image = remove_background_otsu(np.uint8(cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX)))
+    original_vs_preprocessed_plot(image, otsu_thresholded_image, "Original Image", "Image with Otsu Thresholding")
+
+    smoothed_image = adapted_thresholding(np.uint8(cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX)))
+    original_vs_preprocessed_plot(image, smoothed_image, "Original Image", "Image with Adaptive Thresholding")
