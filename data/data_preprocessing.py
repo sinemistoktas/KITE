@@ -6,7 +6,7 @@ from skimage.io import imread
 import cv2
 import os
 
-input_directory = "./retouch"
+input_directory = "./duke_original/image"
 
 # the preprocessing examples were done with the help of Par Kragsterman:
 # https://about.cmrad.com/articles/the-ultimate-guide-to-preprocessing-medical-images-techniques-tools-and-best-practices-for-enhanced-diagnosis
@@ -24,14 +24,14 @@ def original_vs_preprocessed_plot(original, processed, title1= "Original Image",
     plt.axis("off")
     plt.show()
 
-# threshold -> which pixels are considered the "background"
-# np.max(image) -> basically the maximum intensity of the image. for example, if the threshold is 0.05, this tells
-# us to remove the image parts with the intensity that is 5% of the maximum intensity.
-def remove_background(image, threshold):
-    mask = image > (threshold * np.max(image)) # pixels below the threshold are set to 0.
-    mask = morphology.closing(mask, morphology.square(5)) # the closing algorithm fits gaps in the binary mask, removing small holes.
-    mask = morphology.remove_small_objects(mask, min_size=500) # removes isolated small objects within the mask.
-    return image * mask # the mask is applied here.
+# threshold -> which pixels are considered the "black region"
+# np.max(image) -> basically the maximum intensity of the image.
+def thresholding(image, threshold):
+    binary_image = image > (threshold * np.max(image))  # pixels above the threshold will be white, else they will be black, possibly corresponding to the fluid regions.
+    binary_image = morphology.closing(binary_image, morphology.square(5))  # fill small gaps (may be removed later if the small gaps are retinal fluids too)
+    binary_image = morphology.remove_small_objects(binary_image, min_size=500)  # remove noise
+
+    return binary_image.astype(np.uint8)
 
 def remove_background_otsu(image): # uses otsu thresholding to remove the background.
     _, otsu_threshold = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
@@ -46,7 +46,7 @@ def plot_multiple_thresholds(image, thresholds):
     plt.axis('off')
 
     for idx, threshold in enumerate(thresholds, start=2):
-        bg_removed = remove_background(image, threshold)
+        bg_removed = thresholding(image, threshold)
         plt.subplot(2, len(thresholds)//2 + 1, idx)
         plt.imshow(bg_removed, cmap='gray')
         plt.title(f'Threshold = {threshold}')
