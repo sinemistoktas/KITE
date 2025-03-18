@@ -1,12 +1,14 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from skimage import data, filters, morphology, restoration, transform, registration, exposure
-from scipy.ndimage import map_coordinates, binary_fill_holes
+from skimage import data, filters, morphology, restoration, transform, registration, exposure, feature
+from scipy.ndimage import map_coordinates, binary_fill_holes, median_filter, gaussian_laplace, uniform_filter, generic_filter, gaussian_filter, laplace
 from skimage.io import imread
+from scipy.stats import trim_mean
 import cv2
 import os
 
-input_directory = "./duke_original/image"
+input_directory = "./retouch"
+ground_truth_directory = "./duke_original/lesion"
 
 # the preprocessing examples were done with the help of Par Kragsterman:
 # https://about.cmrad.com/articles/the-ultimate-guide-to-preprocessing-medical-images-techniques-tools-and-best-practices-for-enhanced-diagnosis
@@ -37,25 +39,27 @@ def remove_background_otsu(image): # uses otsu thresholding to remove the backgr
     _, otsu_threshold = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     return otsu_threshold
 
-def plot_multiple_thresholds(image, thresholds):
+def plot_multiple_thresholds(image, ground_truth, thresholds):
     plt.figure(figsize=(15, 8))
     
     plt.subplot(2, len(thresholds)//2 + 1, 1)
-    plt.imshow(image, cmap='gray')
-    plt.title('Original Image')
-    plt.axis('off')
+    plt.imshow(image, cmap="gray")
+    plt.contour(ground_truth, colors="red", linewidths= 2)
+    plt.title("Original Image")
+    plt.axis("off")
 
     for idx, threshold in enumerate(thresholds, start=2):
         bg_removed = thresholding(image, threshold)
         plt.subplot(2, len(thresholds)//2 + 1, idx)
-        plt.imshow(bg_removed, cmap='gray')
-        plt.title(f'Threshold = {threshold}')
-        plt.axis('off')
+        plt.imshow(bg_removed, cmap="gray")
+        plt.contour(ground_truth, colors="red", linewidths= 1)
+        plt.title(f"Threshold = {threshold}")
+        plt.axis("off")
     
     plt.tight_layout()
     plt.show()
 
-threshold_values = [0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.28, 0.3, 0.5]
+threshold_values = [0.15, 0.2, 0.21, 0.22, 0.23, 0.25, 0.26, 0.27, 0.28]
 
 
 def denoise_image(image):
@@ -71,7 +75,7 @@ def register_images(fixed_image, moving_image):
     v, u = registration.optical_flow_tvl1(fixed_image, moving_image) # this created a displacement field, meaning a vector field that shows how each pixel should be shifted to match the fixed image.
     coords = np.meshgrid(np.arange(moving_image.shape[0]),
                          np.arange(moving_image.shape[1]),
-                         indexing='ij')
+                         indexing="ij")
     registered_image = map_coordinates(moving_image, 
                                        [coords[0] + v, coords[1] + u], 
                                        order=1)
@@ -101,38 +105,83 @@ def adapted_thresholding(image): # uses adapted thresholding to remove the backg
     bw_image = np.where(image > smoothed_image, 255, 0).astype(np.uint8)
     return bw_image
 
-for filename in os.listdir(input_directory):
+def apply_median_filter(image):
+    return median_filter(image, size=5)
 
-    if filename.lower().endswith(".npz"): # if condition to check if the file is an .npz file (retouch dataset)
+def apply_log_filter(image):
+    return gaussian_laplace(image, sigma=2)
+
+def apply_box_filter(image):
+    return uniform_filter(image, size=5)
+
+def apply_a_trimmed_mean_filter(image, alpha, kernel_size):
+    return generic_filter(image, lambda x: trim_mean(x, proportiontocut=alpha), size= kernel_size)
+
+def apply_gaussian_filter(image, sigma= 2):
+    return gaussian_filter(image, sigma)
+
+def apply_laplacian_filter(image):
+    return laplace(image)
+
+
+for filename in os.listdir(input_directory):
+    if filename.lower().endswith(".npz"):  # RETOUCH dataset files
         npz_path = os.path.join(input_directory, filename)
         try:
             np_data = np.load(npz_path)
-            for key in np_data:
-                image = np_data[key]
+            if filename.startswith("TEST"):
+                for key in np_data:
+                    image = np_data[key]
+                ground_truth = np.zeros_like(image)
+
+            elif filename.startswith("TRAIN"):
+                image = np_data['image'] # I've noticed that the "train" files include two fields, image and label.
+                ground_truth = np_data['label'] # label is for the labeled retina fluid.
+
+            else:
+                print(f"Skipping unknown file type: {filename}")
+                continue
+
         except Exception as e:
             print(f"Failed to load {filename}: {e}")
-    else:
+            continue
+
+    else: # any other file type
         image_path = os.path.join(input_directory, filename)
         image = imread(image_path, as_gray= True)
+        ground_truth_path = os.path.join(ground_truth_directory, filename)
 
-    denoised_image = denoise_image(image)
-    original_vs_preprocessed_plot(image, denoised_image, "Original Image", "Denoised Image Using Wavelets") # looks like not much happens. maybe this is not needed.
+        if os.path.exists(ground_truth_path):
+            ground_truth = imread(ground_truth_path, as_gray= True)
+        else:
+            print(f"Ground Truth not found for {filename}")
+            ground_truth = np.zeros_like(image)
 
-    resampled_image = resample_image(denoised_image, (250,500))
-    original_vs_preprocessed_plot(image, resampled_image, "Original Image", "Resampled Image") # looks like this will not be needed either. the size seems ideal but maybe
-    # we can ask çiğdem hoca.
+    image = apply_median_filter(image) # applied a median filter on the image.
+    # image = apply_box_filter(image)
+    # image = apply_a_trimmed_mean_filter(image, 0.2, 5)
+    image = normalize_intensity(image) # normalized the image to prepare it for thresholding.
+    plot_multiple_thresholds(image, ground_truth, threshold_values)
 
-    moved_image = translate_image(image)
-    registered_image = register_images(image, moved_image)
-    original_vs_preprocessed_plot(moved_image, registered_image, "Distorted Image", "Registered Image According to the Original Reference")
+    # denoised_image = denoise_image(image)
+    # original_vs_preprocessed_plot(image, denoised_image, "Original Image", "Denoised Image Using Wavelets") # looks like not much happens. maybe this is not needed.
 
-    normalized_image = normalize_intensity(image)
-    original_vs_preprocessed_plot(image, normalized_image, "Original Image", "Normalized Image") # looks like this is the only method that worked.
+    # resampled_image = resample_image(denoised_image, (250,500))
+    # original_vs_preprocessed_plot(image, resampled_image, "Original Image", "Resampled Image") # looks like this will not be needed either. the size seems ideal but maybe
+    # # we can ask çiğdem hoca.
 
-    plot_multiple_thresholds(normalized_image, threshold_values) # the thresholds definitely matter, however the closing and remove small objects operations didn't do much.
+    # moved_image = translate_image(image)
+    # registered_image = register_images(image, moved_image)
+    # original_vs_preprocessed_plot(moved_image, registered_image, "Distorted Image", "Registered Image According to the Original Reference")
 
-    otsu_thresholded_image = remove_background_otsu(np.uint8(cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX)))
-    original_vs_preprocessed_plot(image, otsu_thresholded_image, "Original Image", "Image with Otsu Thresholding")
+    # normalized_image = normalize_intensity(image)
+    # original_vs_preprocessed_plot(image, normalized_image, "Original Image", "Normalized Image") # looks like this is the only method that worked.
 
-    smoothed_image = adapted_thresholding(np.uint8(cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX)))
-    original_vs_preprocessed_plot(image, smoothed_image, "Original Image", "Image with Adaptive Thresholding")
+    # plot_multiple_thresholds(normalized_image, threshold_values) # the thresholds definitely matter, however the closing and remove small objects operations didn't do much.
+
+    # otsu_thresholded_image = remove_background_otsu(np.uint8(cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX)))
+    # original_vs_preprocessed_plot(image, otsu_thresholded_image, "Original Image", "Image with Otsu Thresholding")
+
+    # smoothed_image = adapted_thresholding(np.uint8(cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX)))
+    # original_vs_preprocessed_plot(image, smoothed_image, "Original Image", "Image with Adaptive Thresholding")
+
