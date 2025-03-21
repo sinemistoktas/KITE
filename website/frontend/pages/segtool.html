@@ -1,32 +1,56 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>KITE</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
-    body {
-      background-color: #2d6971; /* light blue */
-    }
-  </style>
-</head>
+  <html lang="en">
+  <head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <title>KITE</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'styles.css' %}">
+    <link rel="icon" type="image/x-icon" href="{% static 'img/favicon.ico' %}">
+    <script src="{% static 'js/scripts.js' %}"></script>
 
-<body class="p-5 bg-light">
-<div class="container">
-  <h1 class = mb-8>KITE - Semi Automated Segmentation Tool</h1>
-  <h2 class="mb-4">Upload an Image</h2>
-  <form method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    <input type="file" name="image" class="form-control mb-3" required>
-    <button class="btn btn-primary">Upload</button>
-  </form>
+  </head>
 
-  {% if image_url %}
-  <div class="card p-3 mt-4">
-    <h5>Uploaded Image:</h5>
-    <img src="{{ image_url }}" class="img-fluid" />
-  </div>
-  {% endif %}
-</div>
-</body>
+  <body class="seg-tool-page p-5 bg-light">
+
+    <div class="go-back-home">
+      <a href="{% url 'home' %}" class="button-link">
+        <button class="animated-button">
+          <svg viewBox="0 0 24 24" class="arr-2" xmlns="http://www.w3.org/2000/svg">
+            <path
+                    d="M16.1716 10.9999L10.8076 5.63589L12.2218 4.22168L20 11.9999L12.2218 19.778L10.8076 18.3638L16.1716 12.9999H4V10.9999H16.1716Z"
+            ></path>
+          </svg>
+          <span class="text">Go to Homepage</span>
+          <span class="circle"></span>
+          <svg viewBox="0 0 24 24" class="arr-1" xmlns="http://www.w3.org/2000/svg">
+            <path
+                    d="M16.1716 10.9999L10.8076 5.63589L12.2218 4.22168L20 11.9999L12.2218 19.778L10.8076 18.3638L16.1716 12.9999H4V10.9999H16.1716Z"
+            ></path>
+          </svg>
+        </button>
+      </a>
+    </div>
+    <br>
+
+    <div class="seg-tool-container container">
+      <h3 class="mb-6">KITE - Semi Automated Segmentation Tool</h3>
+      <h6 class="mb-4">Upload an Image</h6>
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="file" name="image" class="form-control mb-3" required>
+        <button class="btn btn-primary">Upload</button>
+      </form>
+
+      {% if image_url %}
+      <div class="card p-3 mt-4">
+        <p><strong>Filename:</strong> {{ image_name }}</p>
+        <img src="{{ image_url }}" class="img-oct" />
+      </div>
+      {% endif %}
+
+    </div>
+    <script src="{% static 'js/scripts.js' %}"></script>
+  </body>
 </html>
+

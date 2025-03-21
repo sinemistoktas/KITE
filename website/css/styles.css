@@ -34,7 +34,7 @@
   --bs-gray-700: #495057;
   --bs-gray-800: #343a40;
   --bs-gray-900: #212529;
-  --bs-primary: #bd5d38;
+  --bs-primary: #2d6971;
   --bs-secondary: #6c757d;
   --bs-success: #198754;
   --bs-info: #0dcaf0;
@@ -599,8 +599,8 @@ progress {
   content: "— ";
 }
 
-.img-fluid {
-  max-width: 100%;
+.img-oct {
+  max-width: 690px;
   height: auto;
 }
 
@@ -7665,11 +7665,18 @@ textarea.form-control-lg {
 }
 
 .mb-4 {
+  color: white;
   margin-bottom: 1.5rem !important;
 }
 
 .mb-5 {
   margin-bottom: 3rem !important;
+}
+
+.mb-6 {
+  margin-bottom: 2rem !important;
+  color: white;
+  margin-bottom: 2rem !important;
 }
 
 .mb-auto {
@@ -10927,7 +10934,7 @@ p.lead {
   justify-content: center;
   height: 3.5rem;
   width: 3.5rem;
-  background-color: #495057;
+  background-color: #000000;
   color: #fff;
   border-radius: 100%;
   font-size: 1.5rem;
@@ -10937,7 +10944,7 @@ p.lead {
   margin-right: 0;
 }
 .social-icons .social-icon:hover {
-  background-color: #2d6971;
+  background-color: #611661;
 }
 
 .dev-icons {
@@ -11059,41 +11066,27 @@ section.info-section .info-section-content {
   opacity: 1;
 }
 
-/* animated button github*/
-.button {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 10px 15px;
-  gap: 15px;
-  background-color: #181717;
-  outline: 3px #181717 solid;
-  outline-offset: -3px;
-  border-radius: 5px;
-  border: none;
-  cursor: pointer;
-  transition: 400ms;
-}
-
-.button .text {
+/*segmentation tool page*/
+.seg-tool-page {
+  background: linear-gradient(135deg, #2d6971, #611661);
+  min-height: 100vh;
   color: white;
-  font-weight: 700;
-  font-size: 1em;
-  transition: 400ms;
 }
 
-.button svg path {
-  transition: 400ms;
+.seg-tool-container h1,
+.seg-tool-container h2,
+.seg-tool-container h5 {
+  color: white;
 }
 
-.button:hover {
-  background-color: transparent;
+.seg-tool-container .card {
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #000;
 }
 
-.button:hover .text {
-  color: #181717;
+.seg-tool-container input,
+.seg-tool-container button {
+  color: black;
 }
 
-.button:hover svg path {
-  fill: #181717;
-}
+

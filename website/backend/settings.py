@@ -3,7 +3,7 @@ import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-your-secret-key'  # Replace with your own for production
+SECRET_KEY = 'django-insecure-your-secret-key'  # Replace with our own for production
 DEBUG = True
 
 ALLOWED_HOSTS = []
@@ -16,7 +16,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'frontend.pages',  # your app
+    'frontend.pages',
 ]
 
 MIDDLEWARE = [
@@ -35,7 +35,7 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [BASE_DIR / "frontend/"],
-        'APP_DIRS': True,  # Required for app templates
+        'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.debug',
@@ -57,7 +57,7 @@ DATABASES = {
     }
 }
 
-# Password validation (can ignore for now)
+# Password validation
 AUTH_PASSWORD_VALIDATORS = []
 
 # Language/timezone
@@ -68,7 +68,11 @@ USE_TZ = True
 
 # Static & Media
 STATIC_URL = '/static/'
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+STATICFILES_DIRS = [
+    BASE_DIR / "css",
+    BASE_DIR / "frontend/static"
+]
+MEDIA_URL = 'backend/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'backend/media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
