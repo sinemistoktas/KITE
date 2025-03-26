@@ -7,7 +7,7 @@ from scipy.stats import trim_mean
 import cv2
 import os
 
-input_directory = "./retouch"
+input_directory = "./duke_original/image"
 ground_truth_directory = "./duke_original/lesion"
 
 # the preprocessing examples were done with the help of Par Kragsterman:
@@ -59,7 +59,7 @@ def plot_multiple_thresholds(image, ground_truth, thresholds):
     plt.tight_layout()
     plt.show()
 
-threshold_values = [0.15, 0.2, 0.21, 0.22, 0.23, 0.25, 0.26, 0.27, 0.28]
+threshold_values = [0.15, 0.17, 0.18, 0.19, 0.2, 0.21, 0.22, 0.23, 0.25]
 
 
 def denoise_image(image):
@@ -123,25 +123,41 @@ def apply_gaussian_filter(image, sigma= 2):
 def apply_laplacian_filter(image):
     return laplace(image)
 
+def preprocess_image(image): # note to mislina: call this to preprocess the image ! 
+    image = apply_median_filter(image)
+    image = normalize_intensity(image)
+
+def handle_npz_images(npz_path, filename): # this function is only for .npz files.
+    np_data = np.load(npz_path)
+    if filename.startswith("TEST"):
+        for key in np_data:
+            image = np_data[key]
+            ground_truth = np.zeros_like(image)
+
+    elif filename.startswith("TRAIN"):
+        image = np_data['image'] # I've noticed that the "train" files include two fields, image and label.
+        ground_truth = np_data['label'] # label is for the labeled retina fluid.
+
+    else:
+        print(f"Skipping unknown file type: {filename}")
+    
+    return ground_truth
+
+def find_ground_truth(filename, image): # this function can be used to find the ground truth label of an image for the DUKE
+    # dataset.
+    ground_truth_path = os.path.join(ground_truth_directory, filename)
+
+    if os.path.exists(ground_truth_path):
+        return imread(ground_truth_path, as_gray= True)
+    else:
+        print(f"Ground Truth not found for {filename}")
+        return np.zeros_like(image)
 
 for filename in os.listdir(input_directory):
     if filename.lower().endswith(".npz"):  # RETOUCH dataset files
         npz_path = os.path.join(input_directory, filename)
         try:
-            np_data = np.load(npz_path)
-            if filename.startswith("TEST"):
-                for key in np_data:
-                    image = np_data[key]
-                ground_truth = np.zeros_like(image)
-
-            elif filename.startswith("TRAIN"):
-                image = np_data['image'] # I've noticed that the "train" files include two fields, image and label.
-                ground_truth = np_data['label'] # label is for the labeled retina fluid.
-
-            else:
-                print(f"Skipping unknown file type: {filename}")
-                continue
-
+            ground_truth = handle_npz_images(npz_path, filename)
         except Exception as e:
             print(f"Failed to load {filename}: {e}")
             continue
@@ -149,39 +165,7 @@ for filename in os.listdir(input_directory):
     else: # any other file type
         image_path = os.path.join(input_directory, filename)
         image = imread(image_path, as_gray= True)
-        ground_truth_path = os.path.join(ground_truth_directory, filename)
+        ground_truth = find_ground_truth(filename, image)
 
-        if os.path.exists(ground_truth_path):
-            ground_truth = imread(ground_truth_path, as_gray= True)
-        else:
-            print(f"Ground Truth not found for {filename}")
-            ground_truth = np.zeros_like(image)
-
-    image = apply_median_filter(image) # applied a median filter on the image.
-    # image = apply_box_filter(image)
-    # image = apply_a_trimmed_mean_filter(image, 0.2, 5)
-    image = normalize_intensity(image) # normalized the image to prepare it for thresholding.
+    preprocess_image(image)
     plot_multiple_thresholds(image, ground_truth, threshold_values)
-
-    # denoised_image = denoise_image(image)
-    # original_vs_preprocessed_plot(image, denoised_image, "Original Image", "Denoised Image Using Wavelets") # looks like not much happens. maybe this is not needed.
-
-    # resampled_image = resample_image(denoised_image, (250,500))
-    # original_vs_preprocessed_plot(image, resampled_image, "Original Image", "Resampled Image") # looks like this will not be needed either. the size seems ideal but maybe
-    # # we can ask çiğdem hoca.
-
-    # moved_image = translate_image(image)
-    # registered_image = register_images(image, moved_image)
-    # original_vs_preprocessed_plot(moved_image, registered_image, "Distorted Image", "Registered Image According to the Original Reference")
-
-    # normalized_image = normalize_intensity(image)
-    # original_vs_preprocessed_plot(image, normalized_image, "Original Image", "Normalized Image") # looks like this is the only method that worked.
-
-    # plot_multiple_thresholds(normalized_image, threshold_values) # the thresholds definitely matter, however the closing and remove small objects operations didn't do much.
-
-    # otsu_thresholded_image = remove_background_otsu(np.uint8(cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX)))
-    # original_vs_preprocessed_plot(image, otsu_thresholded_image, "Original Image", "Image with Otsu Thresholding")
-
-    # smoothed_image = adapted_thresholding(np.uint8(cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX)))
-    # original_vs_preprocessed_plot(image, smoothed_image, "Original Image", "Image with Adaptive Thresholding")
-
