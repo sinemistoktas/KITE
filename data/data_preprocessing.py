@@ -125,7 +125,7 @@ def apply_laplacian_filter(image):
 
 def preprocess_image(image): # note to mislina: call this to preprocess the image ! 
     image = apply_median_filter(image)
-    image = normalize_intensity(image)
+    return normalize_intensity(image)
 
 def handle_npz_images(npz_path, filename): # this function is only for .npz files.
     np_data = np.load(npz_path)
@@ -167,5 +167,5 @@ for filename in os.listdir(input_directory):
         image = imread(image_path, as_gray= True)
         ground_truth = find_ground_truth(filename, image)
 
-    preprocess_image(image)
+    image = preprocess_image(image)
     plot_multiple_thresholds(image, ground_truth, threshold_values)
