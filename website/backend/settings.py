@@ -3,10 +3,24 @@ import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-your-secret-key'  # Replace with our own for production
-DEBUG = True
+#SECRET_KEY = 'django-insecure-your-secret-key'
+#DEBUG = True
 
-ALLOWED_HOSTS = []
+# for Render
+
+SECRET_KEY = os.environ.get(
+    'SECRET_KEY',
+    'django-insecure-please-change-this-for-local-dev'
+)
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+
+
+ALLOWED_HOSTS = [
+    'your-app-name.onrender.com',
+    'localhost',
+    '127.0.0.1'
+]
+#
 
 # Application definition
 INSTALLED_APPS = [
@@ -21,11 +35,12 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',  # Required
+    'whitenoise.middleware.WhiteNoiseMiddleware', # render
+    'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',  # Required
-    'django.contrib.messages.middleware.MessageMiddleware',  # Required
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
@@ -72,6 +87,9 @@ STATICFILES_DIRS = [
     BASE_DIR / "css",
     BASE_DIR / "frontend/static"
 ]
+
+STATIC_ROOT = BASE_DIR / "staticfiles" # for Render
+
 MEDIA_URL = 'backend/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'backend/media')
 
