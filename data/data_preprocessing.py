@@ -7,7 +7,7 @@ from scipy.stats import trim_mean
 import cv2
 import os
 
-input_directory = "./duke_original/image"
+input_directory = "./retouch"
 ground_truth_directory = "./duke_original/lesion"
 
 # the preprocessing examples were done with the help of Par Kragsterman:
@@ -59,7 +59,7 @@ def plot_multiple_thresholds(image, ground_truth, thresholds):
     plt.tight_layout()
     plt.show()
 
-threshold_values = [0.15, 0.17, 0.18, 0.19, 0.2, 0.21, 0.22, 0.23, 0.25]
+threshold_values = [0.15, 0.19, 0.2, 0.21, 0.22, 0.23, 0.25, 0.26, 0.27]
 
 
 def denoise_image(image):
@@ -141,7 +141,7 @@ def handle_npz_images(npz_path, filename): # this function is only for .npz file
     else:
         print(f"Skipping unknown file type: {filename}")
     
-    return ground_truth
+    return ground_truth, image
 
 def find_ground_truth(filename, image): # this function can be used to find the ground truth label of an image for the DUKE
     # dataset.
@@ -157,7 +157,7 @@ for filename in os.listdir(input_directory):
     if filename.lower().endswith(".npz"):  # RETOUCH dataset files
         npz_path = os.path.join(input_directory, filename)
         try:
-            ground_truth = handle_npz_images(npz_path, filename)
+            ground_truth, image = handle_npz_images(npz_path, filename)
         except Exception as e:
             print(f"Failed to load {filename}: {e}")
             continue
