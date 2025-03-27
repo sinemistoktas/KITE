@@ -16,7 +16,7 @@ DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 
 ALLOWED_HOSTS = [
-    'your-app-name.onrender.com',
+    'kite-2qf9.onrender.com',
     'localhost',
     '127.0.0.1'
 ]
