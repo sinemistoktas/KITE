@@ -1,7 +1,8 @@
 from django.urls import path
-from . import views
+from backend import views
+from images.views import seg_tool
 
 urlpatterns = [
     path('', views.home, name='home'),
-    path('segtool/', views.seg_tool, name='seg_tool'),
+    path('seg-tool/', seg_tool, name='seg_tool'),
 ]
