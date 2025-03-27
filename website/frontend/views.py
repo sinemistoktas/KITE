@@ -1,5 +1,8 @@
 from django.shortcuts import render
-from .models import Photo
+from django.core.files.storage import FileSystemStorage
+
+def home(request):
+    return render(request, 'pages/home.html')
 
 def seg_tool(request):
     image_url = None
@@ -7,11 +10,12 @@ def seg_tool(request):
 
     if request.method == 'POST' and request.FILES.get('image'):
         image = request.FILES['image']
-        photo = Photo.objects.create(image=image, title=image.name)
-        image_url = photo.image.url
-        image_name = photo.title
-
+        image_name = image.name
+        fs = FileSystemStorage()
+        filename = fs.save(image_name, image)
+        image_url = fs.url(filename)
     return render(request, 'pages/segtool.html', {
         'image_url': image_url,
         'image_name': image_name
     })
+
