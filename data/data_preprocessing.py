@@ -1,12 +1,14 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from skimage import data, filters, morphology, restoration, transform, registration, exposure
-from scipy.ndimage import map_coordinates, binary_fill_holes
+from skimage import data, filters, morphology, restoration, transform, registration, exposure, feature
+from scipy.ndimage import map_coordinates, binary_fill_holes, median_filter, gaussian_laplace, uniform_filter, generic_filter, gaussian_filter, laplace
 from skimage.io import imread
+from scipy.stats import trim_mean
 import cv2
+import os
 
-image = imread('./duke_original/image/Subject_05_24.png', as_gray=True) # currently testing for a single image on the DUKE dataset, we can use a for loop for every image.
-#TODO: Hepsini .png'ye çevirebilecek bir şey yaz.
+input_directory = "./retouch"
+ground_truth_directory = "./duke_original/lesion"
 
 # the preprocessing examples were done with the help of Par Kragsterman:
 # https://about.cmrad.com/articles/the-ultimate-guide-to-preprocessing-medical-images-techniques-tools-and-best-practices-for-enhanced-diagnosis
@@ -24,53 +26,47 @@ def original_vs_preprocessed_plot(original, processed, title1= "Original Image",
     plt.axis("off")
     plt.show()
 
-# threshold -> which pixels are considered the "background"
-# np.max(image) -> basically the maximum intensity of the image. for example, if the threshold is 0.05, this tells
-# us to remove the image parts with the intensity that is 5% of the maximum intensity.
-def remove_background(image, threshold):
-    mask = image > (threshold * np.max(image)) # pixels below the threshold are set to 0.
-    mask = morphology.closing(mask, morphology.square(5)) # the closing algorithm fits gaps in the binary mask, removing small holes.
-    mask = morphology.remove_small_objects(mask, min_size=500) # removes isolated small objects within the mask.
-    return image * mask # the mask is applied here.
+# threshold -> which pixels are considered the "black region"
+# np.max(image) -> basically the maximum intensity of the image.
+def thresholding(image, threshold):
+    binary_image = image > (threshold * np.max(image))  # pixels above the threshold will be white, else they will be black, possibly corresponding to the fluid regions.
+    binary_image = morphology.closing(binary_image, morphology.square(5))  # fill small gaps (may be removed later if the small gaps are retinal fluids too)
+    binary_image = morphology.remove_small_objects(binary_image, min_size=500)  # remove noise
+
+    return binary_image.astype(np.uint8)
 
 def remove_background_otsu(image): # uses otsu thresholding to remove the background.
     _, otsu_threshold = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     return otsu_threshold
 
-def plot_multiple_thresholds(image, thresholds):
+def plot_multiple_thresholds(image, ground_truth, thresholds):
     plt.figure(figsize=(15, 8))
     
     plt.subplot(2, len(thresholds)//2 + 1, 1)
-    plt.imshow(image, cmap='gray')
-    plt.title('Original Image')
-    plt.axis('off')
+    plt.imshow(image, cmap="gray")
+    plt.contour(ground_truth, colors="red", linewidths= 2)
+    plt.title("Original Image")
+    plt.axis("off")
 
     for idx, threshold in enumerate(thresholds, start=2):
-        bg_removed = remove_background(image, threshold)
+        bg_removed = thresholding(image, threshold)
         plt.subplot(2, len(thresholds)//2 + 1, idx)
-        plt.imshow(bg_removed, cmap='gray')
-        plt.title(f'Threshold = {threshold}')
-        plt.axis('off')
+        plt.imshow(bg_removed, cmap="gray")
+        plt.contour(ground_truth, colors="red", linewidths= 1)
+        plt.title(f"Threshold = {threshold}")
+        plt.axis("off")
     
     plt.tight_layout()
     plt.show()
 
-threshold_values = [0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.28, 0.3, 0.5]
+threshold_values = [0.15, 0.19, 0.2, 0.21, 0.22, 0.23, 0.25, 0.26, 0.27]
 
 
 def denoise_image(image):
     return restoration.denoise_wavelet(image, method= "BayesShrink", mode="soft", rescale_sigma= True) #wavelet based denoising
 
-denoised_image = denoise_image(image)
-original_vs_preprocessed_plot(image, denoised_image, "Original Image", "Denoised Image Using Wavelets") # looks like not much happens. maybe this is not needed.
-
-
 def resample_image(image, target_shape): # resampling = changing the pixel size of an image without altering its resolution.
     return transform.resize(image, target_shape, order=3, mode= "reflect", anti_aliasing= True)
-
-resampled_image = resample_image(denoised_image, (250,500))
-original_vs_preprocessed_plot(image, resampled_image, "Original Image", "Resampled Image") # looks like this will not be needed either. the size seems ideal but maybe
-# we can ask çiğdem hoca.
 
 # Image Registration: The process of aligning two images from different modalities or time points.
 # I don't think this is needed in our application but here it is:
@@ -79,7 +75,7 @@ def register_images(fixed_image, moving_image):
     v, u = registration.optical_flow_tvl1(fixed_image, moving_image) # this created a displacement field, meaning a vector field that shows how each pixel should be shifted to match the fixed image.
     coords = np.meshgrid(np.arange(moving_image.shape[0]),
                          np.arange(moving_image.shape[1]),
-                         indexing='ij')
+                         indexing="ij")
     registered_image = map_coordinates(moving_image, 
                                        [coords[0] + v, coords[1] + u], 
                                        order=1)
@@ -97,10 +93,6 @@ def translate_image(image, tx=30, ty=20):
     
     return moved_image
 
-moved_image = translate_image(image)
-registered_image = register_images(image, moved_image)
-original_vs_preprocessed_plot(moved_image, registered_image, "Distorted Image", "Registered Image According to the Original Reference")
-
 
 def normalize_intensity(image, min_percentile= 0.5, max_percentile=99.5): # normalize the image intensities to ensure consistency across the dataset.
     min_val = np.percentile(image, min_percentile)
@@ -108,19 +100,72 @@ def normalize_intensity(image, min_percentile= 0.5, max_percentile=99.5): # norm
     normalized_img = (image - min_val) / (max_val - min_val)
     return np.clip(normalized_img, 0, 1) # further ensures that no possible out-of-range values are present.
 
-normalized_image = normalize_intensity(image)
-original_vs_preprocessed_plot(image, normalized_image, "Original Image", "Normalized Image") # looks like this is the only method that worked.
-
-plot_multiple_thresholds(normalized_image, threshold_values) # the thresholds definitely matter, however the closing and remove small objects operations didn't do much.
-
-otsu_thresholded_image = remove_background_otsu(np.uint8(cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX)))
-original_vs_preprocessed_plot(image, otsu_thresholded_image, "Original Image", "Image with Otsu Thresholding")
-
-
 def adapted_thresholding(image): # uses adapted thresholding to remove the background.
     smoothed_image = cv2.blur(image, (49, 49))
     bw_image = np.where(image > smoothed_image, 255, 0).astype(np.uint8)
     return bw_image
 
-smoothed_image = adapted_thresholding(np.uint8(cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX)))
-original_vs_preprocessed_plot(image, smoothed_image, "Original Image", "Image with Adaptive Thresholding")
+def apply_median_filter(image):
+    return median_filter(image, size=5)
+
+def apply_log_filter(image):
+    return gaussian_laplace(image, sigma=2)
+
+def apply_box_filter(image):
+    return uniform_filter(image, size=5)
+
+def apply_a_trimmed_mean_filter(image, alpha, kernel_size):
+    return generic_filter(image, lambda x: trim_mean(x, proportiontocut=alpha), size= kernel_size)
+
+def apply_gaussian_filter(image, sigma= 2):
+    return gaussian_filter(image, sigma)
+
+def apply_laplacian_filter(image):
+    return laplace(image)
+
+def preprocess_image(image): # note to mislina: call this to preprocess the image ! 
+    image = apply_median_filter(image)
+    return normalize_intensity(image)
+
+def handle_npz_images(npz_path, filename): # this function is only for .npz files.
+    np_data = np.load(npz_path)
+    if filename.startswith("TEST"):
+        for key in np_data:
+            image = np_data[key]
+            ground_truth = np.zeros_like(image)
+
+    elif filename.startswith("TRAIN"):
+        image = np_data['image'] # I've noticed that the "train" files include two fields, image and label.
+        ground_truth = np_data['label'] # label is for the labeled retina fluid.
+
+    else:
+        print(f"Skipping unknown file type: {filename}")
+    
+    return ground_truth, image
+
+def find_ground_truth(filename, image): # this function can be used to find the ground truth label of an image for the DUKE
+    # dataset.
+    ground_truth_path = os.path.join(ground_truth_directory, filename)
+
+    if os.path.exists(ground_truth_path):
+        return imread(ground_truth_path, as_gray= True)
+    else:
+        print(f"Ground Truth not found for {filename}")
+        return np.zeros_like(image)
+
+for filename in os.listdir(input_directory):
+    if filename.lower().endswith(".npz"):  # RETOUCH dataset files
+        npz_path = os.path.join(input_directory, filename)
+        try:
+            ground_truth, image = handle_npz_images(npz_path, filename)
+        except Exception as e:
+            print(f"Failed to load {filename}: {e}")
+            continue
+
+    else: # any other file type
+        image_path = os.path.join(input_directory, filename)
+        image = imread(image_path, as_gray= True)
+        ground_truth = find_ground_truth(filename, image)
+
+    image = preprocess_image(image)
+    plot_multiple_thresholds(image, ground_truth, threshold_values)
