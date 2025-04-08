@@ -45,7 +45,11 @@
       {% if image_url %}
       <div class="card p-3 mt-4">
         <p><strong>Filename:</strong> {{ image_name }}</p>
-        <img src="{{ image_url }}" class="img-oct" />
+        <div id= "imageCanvasBlock">
+        <img id= "uploadedImage" src="{{ image_url }}" class="img-oct" />
+        <canvas id= "annotationCanvas"> </canvas>
+        </div>
+        <button class="btn btn-primary" onclick="downloadAnnotations()">Ready to Segment!</button>
       </div>
       {% endif %}
 

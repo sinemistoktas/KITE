@@ -30,4 +30,48 @@ window.addEventListener('DOMContentLoaded', event => {
             }
         });
     });
+
+    // Logic for image annotation
+    const img = document.getElementById("uploadedImage");
+    const canvas = document.getElementById("annotationCanvas");
+    const ctx = canvas?.getContext("2d");
+    let annotations = [];
+
+    // Sets the style of the canvas to ensure that it is completely aligned with the image.
+    function resizeCanvasToImage() {
+        const rect = img.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        canvas.style.width = `${rect.width}px`;
+        canvas.style.height = `${rect.height}px`;
+        canvas.style.position = "absolute";
+        canvas.style.top = "0";
+        canvas.style.left = "0";
+      }
+      
+    if (img.complete) { // If the browser has finished loading the image, resize the canvas. Else resize it when it loads.
+        resizeCanvasToImage();
+    } else {
+        img.onload = () => {
+            resizeCanvasToImage();
+        };
+    }
+
+    window.addEventListener("resize", resizeCanvasToImage); // Whenever the browser window & the image is resized, the canvas would resize with it.
+
+    if (img && canvas && ctx) {
+        // Added a click event listener to the canvas.
+        canvas.addEventListener("click", (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top; // For the circle to be drawn properly, we need the coordinates RELATIVE to the CANVAS. Hence the subtraction here.
+
+            annotations.push({ x: Math.round(x), y: Math.round(y) }); // The location of the annotation is saved, to save it as a JSON file later.
+
+            ctx.fillStyle = "red";
+            ctx.beginPath();
+            ctx.arc(x, y, 2, 0, 2 * Math.PI); // Draws a filled circle with radius 2 on the canvas (could be changed later to include polygons etc.)
+            ctx.fill();
+        });
+    }
 });
