@@ -47,77 +47,63 @@ class SegmentationModel():
                             seeds.append((nx, ny))
         return grown_mask
 
+    def run_segmentation_from_json(self, annotation_json, filename):
+        image_path = os.path.join(self.preprocessor.input_directory, filename)
+        image = imread(image_path, as_gray=True)
+        ground_truth = self.preprocessor.find_ground_truth(filename, image)
 
+        image = self.preprocessor.preprocess_image(image)
+        bg_removed = self.preprocessor.thresholding(image, 0.4)
+        bg_removed = morphology.closing(bg_removed, morphology.square(8))
+        gray_image = (image * 255).astype(np.uint8)
 
-#input_directory = "./duke_original/image"
-#ground_truth_directory = "./duke_original/lesion"
-preprocessor = Preprocessor()
-segmentation_model = SegmentationModel(preprocessor)
-filename = "Subject_10_33.png"
-image_path = os.path.join(preprocessor.input_directory, filename)
-image = imread(image_path, as_gray= True)
-ground_truth = preprocessor.find_ground_truth(filename, image)
+        points = np.array(annotation_json['shapes'][0]['points'], dtype=np.int32)
+        seed_mask = np.zeros(image.shape, dtype=np.uint8)
+        cv2.fillPoly(seed_mask, [points], 1)
 
-image = preprocessor.preprocess_image(image)
-bg_removed = preprocessor.thresholding(image, 0.4)
-bg_removed = morphology.closing(bg_removed, morphology.square(8))
-initial_mask = (bg_removed > 0).astype(np.uint8)
-gray_image =  (image * 255).astype(np.uint8)
-grown = segmentation_model.grow_region(gray_image, initial_mask, threshold=1)
+        grown_mask = self.grow_region(gray_image, seed_mask, threshold=5)
+        grown_mask = morphology.closing(grown_mask, morphology.square(4))
+        image_rgb = np.stack([gray_image] * 3, axis=-1).astype(np.uint8)
+        image_rgb[grown_mask == 1] = [0, 0, 255]
 
-#image_rgb = cv2.cvtColor(gray_image, cv2.COLOR_GRAY2RGB)
-#plt.imshow(cv2.addWeighted(image_rgb, 0.5, cv2.cvtColor(grown, cv2.COLOR_GRAY2RGB), 0.5, 0))
-#plt.imshow(grown, cmap="gray")
+        fig = plt.figure(figsize=(12, 6))
+        plt.subplot(1, 4, 1)
+        plt.imshow(image, cmap='gray')
+        plt.title("Original")
+        plt.axis('off')
 
-image_rgb = np.stack([gray_image]*3, axis=-1).astype(np.uint8)
-image_rgb[grown == 1] = [0, 0, 255]
+        plt.subplot(1, 4, 2)
+        plt.imshow(bg_removed, cmap='gray')
+        plt.title("Thresholded")
+        plt.axis('off')
 
-with open("Subject_10_33.json") as f:
-    data = json.load(f)
+        plt.subplot(1, 4, 3)
+        plt.imshow(image_rgb)
+        plt.title("Segmented")
+        plt.axis('off')
 
-for shape in data['shapes']:
-    label = shape['label']
-    points = shape['points']  # List of (x, y) coordinates
-    print(f"{label}: {points}")
+        plt.subplot(1, 4, 4)
+        plt.imshow(gray_image, cmap='gray')
+        plt.contour(ground_truth, colors='red', linewidths=1)
+        plt.title("Ground Truth")
+        plt.axis('off')
 
-points = np.array(points, dtype=np.int32)
-seed_mask = np.zeros(image.shape, dtype=np.uint8)
-cv2.fillPoly(seed_mask, [points], 1)  # Fill the triangle area with 1s
-grown_mask = segmentation_model.grow_region(gray_image, seed_mask, threshold=5)
-# reduce the noise
-grown_mask = morphology.closing(grown_mask, morphology.square(4))
-image_rgb = np.stack([gray_image]*3, axis=-1).astype(np.uint8)
-image_rgb[grown_mask== 1] = [0, 0, 255]
-# show with ground truth
-ground_truth = preprocessor.find_ground_truth(filename, image)
+        plt.tight_layout()
+        return fig
 
-# plot all
-plt.figure(figsize=(12, 6))
+# An example usage of the segmentation class.
+if __name__ == "__main__":
+    import json
 
-# 1. Original Image
-plt.subplot(1, 4, 1)
-plt.imshow(image, cmap='gray')
-plt.title("Original")
-plt.axis('off')
+    preprocessor = Preprocessor()
+    segmentation_model = SegmentationModel(preprocessor)
 
-# 2. Thresholded
-plt.subplot(1, 4, 2)
-plt.imshow(bg_removed, cmap='gray')
-plt.title("Thresholded")
-plt.axis('off')
+    filename = "Subject_10_33.png"
+    json_path = "Subject_10_33.json"
 
-# 3. Region Grown Overlay (Blue)
-plt.subplot(1, 4, 3)
-plt.imshow(image_rgb)
-plt.title("Segmented region highlighted")
-plt.axis('off')
+    with open(json_path) as f:
+        annotation_data = json.load(f)
 
-# 4. Ground Truth Overlay
-plt.subplot(1, 4, 4)
-plt.imshow(gray_image, cmap='gray')
-plt.contour(ground_truth, colors='red', linewidths=1)
-plt.title("With Ground Truth")
-plt.axis('off')
+    fig = segmentation_model.run_segmentation_from_json(annotation_data, filename)
 
-plt.tight_layout()
-plt.show()
+    plt.show()
