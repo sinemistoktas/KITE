@@ -90,6 +90,37 @@ class SegmentationModel():
 
         plt.tight_layout()
         return fig
+    
+    # We should call THIS method when somebody uploads an image with no ground truth. The previous method
+    # is for showcasing & comparing the ground truth image with the segmented image.
+    def run_segmentation_from_json_without_ground_truth(self, image, annotation_json):
+        image = self.preprocessor.preprocess_image(image)
+        bg_removed = self.preprocessor.thresholding(image, 0.4)
+        bg_removed = morphology.closing(bg_removed, morphology.square(8))
+        gray_image = (image * 255).astype(np.uint8)
+
+        points = np.array(annotation_json['shapes'][0]['points'], dtype=np.int32)
+        seed_mask = np.zeros(image.shape, dtype=np.uint8)
+        cv2.fillPoly(seed_mask, [points], 1)
+
+        grown_mask = self.grow_region(gray_image, seed_mask, threshold=5)
+        grown_mask = morphology.closing(grown_mask, morphology.square(4))
+        image_rgb = np.stack([gray_image] * 3, axis=-1).astype(np.uint8)
+        image_rgb[grown_mask == 1] = [0, 0, 255]
+
+        fig = plt.figure(figsize=(8, 4))
+        plt.subplot(1, 2, 1)
+        plt.imshow(image, cmap='gray')
+        plt.title("Original")
+        plt.axis('off')
+
+        plt.subplot(1, 2, 2)
+        plt.imshow(image_rgb)
+        plt.title("Segmented")
+        plt.axis('off')
+
+        plt.tight_layout()
+        return fig
 
 # An example usage of the segmentation class.
 if __name__ == "__main__":
