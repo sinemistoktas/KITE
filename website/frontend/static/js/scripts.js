@@ -75,4 +75,39 @@ window.addEventListener('DOMContentLoaded', event => {
             ctx.fill();
         });
     }
+
+    window.handleAnnotations = function () {
+        const annotationsJson = {
+            image_name: window.imageName,
+            shapes: [{
+                label: "anomaly",
+                points: annotations.map(p => [p.x, p.y])
+
+            }]
+        };
+
+        fetch("/segment/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCookie("csrftoken")
+            },
+            body: JSON.stringify(annotationsJson)
+        })
+        .then(response => response.blob())
+        .then(blob => {
+            const url = URL.createObjectURL(blob);
+            const img = new Image();
+            img.src = url;
+            document.getElementById("segmentationResult").innerHTML = "";
+            document.getElementById("segmentationResult").appendChild(img);
+        });
+    }
+
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        return parts.length === 2 ? parts.pop().split(';').shift() : '';
+    }
+
 });
