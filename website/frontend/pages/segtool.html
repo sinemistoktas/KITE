@@ -43,17 +43,20 @@
       </form>
 
       {% if image_url %}
-      <div class="card p-3 mt-4">
+      <div class="card p-3 mt-4 mb-4">
         <p><strong>Filename:</strong> {{ image_name }}</p>
         <div id= "imageCanvasBlock">
         <img id= "uploadedImage" src="{{ image_url }}" class="img-oct" />
         <canvas id= "annotationCanvas"> </canvas>
         </div>
-        <button class="btn btn-primary" onclick="downloadAnnotations()">Ready to Segment!</button>
       </div>
+      <button class="btn btn-primary" onclick= "handleAnnotations()">Ready to Segment!</button>
       {% endif %}
-
+      <div id="segmentationResult" class="mt-4"></div>
     </div>
+    <script>
+      window.imageName = "{{ image_name }}";
+    </script>
     <script src="{% static 'js/scripts.js' %}"></script>
   </body>
 </html>
