@@ -8,7 +8,7 @@ import cv2
 import os
 import pandas as pd
 import json
-from data_preprocessing import Preprocessor
+from data.data_preprocessing import Preprocessor
 # steps to follow
 # 1. load the data
 # 2. preprocess the data

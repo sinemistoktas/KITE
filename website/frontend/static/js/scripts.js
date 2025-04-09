@@ -48,6 +48,7 @@ window.addEventListener('DOMContentLoaded', event => {
         canvas.style.top = "0";
         canvas.style.left = "0";
       }
+    //TODO: When the window is resized the canvas is DELETED. what to do ?
       
     if (img.complete) { // If the browser has finished loading the image, resize the canvas. Else resize it when it loads.
         resizeCanvasToImage();
