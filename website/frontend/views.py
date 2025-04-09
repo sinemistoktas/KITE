@@ -5,6 +5,8 @@ from django.http import JsonResponse, HttpResponse
 from data.data_preprocessing import Preprocessor
 from data.data_segmentation import SegmentationModel
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import json
 import io
@@ -36,8 +38,10 @@ def seg_tool(request):
 # The function then applies segmentation on the image, and returns the segmented image in a PNG format.
 #TODO: Decide if this should be moved to the back-end or not.
 def segment_image(request):
+    print("segment_image() called") # Only for testing
     if request.method == "POST":
         try:
+            print("Request body:", request.body) # The body for testing purposes, you can delete this !!!
             data = json.loads(request.body)
             filename = data.get("image_name")
 
@@ -55,10 +59,12 @@ def segment_image(request):
             buf = io.BytesIO()
             canvas = FigureCanvas(fig)
             canvas.print_png(buf)
-            plt.close(fig)
+            plt.close(fig) #TODO: GIVE AN ERROR HTML INSTEAD OF A PLOT IF THE ANNOTATIONS DO NOT EXIST !!!
 
             return HttpResponse(buf.getvalue(), content_type = "image/png")
         
         except Exception as e:
             return JsonResponse({"error": "Only a POST request is allowed."}, status= 405)
+        
+    return JsonResponse({'error': 'Only a POST request is allowed'}, status=405)
 
