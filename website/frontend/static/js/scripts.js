@@ -112,7 +112,7 @@ window.addEventListener('DOMContentLoaded', event => {
             image_name: window.imageName,
             shapes: [{
                 label: "anomaly",
-                points: annotations.map(p => [p.x, p.y])
+                points: allPoints.map(p => [p.x, p.y])
 
             }]
         };
