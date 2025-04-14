@@ -107,6 +107,7 @@ window.addEventListener('DOMContentLoaded', event => {
     }
 
     window.handleAnnotations = function () {
+        const allPoints = scribbles.flat(); // Flattens all the scribbles into a single array.
         const annotationsJson = {
             image_name: window.imageName,
             shapes: [{
