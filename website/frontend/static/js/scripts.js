@@ -35,7 +35,10 @@ window.addEventListener('DOMContentLoaded', event => {
     const img = document.getElementById("uploadedImage");
     const canvas = document.getElementById("annotationCanvas");
     const ctx = canvas?.getContext("2d");
-    let annotations = [];
+    
+    let scribbles = [];
+    let currentStroke = [];
+    let isDrawing = false;
 
     // Sets the style of the canvas to ensure that it is completely aligned with the image.
     function resizeCanvasToImage() {
@@ -60,19 +63,46 @@ window.addEventListener('DOMContentLoaded', event => {
 
     window.addEventListener("resize", resizeCanvasToImage); // Whenever the browser window & the image is resized, the canvas would resize with it.
 
+    function drawLine(points) {
+        if (points.length < 2) return;
+        ctx.strokeStyle = "red";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+            ctx.lineTo(points[i].x, points[i].y);
+        }
+        ctx.stroke();
+    }
+
     if (img && canvas && ctx) {
         // Added a click event listener to the canvas.
-        canvas.addEventListener("click", (e) => {
+        canvas.addEventListener("mousedown", (e) => {
+            isDrawing = true;
+            currentStroke = [];
             const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top; // For the circle to be drawn properly, we need the coordinates RELATIVE to the CANVAS. Hence the subtraction here.
+            currentStroke.push({
+                x: Math.round(e.clientX - rect.left),
+                y: Math.round(e.clientY - rect.top),
+            });
+        });
 
-            annotations.push({ x: Math.round(x), y: Math.round(y) }); // The location of the annotation is saved, to save it as a JSON file later.
+        canvas.addEventListener("mousemove", (e) => {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.round(e.clientX - rect.left);
+            const y = Math.round(e.clientY - rect.top);
+            currentStroke.push({x, y});
+            drawLine(currentStroke.slice(-2));
+        });
 
-            ctx.fillStyle = "red";
-            ctx.beginPath();
-            ctx.arc(x, y, 2, 0, 2 * Math.PI); // Draws a filled circle with radius 2 on the canvas (could be changed later to include polygons etc.)
-            ctx.fill();
+        ["mouseup", "mouseleave"].forEach(eventName => {
+            canvas.addEventListener(eventName, () => {
+                if (isDrawing && currentStroke.length > 1) {
+                    scribbles.push(currentStroke);
+                }
+                isDrawing = false;
+            });
         });
     }
 
