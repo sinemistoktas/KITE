@@ -35,7 +35,7 @@ window.addEventListener('DOMContentLoaded', event => {
     const img = document.getElementById("uploadedImage");
     const canvas = document.getElementById("annotationCanvas");
     const ctx = canvas?.getContext("2d");
-    let mode = "line"; // This will be the current mode of annotation for the user. For now, we have two tools: lines and dots.
+    let mode = null; // This will be the current mode of annotation for the user. For now, we have two tools: lines and dots.
 
     let scribbles = [];
     let currentStroke = [];
@@ -63,14 +63,50 @@ window.addEventListener('DOMContentLoaded', event => {
 
     window.addEventListener("resize", resizeCanvasToImage); // Whenever the browser window & the image is resized, the canvas would resize with it.
 
-    // Added event listeners to the buttons for modifying the annotation mode.
-    document.getElementById("scribbleMode").addEventListener("click", () => {
-        mode = "line";
-    });
+    const lineBtn = document.getElementById("scribbleMode");
+    const dotBtn = document.getElementById("dotMode");
 
-    document.getElementById("dotMode").addEventListener("click", () => {
-        mode = "dot";
-    })
+    // Function to change the selected button's color to red.
+
+    function updateButtonStyles() {
+        if (mode === "line") {
+            lineBtn.classList.remove("btn-outline-danger");
+            lineBtn.classList.add("btn-danger");
+            dotBtn.classList.remove("btn-danger");
+            dotBtn.classList.add("btn-outline-danger");
+        } else if (mode === "dot") {
+            dotBtn.classList.remove("btn-outline-danger");
+            dotBtn.classList.add("btn-danger");
+            lineBtn.classList.remove("btn-danger");
+            lineBtn.classList.add("btn-outline-danger");
+        } else { // Deselect all buttons if the user has clicked on a button that they have already clicked on.
+            lineBtn.classList.remove("btn-danger");
+            lineBtn.classList.add("btn-outline-danger");
+            dotBtn.classList.remove("btn-danger");
+            dotBtn.classList.add("btn-outline-danger");
+        }
+    }
+    
+
+    // Added event listeners to the buttons for modifying the annotation mode.
+
+    lineBtn?.addEventListener("click", () => {
+        if (mode === "line") {
+            mode = null;
+        } else {
+            mode = "line";
+        }
+        updateButtonStyles();
+    });
+    
+    dotBtn?.addEventListener("click", () => {
+        if (mode === "dot") {
+            mode = null;
+        } else {
+            mode = "dot";
+        }
+        updateButtonStyles();
+    });
 
     function drawLine(points) {
         if (points.length < 2) return;
@@ -88,6 +124,7 @@ window.addEventListener('DOMContentLoaded', event => {
         // I added a mousedown, mousemove, mouseup and mouseleave listener to the canvas
         // so that it looks out for scribbling events and sets the annotations array accordingly.
         canvas.addEventListener("mousedown", (e) => {
+            if (!mode) return; // If no mode, don't draw!
             const rect = canvas.getBoundingClientRect();
             const x = Math.round(e.clientX - rect.left);
             const y = Math.round(e.clientY - rect.top);
