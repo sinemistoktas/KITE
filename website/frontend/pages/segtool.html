@@ -6,6 +6,7 @@
     <title>KITE</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'styles.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="icon" type="image/x-icon" href="{% static 'img/favicon.ico' %}">
     <script src="{% static 'js/scripts.js' %}"></script>
 
@@ -48,6 +49,14 @@
         <div id= "imageCanvasBlock">
         <img id= "uploadedImage" src="{{ image_url }}" class="img-oct" />
         <canvas id= "annotationCanvas"> </canvas>
+        <div class="btn-group mt-3 mb-3" role="group" aria-label="Annotation Mode">
+          <button type="button" class="btn btn-outline-danger" id="scribbleMode">
+            <i class="fa-solid fa-minus"></i> Line
+          </button>
+          <button type="button" class="btn btn-outline-danger" id="dotMode">
+            <i class="fa-solid fa-pencil"></i> Dot
+          </button>
+        </div>        
         </div>
       </div>
       <button class="btn btn-primary" onclick= "handleAnnotations()">Ready to Segment!</button>

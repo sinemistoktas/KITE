@@ -35,7 +35,8 @@ window.addEventListener('DOMContentLoaded', event => {
     const img = document.getElementById("uploadedImage");
     const canvas = document.getElementById("annotationCanvas");
     const ctx = canvas?.getContext("2d");
-    
+    let mode = null; // This will be the current mode of annotation for the user. For now, we have two tools: lines and dots.
+
     let scribbles = [];
     let currentStroke = [];
     let isDrawing = false;
@@ -63,6 +64,51 @@ window.addEventListener('DOMContentLoaded', event => {
 
     window.addEventListener("resize", resizeCanvasToImage); // Whenever the browser window & the image is resized, the canvas would resize with it.
 
+    const lineBtn = document.getElementById("scribbleMode");
+    const dotBtn = document.getElementById("dotMode");
+
+    // Function to change the selected button's color to red.
+
+    function updateButtonStyles() {
+        if (mode === "line") {
+            lineBtn.classList.remove("btn-outline-danger");
+            lineBtn.classList.add("btn-danger");
+            dotBtn.classList.remove("btn-danger");
+            dotBtn.classList.add("btn-outline-danger");
+        } else if (mode === "dot") {
+            dotBtn.classList.remove("btn-outline-danger");
+            dotBtn.classList.add("btn-danger");
+            lineBtn.classList.remove("btn-danger");
+            lineBtn.classList.add("btn-outline-danger");
+        } else { // Deselect all buttons if the user has clicked on a button that they have already clicked on.
+            lineBtn.classList.remove("btn-danger");
+            lineBtn.classList.add("btn-outline-danger");
+            dotBtn.classList.remove("btn-danger");
+            dotBtn.classList.add("btn-outline-danger");
+        }
+    }
+    
+
+    // Added event listeners to the buttons for modifying the annotation mode.
+
+    lineBtn?.addEventListener("click", () => {
+        if (mode === "line") {
+            mode = null;
+        } else {
+            mode = "line";
+        }
+        updateButtonStyles();
+    });
+    
+    dotBtn?.addEventListener("click", () => {
+        if (mode === "dot") {
+            mode = null;
+        } else {
+            mode = "dot";
+        }
+        updateButtonStyles();
+    });
+
     function drawLine(points) {
         if (points.length < 2) return;
         ctx.strokeStyle = "red";
@@ -76,19 +122,28 @@ window.addEventListener('DOMContentLoaded', event => {
     }
 
     if (img && canvas && ctx) {
-        // Added a click event listener to the canvas.
+        // I added a mousedown, mousemove, mouseup and mouseleave listener to the canvas
+        // so that it looks out for scribbling events and sets the annotations array accordingly.
         canvas.addEventListener("mousedown", (e) => {
-            isDrawing = true;
-            currentStroke = [];
+            if (!mode) return; // If no mode, don't draw!
             const rect = canvas.getBoundingClientRect();
-            currentStroke.push({
-                x: Math.round(e.clientX - rect.left),
-                y: Math.round(e.clientY - rect.top),
-            });
+            const x = Math.round(e.clientX - rect.left);
+            const y = Math.round(e.clientY - rect.top);
+
+            if (mode === "dot") {
+                ctx.fillStyle = "red";
+                ctx.beginPath();
+                ctx.arc(x, y, 2, 0, 2 * Math.PI);
+                ctx.fill();
+                scribbles.push([{x, y}]); // So with a dot, the annotation will simply be saved as a single point of x and y.
+            } else {
+                isDrawing = true // The user has started drawing if the mode is the line mode.
+                currentStroke = [{x, y}]
+            }
         });
 
         canvas.addEventListener("mousemove", (e) => {
-            if (!isDrawing) return;
+            if (!isDrawing || mode !== "line") return; // Ensure that the user is either currently drawing AND we're in the line mode. 
             const rect = canvas.getBoundingClientRect();
             const x = Math.round(e.clientX - rect.left);
             const y = Math.round(e.clientY - rect.top);
