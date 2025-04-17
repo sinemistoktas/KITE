@@ -66,6 +66,7 @@ window.addEventListener('DOMContentLoaded', event => {
 
     const lineBtn = document.getElementById("scribbleMode");
     const dotBtn = document.getElementById("dotMode");
+    const eraserBtn = document.getElementById("eraserMode");
 
     // Function to change the selected button's color to red.
 
@@ -75,16 +76,30 @@ window.addEventListener('DOMContentLoaded', event => {
             lineBtn.classList.add("btn-danger");
             dotBtn.classList.remove("btn-danger");
             dotBtn.classList.add("btn-outline-danger");
+            eraserBtn.classList.remove("btn-danger");
+            eraserBtn.classList.add("btn-outline-danger");
         } else if (mode === "dot") {
             dotBtn.classList.remove("btn-outline-danger");
             dotBtn.classList.add("btn-danger");
             lineBtn.classList.remove("btn-danger");
             lineBtn.classList.add("btn-outline-danger");
-        } else { // Deselect all buttons if the user has clicked on a button that they have already clicked on.
+            eraserBtn.classList.remove("btn-danger");
+            eraserBtn.classList.add("btn-outline-danger");
+        } else if (mode === "eraser") {
+            eraserBtn.classList.remove("btn-outline-danger");
+            eraserBtn.classList.add("btn-danger");
             lineBtn.classList.remove("btn-danger");
             lineBtn.classList.add("btn-outline-danger");
             dotBtn.classList.remove("btn-danger");
             dotBtn.classList.add("btn-outline-danger");
+        }
+        else { // Deselect all buttons if the user has clicked on a button that they have already clicked on.
+            lineBtn.classList.remove("btn-danger");
+            lineBtn.classList.add("btn-outline-danger");
+            dotBtn.classList.remove("btn-danger");
+            dotBtn.classList.add("btn-outline-danger");
+            eraserBtn.classList.remove("btn-danger");
+            eraserBtn.classList.add("btn-outline-danger");
         }
     }
     
@@ -105,6 +120,18 @@ window.addEventListener('DOMContentLoaded', event => {
             mode = null;
         } else {
             mode = "dot";
+        }
+        updateButtonStyles();
+    });
+
+    eraserBtn?.addEventListener("click", () => {
+        if (mode === "eraser") {
+            mode = null;
+        } else {
+            mode = "eraser";
+            scribbles = [];
+            currentStroke = [];
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
         updateButtonStyles();
     });
