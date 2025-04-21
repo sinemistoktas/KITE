@@ -48,6 +48,7 @@
         <p><strong>Filename:</strong> {{ image_name }}</p>
         <div id= "imageCanvasBlock">
         <img id= "uploadedImage" src="{{ image_url }}" class="img-oct" />
+        <canvas id="predictionCanvas"></canvas>
         <canvas id= "annotationCanvas"> </canvas>
         <div class="btn-group mt-3 mb-3" role="group" aria-label="Annotation Mode">
           <button type="button" class="btn btn-outline-danger" id="scribbleMode">

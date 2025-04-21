@@ -14,6 +14,7 @@ let mode = null;
 let isDrawing = false;
 let isErasing = false;
 const ERASE_RADIUS = 10;
+let annotationCanvas, annotationCtx, predictionCanvas, predictionCtx;
 
 // GLOBAL references to be set on DOMContentLoaded
 let canvas, ctx, scribbles = [], currentStroke = [];
@@ -26,32 +27,42 @@ function distance(p1, p2) {
 
 window.addEventListener('DOMContentLoaded', event => {
 
-    function drawLine(points) {
+    annotationCanvas = document.getElementById("annotationCanvas");
+    annotationCtx = annotationCanvas.getContext("2d");
+
+    predictionCanvas = document.getElementById("predictionCanvas");
+    predictionCtx = predictionCanvas.getContext("2d");
+
+    function drawLine(points, color = "red", context = annotationCtx) {
         if (points.length < 2) return;
-        ctx.strokeStyle = "red";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(points[0].x, points[0].y);
+        context.strokeStyle = color;
+        context.lineWidth = 2;
+        context.beginPath();
+        context.moveTo(points[0].x, points[0].y);
         for (let i = 1; i < points.length; i++) {
-            ctx.lineTo(points[i].x, points[i].y);
+            context.lineTo(points[i].x, points[i].y);
         }
-        ctx.stroke();
+        context.stroke();
     }
 
     function eraseAtPoint(x, y) {
         scribbles = scribbles.filter(stroke => {
-            return !stroke.some(p => distance(p, { x, y }) < ERASE_RADIUS);
+            if (stroke.isPrediction) return true;
+            return !stroke.points.some(p => distance(p, { x, y }) < ERASE_RADIUS);
         });
     
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        annotationCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
         for (const stroke of scribbles) {
-            if (stroke.length === 1) {
-                ctx.fillStyle = "red";
-                ctx.beginPath();
-                ctx.arc(stroke[0].x, stroke[0].y, 2, 0, 2 * Math.PI);
-                ctx.fill();
-            } else {
-                drawLine(stroke);
+            if (!stroke.isPrediction) {
+                const color = "red";
+                if (stroke.points.length === 1) {
+                    annotationCtx.fillStyle = color;
+                    annotationCtx.beginPath();
+                    annotationCtx.arc(stroke.points[0].x, stroke.points[0].y, 2, 0, 2 * Math.PI);
+                    annotationCtx.fill();
+                } else {
+                    drawLine(stroke.points, color);
+                }
             }
         }
     }
@@ -59,26 +70,28 @@ window.addEventListener('DOMContentLoaded', event => {
     function drawEraserCursor() {
         if (!showEraserCursor || mode !== "eraser") return;
     
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
+        annotationCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
         for (const stroke of scribbles) {
-            if (stroke.length === 1) {
-                ctx.fillStyle = "red";
-                ctx.beginPath();
-                ctx.arc(stroke[0].x, stroke[0].y, 2, 0, 2 * Math.PI);
-                ctx.fill();
-            } else {
-                drawLine(stroke);
+            if (!stroke.isPrediction) {
+                const color = "red";
+                if (stroke.points.length === 1) {
+                    annotationCtx.fillStyle = color;
+                    annotationCtx.beginPath();
+                    annotationCtx.arc(stroke.points[0].x, stroke.points[0].y, 2, 0, 2 * Math.PI);
+                    annotationCtx.fill();
+                } else {
+                    drawLine(stroke.points, color);
+                }
             }
         }
     
-        ctx.save();
-        ctx.beginPath();
-        ctx.strokeStyle = "rgba(0, 255, 255, 0.9)";
-        ctx.lineWidth = 1;
-        ctx.arc(mouseX, mouseY, ERASE_RADIUS, 0, 2 * Math.PI);
-        ctx.stroke();
-        ctx.restore();
+        annotationCtx.save();
+        annotationCtx.beginPath();
+        annotationCtx.strokeStyle = "rgba(0, 255, 255, 0.9)";
+        annotationCtx.lineWidth = 1;
+        annotationCtx.arc(mouseX, mouseY, ERASE_RADIUS, 0, 2 * Math.PI);
+        annotationCtx.stroke();
+        annotationCtx.restore();
     }
 
     const img = document.getElementById("uploadedImage");
@@ -107,16 +120,21 @@ window.addEventListener('DOMContentLoaded', event => {
         });
     });
 
-    // Sets the style of the canvas to ensure that it is completely aligned with the image.
+    // Sets the style of the canvases to ensure that it is completely aligned with the image.
     function resizeCanvasToImage() {
         const rect = img.getBoundingClientRect();
-        canvas.width = rect.width;
-        canvas.height = rect.height;
-        canvas.style.width = `${rect.width}px`;
-        canvas.style.height = `${rect.height}px`;
-        canvas.style.position = "absolute";
-        canvas.style.top = "0";
-        canvas.style.left = "0";
+        for (const c of [annotationCanvas, predictionCanvas]) {
+            c.width = rect.width;
+            c.height = rect.height;
+            c.style.width = `${rect.width}px`;
+            c.style.height = `${rect.height}px`;
+            c.style.position = "absolute";
+            c.style.top = "0";
+            c.style.left = "0";
+            c.style.pointerEvents = "none";
+        }
+    
+        annotationCanvas.style.pointerEvents = "auto"; // Allows ONLY the annotation layer to be interactive.
     }
     //TODO: When the window is resized the canvas is DELETED. what to do ?
       
@@ -184,21 +202,23 @@ window.addEventListener('DOMContentLoaded', event => {
     
             // If switching FROM eraser mode, clear the eraser cursor from canvas.
             if (previousMode === "eraser" && newMode !== "eraser") {
-                canvas.style.cursor = "crosshair";
-    
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                annotationCanvas.style.cursor = "crosshair";
+            
+                annotationCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
                 for (const stroke of scribbles) {
-                    if (stroke.length === 1) {
-                        ctx.fillStyle = "red";
-                        ctx.beginPath();
-                        ctx.arc(stroke[0].x, stroke[0].y, 2, 0, 2 * Math.PI);
-                        ctx.fill();
-                    } else {
-                        drawLine(stroke);
+                    if (!stroke.isPrediction) {
+                        const color = "red";
+                        if (stroke.points.length === 1) {
+                            annotationCtx.fillStyle = color;
+                            annotationCtx.beginPath();
+                            annotationCtx.arc(stroke.points[0].x, stroke.points[0].y, 2, 0, 2 * Math.PI);
+                            annotationCtx.fill();
+                        } else {
+                            drawLine(stroke.points, color);
+                        }
                     }
                 }
             }
-    
             // Update cursor visibility based on mode.
             if (newMode === "eraser") {
                 canvas.style.cursor = "none";
@@ -229,9 +249,9 @@ window.addEventListener('DOMContentLoaded', event => {
                 ctx.beginPath();
                 ctx.arc(x, y, 2, 0, 2 * Math.PI);
                 ctx.fill();
-                scribbles.push([{ x, y }]); // So with a dot, the annotation will simply be saved as a single point of x and y.
+                scribbles.push({ points: [{ x, y }], isPrediction: false });
             } else if (mode === "line") {
-                isDrawing = true; // The user has started drawing if the mode is the line mode.
+                isDrawing = true;
                 currentStroke = [{ x, y }];
             } else if (mode === "eraser") {
                 isErasing = true;
@@ -261,7 +281,7 @@ window.addEventListener('DOMContentLoaded', event => {
                             ctx.arc(stroke[0].x, stroke[0].y, 2, 0, 2 * Math.PI);
                             ctx.fill();
                         } else {
-                            drawLine(stroke);
+                            drawLine(stroke.points, stroke.isPrediction ? "blue" : "red");;
                         }
                     }
                 }
@@ -272,7 +292,7 @@ window.addEventListener('DOMContentLoaded', event => {
 
         canvas.addEventListener("mouseup", () => {
             if (isDrawing && currentStroke.length > 0) {
-                scribbles.push(currentStroke);
+                scribbles.push({ points: currentStroke, isPrediction: false });
                 currentStroke = [];
             }
             isDrawing = false;
@@ -286,7 +306,26 @@ window.addEventListener('DOMContentLoaded', event => {
     }
 
     window.handleAnnotations = function () {
-        const allPoints = scribbles.flat();
+        // Ensure that the user's annotations are SAVED!! We need
+        // the user to continuously modify their segmentation output.
+        scribbles = scribbles.filter(s => !s.isPrediction);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Redraws only the user annotations.
+        for (const stroke of scribbles) {
+            const color = "red";
+            if (stroke.points.length === 1) {
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(stroke.points[0].x, stroke.points[0].y, 2, 0, 2 * Math.PI);
+                ctx.fill();
+            } else {
+                drawLine(stroke.points, color);
+            }
+        }
+        const allPoints = scribbles
+        .filter(s => !s.isPrediction)
+        .flatMap(s => s.points);
         const annotationsJson = {
             image_name: window.imageName,
             shapes: [{
@@ -315,27 +354,35 @@ window.addEventListener('DOMContentLoaded', event => {
             const canvas = document.getElementById("annotationCanvas");
             const ctx = canvas.getContext("2d");
 
-            img.src = `data:image/png;base64,${data.segmented_image}`;
-            img.onload = () => {
-                resizeCanvasToImage();
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                scribbles = [];
+            resizeCanvasToImage();
+            predictionCtx.clearRect(0, 0, predictionCanvas.width, predictionCanvas.height);
 
-                const predictedPoints = data.predicted_annotations || [];
+            scribbles = scribbles.filter(s => !s.isPrediction);
+
+            for (const stroke of scribbles) {
+                const color = "red";
+                if (stroke.points.length === 1) {
+                    annotationCtx.fillStyle = color;
+                    annotationCtx.beginPath();
+                    annotationCtx.arc(stroke.points[0].x, stroke.points[0].y, 2, 0, 2 * Math.PI);
+                    annotationCtx.fill();
+                } else {
+                    drawLine(stroke.points, color);
+                }
+            }
+
+            const predictedPoints = data.predicted_annotations || [];
+            if (predictedPoints.length > 0) {
                 let stroke = [];
-
                 for (const [x, y] of predictedPoints) {
-                    ctx.fillStyle = "blue";
-                    ctx.beginPath();
-                    ctx.arc(x, y, 2, 0, 2 * Math.PI);
-                    ctx.fill();
+                    predictionCtx.fillStyle = "blue";
+                    predictionCtx.beginPath();
+                    predictionCtx.arc(x, y, 2, 0, 2 * Math.PI);
+                    predictionCtx.fill();
                     stroke.push({ x, y });
                 }
-
-                if (stroke.length > 0) {
-                    scribbles.push(stroke);
-                }
-            };
+                scribbles.push({ points: stroke, isPrediction: true });
+            }
         });
     }
 
