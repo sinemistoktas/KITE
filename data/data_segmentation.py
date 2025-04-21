@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from skimage import data, filters, morphology, restoration, transform, registration, exposure, feature
+from skimage import data, filters, morphology, restoration, transform, registration, exposure, feature, measure
 from scipy.ndimage import map_coordinates, binary_fill_holes, median_filter, gaussian_laplace, uniform_filter, generic_filter, gaussian_filter, laplace
 from skimage.io import imread
 from scipy.stats import trim_mean
@@ -9,6 +9,7 @@ import os
 import pandas as pd
 import json
 from data.data_preprocessing import Preprocessor
+from PIL import Image
 # steps to follow
 # 1. load the data
 # 2. preprocess the data
@@ -25,6 +26,8 @@ class SegmentationModel():
         self.preprocessor = preprocessor
         self.input_directory = "./duke_original/image"
         self.ground_truth_directory = "./duke_original/lesion"
+        self.last_mask = None # Used to store the last output.
+        self.last_predicted_points = []
     
     def grow_region(self,image, seed_mask, threshold=10):
         height, width = image.shape
@@ -95,8 +98,6 @@ class SegmentationModel():
     # is for showcasing & comparing the ground truth image with the segmented image.
     def run_segmentation_from_json_without_ground_truth(self, image, annotation_json):
         image = self.preprocessor.preprocess_image(image)
-        bg_removed = self.preprocessor.thresholding(image, 0.4)
-        bg_removed = morphology.closing(bg_removed, morphology.square(8))
         gray_image = (image * 255).astype(np.uint8)
 
         points = np.array(annotation_json['shapes'][0]['points'], dtype=np.int32)
@@ -108,19 +109,17 @@ class SegmentationModel():
         image_rgb = np.stack([gray_image] * 3, axis=-1).astype(np.uint8)
         image_rgb[grown_mask == 1] = [0, 0, 255]
 
-        fig = plt.figure(figsize=(8, 4))
-        plt.subplot(1, 2, 1)
-        plt.imshow(image, cmap='gray')
-        plt.title("Original")
-        plt.axis('off')
+        contours = measure.find_contours(grown_mask, 0.5)
+        predicted_points = []
+        for contour in contours:
+            for y, x in contour:
+                predicted_points.append([int(x), int(y)])
 
-        plt.subplot(1, 2, 2)
-        plt.imshow(image_rgb)
-        plt.title("Segmented")
-        plt.axis('off')
-
-        plt.tight_layout()
-        return fig
+        self.last_predicted_points = predicted_points
+        return Image.fromarray(image_rgb)
+    
+    def get_predicted_points(self):
+        return self.last_predicted_points
 
 # An example usage of the segmentation class.
 if __name__ == "__main__":

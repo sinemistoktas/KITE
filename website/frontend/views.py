@@ -12,6 +12,7 @@ import json
 import io
 import os
 from skimage.io import imread
+from base64 import b64encode
 
 preprocessor = Preprocessor()
 segmentation_model = SegmentationModel(preprocessor)
@@ -38,33 +39,31 @@ def seg_tool(request):
 # The function then applies segmentation on the image, and returns the segmented image in a PNG format.
 #TODO: Decide if this should be moved to the back-end or not.
 def segment_image(request):
-    print("segment_image() called") # Only for testing
     if request.method == "POST":
         try:
-            print("Request body:", request.body) # The body for testing purposes, you can delete this !!!
             data = json.loads(request.body)
             filename = data.get("image_name")
-
             if not filename:
-                return JsonResponse({"error": "No image name provided."}, status= 400)
-            
+                return JsonResponse({"error": "No image name provided."}, status=400)
             image_path = os.path.join(settings.MEDIA_ROOT, filename)
-
             if not os.path.exists(image_path):
-                return JsonResponse({"error": "Image file not found."}, status= 404)
-            
+                return JsonResponse({"error": "Image file not found."}, status=404)
             image = imread(image_path, as_gray= True)
-            fig = segmentation_model.run_segmentation_from_json_without_ground_truth(image, data)
+            result_img = segmentation_model.run_segmentation_from_json_without_ground_truth(image, data)
+            predicted_points = segmentation_model.get_predicted_points()
 
             buf = io.BytesIO()
-            canvas = FigureCanvas(fig)
-            canvas.print_png(buf)
-            plt.close(fig) #TODO: GIVE AN ERROR HTML INSTEAD OF A PLOT IF THE ANNOTATIONS DO NOT EXIST !!!
+            result_img.save(buf, format="PNG")
+            buf.seek(0)
+            encoded_image = b64encode(buf.getvalue()).decode("utf-8")
 
-            return HttpResponse(buf.getvalue(), content_type = "image/png")
-        
+            return JsonResponse({
+                "segmented_image": encoded_image,
+                "predicted_annotations": predicted_points
+            })
+
         except Exception as e:
-            return JsonResponse({"error": "Only a POST request is allowed."}, status= 405)
-        
+            return JsonResponse({"error": str(e)}, status=500)
+
     return JsonResponse({'error': 'Only a POST request is allowed'}, status=405)
 
