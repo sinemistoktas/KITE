@@ -7,7 +7,70 @@
 // Scripts
 // 
 
+let mouseX = 0;
+let mouseY = 0;
+let showEraserCursor = false;
+let mode = null; 
+let isDrawing = false;
+let isErasing = false;
+const ERASE_RADIUS = 10;
+
+// GLOBAL references to be set on DOMContentLoaded
+let canvas, ctx, scribbles = [], currentStroke = [];
+
+// Useful for the eraser feature.
+function distance(p1, p2) { 
+    return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
+}
+
+
 window.addEventListener('DOMContentLoaded', event => {
+
+    function drawLine(points) {
+        if (points.length < 2) return;
+        ctx.strokeStyle = "red";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+            ctx.lineTo(points[i].x, points[i].y);
+        }
+        ctx.stroke();
+    }
+
+    function eraseAtPoint(x, y) {
+        scribbles = scribbles.filter(stroke => {
+            return !stroke.some(p => distance(p, { x, y }) < ERASE_RADIUS);
+        });
+    
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (const stroke of scribbles) {
+            if (stroke.length === 1) {
+                ctx.fillStyle = "red";
+                ctx.beginPath();
+                ctx.arc(stroke[0].x, stroke[0].y, 2, 0, 2 * Math.PI);
+                ctx.fill();
+            } else {
+                drawLine(stroke);
+            }
+        }
+    }
+
+    function drawEraserCursor() {
+        if (!showEraserCursor || mode !== "eraser") return;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.strokeStyle = "rgba(0, 0, 255, 0.4)";
+        ctx.lineWidth = 1;
+        ctx.arc(mouseX, mouseY, ERASE_RADIUS, 0, 2 * Math.PI);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    const img = document.getElementById("uploadedImage");
+    canvas = document.getElementById("annotationCanvas");
+    ctx = canvas?.getContext("2d");
 
     // Activate Bootstrap scrollspy on the main nav element
     const sideNav = document.body.querySelector('#sideNav');
@@ -31,16 +94,6 @@ window.addEventListener('DOMContentLoaded', event => {
         });
     });
 
-    // Logic for image annotation
-    const img = document.getElementById("uploadedImage");
-    const canvas = document.getElementById("annotationCanvas");
-    const ctx = canvas?.getContext("2d");
-    let mode = null; // This will be the current mode of annotation for the user. For now, we have two tools: lines and dots.
-
-    let scribbles = [];
-    let currentStroke = [];
-    let isDrawing = false;
-
     // Sets the style of the canvas to ensure that it is completely aligned with the image.
     function resizeCanvasToImage() {
         const rect = img.getBoundingClientRect();
@@ -51,7 +104,7 @@ window.addEventListener('DOMContentLoaded', event => {
         canvas.style.position = "absolute";
         canvas.style.top = "0";
         canvas.style.left = "0";
-      }
+    }
     //TODO: When the window is resized the canvas is DELETED. what to do ?
       
     if (img.complete) { // If the browser has finished loading the image, resize the canvas. Else resize it when it loads.
@@ -102,57 +155,37 @@ window.addEventListener('DOMContentLoaded', event => {
             eraserBtn.classList.add("btn-outline-danger");
         }
     }
-    
 
-    // Added event listeners to the buttons for modifying the annotation mode.
+
+     // Added event listeners to the buttons for modifying the annotation mode.
 
     lineBtn?.addEventListener("click", () => {
-        if (mode === "line") {
-            mode = null;
-        } else {
-            mode = "line";
-        }
+        mode = mode === "line" ? null : "line";
         updateButtonStyles();
     });
     
     dotBtn?.addEventListener("click", () => {
-        if (mode === "dot") {
-            mode = null;
-        } else {
-            mode = "dot";
-        }
+        mode = mode === "dot" ? null : "dot";
         updateButtonStyles();
     });
 
     eraserBtn?.addEventListener("click", () => {
         if (mode === "eraser") {
             mode = null;
+            showEraserCursor = false;
         } else {
             mode = "eraser";
-            scribbles = [];
-            currentStroke = [];
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            showEraserCursor = true;
         }
         updateButtonStyles();
     });
 
-    function drawLine(points) {
-        if (points.length < 2) return;
-        ctx.strokeStyle = "red";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(points[0].x, points[0].y);
-        for (let i = 1; i < points.length; i++) {
-            ctx.lineTo(points[i].x, points[i].y);
-        }
-        ctx.stroke();
-    }
+
 
     if (img && canvas && ctx) {
         // I added a mousedown, mousemove, mouseup and mouseleave listener to the canvas
         // so that it looks out for scribbling events and sets the annotations array accordingly.
         canvas.addEventListener("mousedown", (e) => {
-            if (!mode) return; // If no mode, don't draw!
             const rect = canvas.getBoundingClientRect();
             const x = Math.round(e.clientX - rect.left);
             const y = Math.round(e.clientY - rect.top);
@@ -162,40 +195,69 @@ window.addEventListener('DOMContentLoaded', event => {
                 ctx.beginPath();
                 ctx.arc(x, y, 2, 0, 2 * Math.PI);
                 ctx.fill();
-                scribbles.push([{x, y}]); // So with a dot, the annotation will simply be saved as a single point of x and y.
-            } else {
-                isDrawing = true // The user has started drawing if the mode is the line mode.
-                currentStroke = [{x, y}]
+                scribbles.push([{ x, y }]); // So with a dot, the annotation will simply be saved as a single point of x and y.
+            } else if (mode === "line") {
+                isDrawing = true; // The user has started drawing if the mode is the line mode.
+                currentStroke = [{ x, y }];
+            } else if (mode === "eraser") {
+                isErasing = true;
+                eraseAtPoint(x, y);
             }
         });
 
         canvas.addEventListener("mousemove", (e) => {
-            if (!isDrawing || mode !== "line") return; // Ensure that the user is either currently drawing AND we're in the line mode. 
             const rect = canvas.getBoundingClientRect();
-            const x = Math.round(e.clientX - rect.left);
-            const y = Math.round(e.clientY - rect.top);
-            currentStroke.push({x, y});
-            drawLine(currentStroke.slice(-2));
+            mouseX = Math.round(e.clientX - rect.left);
+            mouseY = Math.round(e.clientY - rect.top);
+        
+            if (isDrawing && mode === "line") { // Ensure that the user is either currently drawing AND we're in the line mode. 
+                currentStroke.push({ x: mouseX, y: mouseY });
+                drawLine(currentStroke);
+            }
+        
+            if (mode === "eraser") {
+                if (isErasing) {
+                    eraseAtPoint(mouseX, mouseY);
+                } else {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    for (const stroke of scribbles) {
+                        if (stroke.length === 1) {
+                            ctx.fillStyle = "red";
+                            ctx.beginPath();
+                            ctx.arc(stroke[0].x, stroke[0].y, 2, 0, 2 * Math.PI);
+                            ctx.fill();
+                        } else {
+                            drawLine(stroke);
+                        }
+                    }
+                }
+        
+                drawEraserCursor();
+            }
         });
 
-        ["mouseup", "mouseleave"].forEach(eventName => {
-            canvas.addEventListener(eventName, () => {
-                if (isDrawing && currentStroke.length > 1) {
-                    scribbles.push(currentStroke);
-                }
-                isDrawing = false;
-            });
+        canvas.addEventListener("mouseup", () => {
+            if (isDrawing && currentStroke.length > 0) {
+                scribbles.push(currentStroke);
+                currentStroke = [];
+            }
+            isDrawing = false;
+            isErasing = false;
+        });
+
+        canvas.addEventListener("mouseleave", () => {
+            isDrawing = false;
+            isErasing = false;
         });
     }
 
     window.handleAnnotations = function () {
-        const allPoints = scribbles.flat(); // Flattens all the scribbles into a single array.
+        const allPoints = scribbles.flat();
         const annotationsJson = {
             image_name: window.imageName,
             shapes: [{
                 label: "anomaly",
                 points: allPoints.map(p => [p.x, p.y])
-
             }]
         };
 
@@ -207,13 +269,39 @@ window.addEventListener('DOMContentLoaded', event => {
             },
             body: JSON.stringify(annotationsJson)
         })
-        .then(response => response.blob())
-        .then(blob => {
-            const url = URL.createObjectURL(blob);
-            const img = new Image();
-            img.src = url;
-            document.getElementById("segmentationResult").innerHTML = "";
-            document.getElementById("segmentationResult").appendChild(img);
+        .then(response => {
+            if (!response.ok) {
+                console.error("Server error:", response.status);
+                return;
+            }
+            return response.json();
+        })
+        .then(data => {
+            const img = document.getElementById("uploadedImage");
+            const canvas = document.getElementById("annotationCanvas");
+            const ctx = canvas.getContext("2d");
+
+            img.src = `data:image/png;base64,${data.segmented_image}`;
+            img.onload = () => {
+                resizeCanvasToImage();
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                scribbles = [];
+
+                const predictedPoints = data.predicted_annotations || [];
+                let stroke = [];
+
+                for (const [x, y] of predictedPoints) {
+                    ctx.fillStyle = "blue";
+                    ctx.beginPath();
+                    ctx.arc(x, y, 2, 0, 2 * Math.PI);
+                    ctx.fill();
+                    stroke.push({ x, y });
+                }
+
+                if (stroke.length > 0) {
+                    scribbles.push(stroke);
+                }
+            };
         });
     }
 
@@ -222,5 +310,4 @@ window.addEventListener('DOMContentLoaded', event => {
         const parts = value.split(`; ${name}=`);
         return parts.length === 2 ? parts.pop().split(';').shift() : '';
     }
-
 });
