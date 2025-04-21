@@ -65,7 +65,14 @@
       </div>
       <button class="btn btn-primary" onclick= "handleAnnotations()">Ready to Segment!</button>
       {% endif %}
-      <div id="segmentationResult" class="mt-4"></div>
+      <div id="segmentationResult" class="card mt-4 shadow-sm border-primary" style="max-width: 600px; margin: 0 auto; display: none;">
+        <div class="card-header bg-primary text-white text-center">
+          Segmented Result
+        </div>
+        <div class="card-body text-center">
+          <img id="segmentedResultImage" class="img-fluid" style="max-width: 100%;" alt="Segmented Output" />
+        </div>
+      </div>
     </div>
     <script>
       window.imageName = "{{ image_name }}";

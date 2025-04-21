@@ -383,6 +383,11 @@ window.addEventListener('DOMContentLoaded', event => {
                 }
                 scribbles.push({ points: stroke, isPrediction: true });
             }
+            const segmentedImageElement = document.getElementById("segmentedResultImage");
+            segmentedImageElement.src = `data:image/png;base64,${data.segmented_image}`;
+            if (data.segmented_image) {
+                document.getElementById("segmentationResult").style.display = "block";
+            }
         });
     }
 
