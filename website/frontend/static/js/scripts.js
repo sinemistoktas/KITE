@@ -58,10 +58,23 @@ window.addEventListener('DOMContentLoaded', event => {
 
     function drawEraserCursor() {
         if (!showEraserCursor || mode !== "eraser") return;
-
+    
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+        for (const stroke of scribbles) {
+            if (stroke.length === 1) {
+                ctx.fillStyle = "red";
+                ctx.beginPath();
+                ctx.arc(stroke[0].x, stroke[0].y, 2, 0, 2 * Math.PI);
+                ctx.fill();
+            } else {
+                drawLine(stroke);
+            }
+        }
+    
         ctx.save();
         ctx.beginPath();
-        ctx.strokeStyle = "rgba(0, 0, 255, 0.4)";
+        ctx.strokeStyle = "rgba(0, 255, 255, 0.9)";
         ctx.lineWidth = 1;
         ctx.arc(mouseX, mouseY, ERASE_RADIUS, 0, 2 * Math.PI);
         ctx.stroke();
@@ -156,30 +169,51 @@ window.addEventListener('DOMContentLoaded', event => {
         }
     }
 
+    // A more generic function to set the mode rather than the previous calls. This ensures that a button does not need to be
+    // clicked again to reset its mode's properties, like the moving eraser cursor.
 
-     // Added event listeners to the buttons for modifying the annotation mode.
-
-    lineBtn?.addEventListener("click", () => {
-        mode = mode === "line" ? null : "line";
-        updateButtonStyles();
-    });
-    
-    dotBtn?.addEventListener("click", () => {
-        mode = mode === "dot" ? null : "dot";
-        updateButtonStyles();
-    });
-
-    eraserBtn?.addEventListener("click", () => {
-        if (mode === "eraser") {
+     function setMode(newMode) {
+        if (mode === newMode) {
+            // Deselect if user clicks the same button again.
             mode = null;
             showEraserCursor = false;
         } else {
-            mode = "eraser";
-            showEraserCursor = true;
+            const previousMode = mode;
+            mode = newMode;
+            showEraserCursor = (newMode === "eraser");
+    
+            // If switching FROM eraser mode, clear the eraser cursor from canvas.
+            if (previousMode === "eraser" && newMode !== "eraser") {
+                canvas.style.cursor = "crosshair";
+    
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                for (const stroke of scribbles) {
+                    if (stroke.length === 1) {
+                        ctx.fillStyle = "red";
+                        ctx.beginPath();
+                        ctx.arc(stroke[0].x, stroke[0].y, 2, 0, 2 * Math.PI);
+                        ctx.fill();
+                    } else {
+                        drawLine(stroke);
+                    }
+                }
+            }
+    
+            // Update cursor visibility based on mode.
+            if (newMode === "eraser") {
+                canvas.style.cursor = "none";
+            } else {
+                canvas.style.cursor = "crosshair";
+            }
         }
+    
         updateButtonStyles();
-    });
-
+    }
+    
+    // Added event listeners to the buttons for modifying the annotation mode.
+    lineBtn?.addEventListener("click", () => setMode("line"));
+    dotBtn?.addEventListener("click", () => setMode("dot"));
+    eraserBtn?.addEventListener("click", () => setMode("eraser"));
 
 
     if (img && canvas && ctx) {
