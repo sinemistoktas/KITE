@@ -11106,3 +11106,28 @@ section.info-section .info-section-content {
 #uploadedImage {
   display: block;
 }
+
+#segmentationResult {
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: none;
+}
+
+#segmentationResult .card-body {
+  padding: 0;
+  margin: 0;
+}
+
+#segmentedResultImage {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
