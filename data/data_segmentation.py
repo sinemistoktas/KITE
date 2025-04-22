@@ -66,6 +66,7 @@ class SegmentationModel():
 
         grown_mask = self.grow_region(gray_image, seed_mask, threshold=5)
         grown_mask = morphology.closing(grown_mask, morphology.square(4))
+
         image_rgb = np.stack([gray_image] * 3, axis=-1).astype(np.uint8)
         image_rgb[grown_mask == 1] = [0, 0, 255]
 
@@ -106,6 +107,7 @@ class SegmentationModel():
 
         grown_mask = self.grow_region(gray_image, seed_mask, threshold=5)
         grown_mask = morphology.closing(grown_mask, morphology.square(4))
+        grown_mask = binary_fill_holes(grown_mask).astype(np.uint8)
         image_rgb = np.stack([gray_image] * 3, axis=-1).astype(np.uint8)
         image_rgb[grown_mask == 1] = [0, 0, 255]
 
