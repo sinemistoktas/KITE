@@ -12,7 +12,12 @@ import json
 import io
 import os
 from skimage.io import imread
+from skimage.util import img_as_ubyte
 from base64 import b64encode
+from PIL import Image
+import traceback
+from io import BytesIO
+import numpy as np
 
 preprocessor = Preprocessor()
 segmentation_model = SegmentationModel(preprocessor)
@@ -67,3 +72,43 @@ def segment_image(request):
 
     return JsonResponse({'error': 'Only a POST request is allowed'}, status=405)
 
+def preprocessed_image_view(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            filename = data.get("image_name")
+            if not filename:
+                return JsonResponse({"error": "No image name provided."}, status=400)
+
+            image_path = os.path.join(settings.MEDIA_ROOT, filename)
+            if not os.path.exists(image_path):
+                return JsonResponse({"error": "Image file not found."}, status=404)
+
+            # Read the image in grayscale
+            image = imread(image_path, as_gray=True)
+
+            # Apply preprocessing
+            result_img = preprocessor.preprocess_image(image)
+            result_img = (image * 255).astype(np.uint8)
+
+            # Convert NumPy to uint8 if not already
+            result_img_uint8 = img_as_ubyte(result_img)
+
+            # Convert to PIL image
+            result_pil = Image.fromarray(result_img_uint8)
+
+            # Encode to base64
+            buf = BytesIO()
+            result_pil.save(buf, format="PNG")
+            buf.seek(0)
+            encoded_image = b64encode(buf.getvalue()).decode("utf-8")
+
+            return JsonResponse({
+                "preprocessed_image": encoded_image
+            })
+
+        except Exception as e:
+            traceback_str = traceback.format_exc()
+            print("Preprocessing error:\n", traceback_str)
+            return JsonResponse({"error": str(e)}, status=500)
+    return JsonResponse({'error': 'Only a POST request is allowed'}, status=405)

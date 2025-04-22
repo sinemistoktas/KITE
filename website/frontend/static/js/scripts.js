@@ -383,13 +383,71 @@ window.addEventListener('DOMContentLoaded', event => {
                 }
                 scribbles.push({ points: stroke, isPrediction: true });
             }
-            const segmentedImageElement = document.getElementById("segmentedResultImage");
-            segmentedImageElement.src = `data:image/png;base64,${data.segmented_image}`;
-            if (data.segmented_image) {
-                document.getElementById("segmentationResult").style.display = "block";
+                        const segmentedImageElement = document.getElementById("segmentedResultImage");
+                segmentedImageElement.src = `data:image/png;base64,${data.segmented_image}`;
+
+                if (data.segmented_image) {
+                    document.getElementById("segmentationResult").style.display = "block";
+
             }
         });
     }
+
+    window.handlePreprocessedImg = function () {
+        const requestData = {
+            image_name: window.imageName
+        };
+
+        fetch("/preprocessed-image/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCookie("csrftoken")
+            },
+            body: JSON.stringify(requestData)
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error("Failed to fetch preprocessed image.");
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data && data.preprocessed_image) {
+                    const popup = document.createElement("div");
+                    popup.style.position = "fixed";
+                    popup.style.top = "50%";
+                    popup.style.left = "50%";
+                    popup.style.transform = "translate(-50%, -50%)";
+                    popup.style.backgroundColor = "#fff";
+                    popup.style.padding = "10px";
+                    popup.style.border = "2px solid #444";
+                    popup.style.zIndex = "9999";
+                    popup.style.boxShadow = "0px 0px 10px rgba(0,0,0,0.5)";
+
+                    const img = document.createElement("img");
+                    img.src = `data:image/png;base64,${data.preprocessed_image}`;
+                    img.style.maxWidth = "100%";
+                    img.style.maxHeight = "80vh";
+
+                    const closeButton = document.createElement("button");
+                    closeButton.textContent = "Close";
+                    closeButton.className = "btn btn-danger mt-3";
+                    closeButton.onclick = () => popup.remove();
+
+                    popup.appendChild(img);
+                    popup.appendChild(closeButton);
+                    document.body.appendChild(popup);
+                } else {
+                    alert("No preprocessed image returned.");
+                }
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                alert("Error displaying preprocessed image.");
+            });
+    }
+
 
     function getCookie(name) {
         const value = `; ${document.cookie}`;
