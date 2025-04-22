@@ -101,6 +101,12 @@ class SegmentationModel():
         image = self.preprocessor.preprocess_image(image)
         gray_image = (image * 255).astype(np.uint8)
 
+        # Returns the preprocessed image if there are no annotations.
+        if (not annotation_json.get("shapes") or not annotation_json["shapes"][0].get("points")):
+            self.last_predicted_points = []
+            image_rgb = np.stack([gray_image] * 3, axis=-1).astype(np.uint8)
+            return Image.fromarray(image_rgb)
+    
         points = np.array(annotation_json['shapes'][0]['points'], dtype=np.int32)
         seed_mask = np.zeros(image.shape, dtype=np.uint8)
         cv2.fillPoly(seed_mask, [points], 1)
