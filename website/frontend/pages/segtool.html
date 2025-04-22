@@ -60,21 +60,25 @@
           <button type= "button" class="btn btn-outline-danger" id="eraserMode">
             <i class="fa-solid fa-eraser"></i> Eraser
           </button>
-        </div>        
+        </div>
         </div>
       </div>
       <button class="btn btn-primary" onclick= "handleAnnotations()">Ready to Segment!</button>
       {% endif %}
-      <div id="segmentationResult" class="card mt-4 shadow-sm border-primary" style="max-width: 600px; margin: 0 auto; display: none;">
+      <div id="segmentationResult" class="card border-primary" style="display: none; padding: 0; border: none; background: none;">
         <div class="card-header bg-primary text-white text-center">
           Segmented Result
         </div>
         <div class="card-body text-center">
           <img id="segmentedResultImage" class="img-fluid" style="max-width: 100%;" alt="Segmented Output" />
+          <div class="mt-3">
+            <a id="downloadSegmentedImage" class="btn btn-success" style="display: none;">
+              <i class="fa-solid fa-download"></i> Download Segmented Image
+            </a>
+          </div>
         </div>
       </div>
-    </div>
-    <script>
+      <script>
       window.imageName = "{{ image_name }}";
     </script>
     <script src="{% static 'js/scripts.js' %}"></script>

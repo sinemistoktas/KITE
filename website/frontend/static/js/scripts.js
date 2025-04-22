@@ -384,9 +384,17 @@ window.addEventListener('DOMContentLoaded', event => {
                 scribbles.push({ points: stroke, isPrediction: true });
             }
             const segmentedImageElement = document.getElementById("segmentedResultImage");
+            const base64Image = `data:image/png;base64,${data.segmented_image}`;
+
             segmentedImageElement.src = `data:image/png;base64,${data.segmented_image}`;
             if (data.segmented_image) {
                 document.getElementById("segmentationResult").style.display = "block";
+
+                //download
+                const downloadBtn = document.getElementById("downloadSegmentedImage");
+                downloadBtn.href = segmentedImageElement.src;
+                downloadBtn.download = "segmented_result.png";
+                downloadBtn.style.display = "inline-block";
             }
         });
     }
