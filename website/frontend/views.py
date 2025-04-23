@@ -92,12 +92,10 @@ def preprocessed_image_view(request):
             image = imread(image_path, as_gray=True)
 
             # Apply preprocessing
-            result_img = preprocessor.preprocess_image(image)
-            bg_removed = preprocessor.thresholding(result_img, 0.25)
-            result_img = morphology.closing(bg_removed, morphology.square(10))
+            result_img, fluid_mask = preprocessor.preprocess_image(image)
 
             # Convert NumPy to uint8 if not already
-            result_img_scaled = (result_img.astype(np.uint8)) * 255
+            result_img_scaled = (fluid_mask.astype(np.uint8)) * 255
             result_pil = Image.fromarray(result_img_scaled)
             # Encode to base64
             buf = BytesIO()
