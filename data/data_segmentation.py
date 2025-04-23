@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from skimage import data, filters, morphology, restoration, transform, registration, exposure, feature, measure
+from skimage.measure import label
 from scipy.ndimage import map_coordinates, binary_fill_holes, median_filter, gaussian_laplace, uniform_filter, generic_filter, gaussian_filter, laplace
 from skimage.io import imread
 from scipy.stats import trim_mean
@@ -29,25 +30,33 @@ class SegmentationModel():
         self.last_mask = None # Used to store the last output.
         self.last_predicted_points = []
     
-    def grow_region(self,image, seed_mask, threshold=10):
+    def grow_region(self,image, seed_mask,fluid_mask=None, threshold=5, max_area=4000):
         height, width = image.shape
         grown_mask = seed_mask.copy()
         seeds = list(zip(*np.nonzero(seed_mask)))
         visited = set(seeds)
+        if not seeds:
+            return grown_mask
+        seed_value = np.min(image[seed_mask == 1])
+        print("Using seed value:", seed_value)
 
         while seeds:
             x, y = seeds.pop()
-            for dx, dy in [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]: # 8-connectivity
+            for dx, dy in [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]:
                 nx, ny = x + dx, y + dy
                 if (0 <= nx < height) and (0 <= ny < width):
                     if (nx, ny) in visited:
                         continue
-
                     visited.add((nx, ny))
                     if grown_mask[nx, ny] == 0:
-                        if abs(int(image[nx, ny]) - int(image[x, y])) < threshold:
+                        intensity = image[nx, ny]
+                        if intensity <= seed_value + threshold and (fluid_mask is None or fluid_mask[nx, ny]):
                             grown_mask[nx, ny] = 1
                             seeds.append((nx, ny))
+            if grown_mask.sum() > max_area:
+                print("Region grew too large, reverting to seed only.")
+                return seed_mask
+
         return grown_mask
 
     def run_segmentation_from_json(self, annotation_json, filename):
@@ -97,27 +106,64 @@ class SegmentationModel():
     
     # We should call THIS method when somebody uploads an image with no ground truth. The previous method
     # is for showcasing & comparing the ground truth image with the segmented image.
+
+    #NOTE TO MİSLİNA: THE PREPROCESSED IMAGE CAN BE FOUND BY CHECKING "FLUID_MASK"
+
+    #TODO: Currently, the image that is showing on the front end is the median filtered image. Maybe we can
+    # change that.
     def run_segmentation_from_json_without_ground_truth(self, image, annotation_json):
+        # Preprocess the image with median filtering (our current method, can change later.)
         image = self.preprocessor.preprocess_image(image)
+
+        # Identify the fluid regions. After this, the fluid regions currently turn white.
+        fluid_mask = image < 0.26 # A simple threshold on the image, nothing else.
+        fluid_mask = morphology.opening(fluid_mask, morphology.square(3))  # Denoise
+
+        # Convert to grayscale (although the image is most probably already in gray scale)
         gray_image = (image * 255).astype(np.uint8)
 
+        # Returns the preprocessed image if there are no annotations.
+        if (not annotation_json.get("shapes") or not annotation_json["shapes"][0].get("points")):
+            self.last_predicted_points = []
+            image_rgb = np.stack([gray_image] * 3, axis=-1).astype(np.uint8)
+            return Image.fromarray(image_rgb)
+
+        # Extract the user's annotation from the "annotation_json" variable and prepare the seed mask.
         points = np.array(annotation_json['shapes'][0]['points'], dtype=np.int32)
         seed_mask = np.zeros(image.shape, dtype=np.uint8)
         cv2.fillPoly(seed_mask, [points], 1)
 
-        grown_mask = self.grow_region(gray_image, seed_mask, threshold=5)
-        grown_mask = morphology.closing(grown_mask, morphology.square(4))
-        grown_mask = binary_fill_holes(grown_mask).astype(np.uint8)
-        image_rgb = np.stack([gray_image] * 3, axis=-1).astype(np.uint8)
-        image_rgb[grown_mask == 1] = [0, 0, 255]
+        # Ensure that the annotation's resulting mask can only apply in the identified fluid region.
+        seed_mask = seed_mask * fluid_mask
 
-        contours = measure.find_contours(grown_mask, 0.5)
+        # Apply region growing. 
+        grown_mask = self.grow_region(gray_image, seed_mask, fluid_mask=fluid_mask, threshold=5)
+
+        # Only include the fluid regions that intersect with the region grown mask.
+        labeled = label(fluid_mask)
+        grown_labels = np.unique(labeled[grown_mask == 1])
+        connected_fluid = np.isin(labeled, grown_labels).astype(np.uint8)
+
+        # Merge the regions.
+        final_mask = np.logical_or(grown_mask, connected_fluid).astype(np.uint8)
+
+        # Post-processing, here I applied closing and the infill method.
+        final_mask = morphology.closing(final_mask, morphology.disk(4))
+        final_mask = binary_fill_holes(final_mask).astype(np.uint8)
+
+        image_rgb = np.stack([gray_image] * 3, axis=-1).astype(np.uint8)
+        image_rgb[final_mask == 1] = [0, 0, 255]
+
+        # This part extracts the contours of the final mask, which will be used in the front end step.
+        contours = measure.find_contours(final_mask, 0.5)
         predicted_points = []
         for contour in contours:
             for y, x in contour:
                 predicted_points.append([int(x), int(y)])
 
         self.last_predicted_points = predicted_points
+        # Image.fromarray((fluid_mask * 255).astype(np.uint8)).show() # FLUID MASK USED FOR TESTING!!!
+        # Image.fromarray((seed_mask * 255).astype(np.uint8)).show() # SEED MASK USED FOR TESTING!!!
         return Image.fromarray(image_rgb)
     
     def get_predicted_points(self):

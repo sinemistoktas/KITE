@@ -58,17 +58,20 @@ def segment_image(request):
             result_img = segmentation_model.run_segmentation_from_json_without_ground_truth(image, data)
             predicted_points = segmentation_model.get_predicted_points()
 
+            # Ensures that the original image is returned when there are no annotations.
             buf = io.BytesIO()
             result_img.save(buf, format="PNG")
             buf.seek(0)
             encoded_image = b64encode(buf.getvalue()).decode("utf-8")
 
             return JsonResponse({
-                "segmented_image": encoded_image,
-                "predicted_annotations": predicted_points
+                "segmented_image": encoded_image, # will be the original image if there are no annotations
+                "predicted_annotations": predicted_points  # will be [] if no annotations
             })
 
         except Exception as e:
+            import traceback
+            traceback.print_exc()  # Shows full error in terminal
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({'error': 'Only a POST request is allowed'}, status=405)
