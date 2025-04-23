@@ -96,7 +96,6 @@ def preprocessed_image_view(request):
             # Convert NumPy to uint8 if not already
             result_img_scaled = (result_img.astype(np.uint8)) * 255
             result_pil = Image.fromarray(result_img_scaled)
-
             # Encode to base64
             buf = BytesIO()
             result_pil.save(buf, format="PNG")
