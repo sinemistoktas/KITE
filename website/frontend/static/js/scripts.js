@@ -1,7 +1,7 @@
 /*!
-* Start Bootstrap - Resume v7.0.6 (https://startbootstrap.com/theme/resume)
-* Copyright 2013-2023 Start Bootstrap
-* Licensed under MIT (https://github.com/StartBootstrap/startbootstrap-resume/blob/master/LICENSE)
+•⁠  ⁠Start Bootstrap - Resume v7.0.6 (https://startbootstrap.com/theme/resume)
+•⁠  ⁠Copyright 2013-2023 Start Bootstrap
+•⁠  ⁠Licensed under MIT (https://github.com/StartBootstrap/startbootstrap-resume/blob/master/LICENSE)
 */
 //
 // Scripts
@@ -21,7 +21,7 @@ let canvas, ctx, scribbles = [], currentStroke = [];
 
 // Useful for the eraser feature.
 function distance(p1, p2) { 
-    return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
+    return Math.sqrt((p1.x - p2.x) * 2 + (p1.y - p2.y) * 2);
 }
 
 
@@ -33,7 +33,15 @@ window.addEventListener('DOMContentLoaded', event => {
     predictionCanvas = document.getElementById("predictionCanvas");
     predictionCtx = predictionCanvas.getContext("2d");
 
-    function drawLine(points, color = "red", context = annotationCtx) {
+    let selectedColor = "#ff0000"; // def annotation color is red
+    const colorPicker = document.getElementById("colorPicker");
+    if (colorPicker) {
+        colorPicker.addEventListener("input", (e) => {
+            selectedColor = e.target.value;
+        });
+    }
+
+    function drawLine(points, color = selectedColor, context = annotationCtx) {
         if (points.length < 2) return;
         context.strokeStyle = color;
         context.lineWidth = 2;
@@ -54,7 +62,7 @@ window.addEventListener('DOMContentLoaded', event => {
         annotationCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
         for (const stroke of scribbles) {
             if (!stroke.isPrediction) {
-                const color = "red";
+                const color = stroke.color;
                 if (stroke.points.length === 1) {
                     annotationCtx.fillStyle = color;
                     annotationCtx.beginPath();
@@ -73,7 +81,7 @@ window.addEventListener('DOMContentLoaded', event => {
         annotationCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
         for (const stroke of scribbles) {
             if (!stroke.isPrediction) {
-                const color = "red";
+                const color = stroke.color ;
                 if (stroke.points.length === 1) {
                     annotationCtx.fillStyle = color;
                     annotationCtx.beginPath();
@@ -190,7 +198,7 @@ window.addEventListener('DOMContentLoaded', event => {
     // A more generic function to set the mode rather than the previous calls. This ensures that a button does not need to be
     // clicked again to reset its mode's properties, like the moving eraser cursor.
 
-     function setMode(newMode) {
+    function setMode(newMode) {
         if (mode === newMode) {
             // Deselect if user clicks the same button again.
             mode = null;
@@ -207,14 +215,14 @@ window.addEventListener('DOMContentLoaded', event => {
                 annotationCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
                 for (const stroke of scribbles) {
                     if (!stroke.isPrediction) {
-                        const color = "red";
+                        // Fix: Use stroke.color instead of undefined color variable
                         if (stroke.points.length === 1) {
-                            annotationCtx.fillStyle = color;
+                            annotationCtx.fillStyle = stroke.color;
                             annotationCtx.beginPath();
                             annotationCtx.arc(stroke.points[0].x, stroke.points[0].y, 2, 0, 2 * Math.PI);
                             annotationCtx.fill();
                         } else {
-                            drawLine(stroke.points, color);
+                            drawLine(stroke.points, stroke.color);
                         }
                     }
                 }
@@ -245,14 +253,15 @@ window.addEventListener('DOMContentLoaded', event => {
             const y = Math.round(e.clientY - rect.top);
 
             if (mode === "dot") {
-                ctx.fillStyle = "red";
+                ctx.fillStyle = selectedColor;
                 ctx.beginPath();
                 ctx.arc(x, y, 2, 0, 2 * Math.PI);
                 ctx.fill();
-                scribbles.push({ points: [{ x, y }], isPrediction: false });
+                scribbles.push({ points: [{ x, y }], isPrediction: false , color: selectedColor});
             } else if (mode === "line") {
                 isDrawing = true;
                 currentStroke = [{ x, y }];
+                currentStrokeColor = selectedColor; 
             } else if (mode === "eraser") {
                 isErasing = true;
                 eraseAtPoint(x, y);
@@ -264,9 +273,10 @@ window.addEventListener('DOMContentLoaded', event => {
             mouseX = Math.round(e.clientX - rect.left);
             mouseY = Math.round(e.clientY - rect.top);
         
-            if (isDrawing && mode === "line") { // Ensure that the user is either currently drawing AND we're in the line mode. 
+            if (isDrawing && mode === "line") { 
                 currentStroke.push({ x: mouseX, y: mouseY });
-                drawLine(currentStroke);
+                // Fix: Use selectedColor directly rather than color=selectedColor which causes syntax error
+                drawLine(currentStroke, selectedColor);
             }
         
             if (mode === "eraser") {
@@ -275,13 +285,16 @@ window.addEventListener('DOMContentLoaded', event => {
                 } else {
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                     for (const stroke of scribbles) {
-                        if (stroke.length === 1) {
-                            ctx.fillStyle = "red";
+                        // Fix: Check for points array and use stroke.color
+                        if (stroke.points && stroke.points.length === 1) {
+                            ctx.fillStyle = stroke.color || "red";
                             ctx.beginPath();
-                            ctx.arc(stroke[0].x, stroke[0].y, 2, 0, 2 * Math.PI);
+                            ctx.arc(stroke.points[0].x, stroke.points[0].y, 2, 0, 2 * Math.PI);
                             ctx.fill();
-                        } else {
-                            drawLine(stroke.points, stroke.isPrediction ? "blue" : "red");;
+                        } else if (stroke.points) {
+                            // Fix: Use proper color handling
+                            const strokeColor = stroke.isPrediction ? "blue" : (stroke.color || "red");
+                            drawLine(stroke.points, strokeColor);
                         }
                     }
                 }
@@ -292,7 +305,7 @@ window.addEventListener('DOMContentLoaded', event => {
 
         canvas.addEventListener("mouseup", () => {
             if (isDrawing && currentStroke.length > 0) {
-                scribbles.push({ points: currentStroke, isPrediction: false });
+                scribbles.push({ points: currentStroke, isPrediction: false , color: selectedColor});
                 currentStroke = [];
             }
             isDrawing = false;
@@ -313,7 +326,7 @@ window.addEventListener('DOMContentLoaded', event => {
 
         // Redraws only the user annotations.
         for (const stroke of scribbles) {
-            const color = "red";
+            const color = stroke.color || "red";
             if (stroke.points.length === 1) {
                 ctx.fillStyle = color;
                 ctx.beginPath();
@@ -325,12 +338,17 @@ window.addEventListener('DOMContentLoaded', event => {
         }
         const allPoints = scribbles
         .filter(s => !s.isPrediction)
-        .flatMap(s => s.points);
+        .flatMap(s => s.points.map(p => ({
+            x: p.x,
+            y: p.y,
+            color: s.color // add color from parent scribble
+        })));
         const annotationsJson = {
             image_name: window.imageName,
             shapes: [{
                 label: "anomaly",
-                points: allPoints.map(p => [p.x, p.y])
+                points: allPoints.map(p => [p.x, p.y]),
+                color: allPoints.map(p => p.color)
             }]
         };
 
@@ -350,6 +368,7 @@ window.addEventListener('DOMContentLoaded', event => {
             return response.json();
         })
         .then(data => {
+            console.log("Received data:", JSON.stringify(data));
             const img = document.getElementById("uploadedImage");
             const canvas = document.getElementById("annotationCanvas");
             const ctx = canvas.getContext("2d");
@@ -360,7 +379,7 @@ window.addEventListener('DOMContentLoaded', event => {
             scribbles = scribbles.filter(s => !s.isPrediction);
 
             for (const stroke of scribbles) {
-                const color = "red";
+                const color = stroke.color ;
                 if (stroke.points.length === 1) {
                     annotationCtx.fillStyle = color;
                     annotationCtx.beginPath();
@@ -381,12 +400,12 @@ window.addEventListener('DOMContentLoaded', event => {
                     predictionCtx.fill();
                     stroke.push({ x, y });
                 }
-                scribbles.push({ points: stroke, isPrediction: true });
+                scribbles.push({ points: stroke, isPrediction: true , color: selectedColor});
             }
             const segmentedImageElement = document.getElementById("segmentedResultImage");
-            const base64Image = `data:image/png;base64,${data.segmented_image}`;
+            const base64Image =`data:image/png;base64,${data.segmented_image}`;
 
-            segmentedImageElement.src = `data:image/png;base64,${data.segmented_image}`;
+            segmentedImageElement.src =`data:image/png;base64,${data.segmented_image}`;
             if (data.segmented_image) {
                 document.getElementById("segmentationResult").style.display = "block";
 
@@ -432,7 +451,7 @@ window.addEventListener('DOMContentLoaded', event => {
                     popup.style.boxShadow = "0px 0px 10px rgba(0,0,0,0.5)";
 
                     const img = document.createElement("img");
-                    img.src = `data:image/png;base64,${data.preprocessed_image}`;
+                    img.src =`data:image/png;base64,${data.preprocessed_image}`;
                     img.style.maxWidth = "100%";
                     img.style.maxHeight = "80vh";
 

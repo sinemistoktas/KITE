@@ -45,6 +45,8 @@
 
   {% if image_url %}
   <div class="card p-3 mt-4 mb-4">
+    <label for="colorPicker">Annotation Color:</label>
+      <input type="color" id="colorPicker" value="#ff0000">
     <p><strong>Filename:</strong> {{ image_name }}</p>
     <div id= "imageCanvasBlock">
       <img id= "uploadedImage" src="{{ image_url }}" class="img-oct" />
