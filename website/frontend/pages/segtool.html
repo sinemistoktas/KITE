@@ -46,24 +46,45 @@
   {% if image_url %}
   <div class="card p-3 mt-4 mb-4">
     <p><strong>Filename:</strong> {{ image_name }}</p>
-    <div id= "imageCanvasBlock">
-      <img id= "uploadedImage" src="{{ image_url }}" class="img-oct" />
-      <canvas id="predictionCanvas"></canvas>
-      <canvas id= "annotationCanvas"> </canvas>
-      <div class="btn-group mt-3 mb-3" role="group" aria-label="Annotation Mode">
-        <button type="button" class="btn btn-outline-danger" id="scribbleMode">
+    <div class="d-flex flex-column align-items-center mt-4">
+      <!-- Image + Canvases -->
+      <div id="zoomContainer" style="display: inline-block; position: relative;">
+        <img id="uploadedImage" src="{{ image_url }}" class="img-oct" />
+        <canvas id="predictionCanvas"></canvas>
+        <canvas id="annotationCanvas"></canvas>
+      </div>
+    
+      <!-- Buttons below -->
+      <div class="d-flex flex-wrap justify-content-center gap-3 mt-4">
+        <button type="button" class="btn btn-outline-danger rounded-pill px-4" id="scribbleMode">
           <i class="fa-solid fa-minus"></i> Line
         </button>
-        <button type="button" class="btn btn-outline-danger" id="dotMode">
+        <button type="button" class="btn btn-outline-danger rounded-pill px-4" id="dotMode">
           <i class="fa-solid fa-pencil"></i> Dot
         </button>
-        <button type= "button" class="btn btn-outline-danger" id="eraserMode">
+        <button type="button" class="btn btn-outline-danger rounded-pill px-4" id="eraserMode">
           <i class="fa-solid fa-eraser"></i> Eraser
+        </button>
+    
+        <div class="vr mx-2 d-none d-md-block"></div>
+    
+        <button class="btn btn-outline-secondary rounded-pill px-4" onclick="zoomIn()">
+          <i class="fa-solid fa-magnifying-glass-plus"></i> Zoom In
+        </button>
+        <button class="btn btn-outline-secondary rounded-pill px-4" onclick="zoomOut()">
+          <i class="fa-solid fa-magnifying-glass-minus"></i> Zoom Out
+        </button>
+        <button class="btn btn-outline-secondary rounded-pill px-4" onclick="resetZoom()">
+          <i class="fa-solid fa-rotate-left"></i> Reset
         </button>
       </div>
     </div>
   </div>
-  <button class="btn btn-primary" onclick= "handleAnnotations()">Ready to Segment!</button>
+  <div class="d-flex justify-content-center mt-4 mb-4">
+    <button class="btn btn-primary px-4 py-2 rounded-pill shadow-sm" onclick="handleAnnotations()">
+      <i class="fa-solid fa-wand-magic-sparkles me-2"></i> Ready to Segment!
+    </button>
+  </div>
   {% endif %}
   <div id="segmentationResult" class="text-center mt-4" style="display: none;">
     <div class="text-white p-2 mb-2 rounded bg-primary">
