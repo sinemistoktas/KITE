@@ -132,7 +132,7 @@ class Preprocessor:
         image = self.normalize_intensity(image)
 
         # Identify the fluid regions. After this, the fluid regions currently turn white.
-        fluid_mask = image < 0.26 # A simple threshold on the image, nothing else.
+        fluid_mask = image < 0.25 # A simple threshold on the image, nothing else.
         fluid_mask = morphology.opening(fluid_mask, morphology.square(3))  # Denoise
         
         return image, fluid_mask
