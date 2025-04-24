@@ -21,7 +21,7 @@ let canvas, ctx, scribbles = [], currentStroke = [];
 
 // Useful for the eraser feature.
 function distance(p1, p2) { 
-    return Math.sqrt((p1.x - p2.x) * 2 + (p1.y - p2.y) * 2);
+    return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
 }
 
 
@@ -368,7 +368,6 @@ window.addEventListener('DOMContentLoaded', event => {
             return response.json();
         })
         .then(data => {
-            console.log("Received data:", JSON.stringify(data));
             const img = document.getElementById("uploadedImage");
             const canvas = document.getElementById("annotationCanvas");
             const ctx = canvas.getContext("2d");
@@ -393,8 +392,8 @@ window.addEventListener('DOMContentLoaded', event => {
             const predictedPoints = data.predicted_annotations || [];
             if (predictedPoints.length > 0) {
                 let stroke = [];
-                for (const [x, y] of predictedPoints) {
-                    predictionCtx.fillStyle = "blue";
+                for (const [[x, y], color] of predictedPoints) {
+                    predictionCtx.fillStyle = color;
                     predictionCtx.beginPath();
                     predictionCtx.arc(x, y, 2, 0, 2 * Math.PI);
                     predictionCtx.fill();

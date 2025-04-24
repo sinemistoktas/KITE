@@ -112,60 +112,98 @@ class SegmentationModel():
     #TODO: Currently, the image that is showing on the front end is the median filtered image. Maybe we can
     # change that.
     def run_segmentation_from_json_without_ground_truth(self, image, annotation_json):
-        # Preprocess the image with median filtering (our current method, can change later.)
+    # Preprocess the image with median filtering
         print(annotation_json)
         image, fluid_mask = self.preprocessor.preprocess_image(image)
-
-        # Convert to grayscale (although the image is most probably already in gray scale)
+        # Convert to grayscale
         gray_image = (image * 255).astype(np.uint8)
-
+        
         # Returns the preprocessed image if there are no annotations.
         if (not annotation_json.get("shapes") or not annotation_json["shapes"][0].get("points")):
             self.last_predicted_points = []
             image_rgb = np.stack([gray_image] * 3, axis=-1).astype(np.uint8)
             return Image.fromarray(image_rgb)
-
-        # Extract the user's annotation from the "annotation_json" variable and prepare the seed mask.
+        
+        # Extract points and colors
         points = np.array(annotation_json['shapes'][0]['points'], dtype=np.int32)
-        seed_mask = np.zeros(image.shape, dtype=np.uint8)
-        cv2.fillPoly(seed_mask, [points], 1)
-
-        # Ensure that the annotation's resulting mask can only apply in the identified fluid region.
-        seed_mask = seed_mask * fluid_mask
-
-        # Apply region growing. 
-        grown_mask = self.grow_region(gray_image, seed_mask, fluid_mask=fluid_mask, threshold=5)
-
-        # Only include the fluid regions that intersect with the region grown mask.
-        labeled = label(fluid_mask)
-        grown_labels = np.unique(labeled[grown_mask == 1])
-        connected_fluid = np.isin(labeled, grown_labels).astype(np.uint8)
-
-        # Merge the regions.
-        final_mask = np.logical_or(grown_mask, connected_fluid).astype(np.uint8)
-
-        # Post-processing, here I applied closing and the infill method.
-        final_mask = morphology.closing(final_mask, morphology.disk(4))
-        final_mask = binary_fill_holes(final_mask).astype(np.uint8)
-
+        colors = annotation_json['shapes'][0].get('color', [])
+        
+        # Create the RGB image from grayscale
         image_rgb = np.stack([gray_image] * 3, axis=-1).astype(np.uint8)
-        image_rgb[final_mask == 1] = [0, 0, 255]
-
-        # This part extracts the contours of the final mask, which will be used in the front end step.
-        contours = measure.find_contours(final_mask, 0.5)
-        predicted_points = []
-        for contour in contours:
-            for y, x in contour:
-                predicted_points.append([int(x), int(y)])
-
-        self.last_predicted_points = predicted_points
+        
+        # Group points by color
+        color_groups = {}
+        for i, (point, color) in enumerate(zip(points, colors)):
+            if color not in color_groups:
+                color_groups[color] = []
+            color_groups[color].append(point)
+        
+        # Store all predicted points across all colors
+        all_predicted_points = []
+        
+        # Process each color group separately
+        for color_hex, color_points in color_groups.items():
+            if not color_points:
+                continue
+                
+            # Convert points to numpy array
+            color_points_array = np.array(color_points, dtype=np.int32)
+            
+            # Create seed mask for this color group
+            seed_mask = np.zeros(image.shape, dtype=np.uint8)
+            
+            # Draw points on seed mask
+            for point in color_points:
+                cv2.circle(seed_mask, (point[0], point[1]), 1, 1, -1)
+            
+            # Ensure that the annotation's resulting mask can only apply in the identified fluid region.
+            seed_mask = seed_mask * fluid_mask
+            
+            # Apply region growing for this color group
+            grown_mask = self.grow_region(gray_image, seed_mask, fluid_mask=fluid_mask, threshold=5)
+            
+            # Only include the fluid regions that intersect with the region grown mask
+            labeled = label(fluid_mask)
+            grown_labels = np.unique(labeled[grown_mask == 1])
+            connected_fluid = np.isin(labeled, grown_labels).astype(np.uint8)
+            
+            # Merge the regions.
+            final_mask = np.logical_or(grown_mask, connected_fluid).astype(np.uint8)
+            
+            # Post-processing, here I applied closing and the infill method.
+            final_mask = morphology.closing(final_mask, morphology.disk(4))
+            final_mask = binary_fill_holes(final_mask).astype(np.uint8)
+            
+            # Apply color to segmented region
+            rgb_color = self.hex_to_rgb(color_hex)
+            image_rgb[final_mask == 1] = rgb_color
+            
+            # Extract contours for this color group
+            contours = measure.find_contours(final_mask, 0.5)
+            # This part extracts the contours of the final mask, which will be used in the front end step.
+            for contour in contours:
+                for y, x in contour:
+                    all_predicted_points.append([[int(x), int(y)], color_hex])
+        self.last_predicted_points = all_predicted_points
         # Image.fromarray((fluid_mask * 255).astype(np.uint8)).show() # FLUID MASK USED FOR TESTING!!!
         # Image.fromarray((seed_mask * 255).astype(np.uint8)).show() # SEED MASK USED FOR TESTING!!!
+        
         return Image.fromarray(image_rgb)
     
     def get_predicted_points(self):
         return self.last_predicted_points
 
+    def hex_to_rgb(self, hex_color):
+        """Convert hex color string to RGB list"""
+        hex_color = hex_color.lstrip('#')
+        if len(hex_color) == 6:
+            r = int(hex_color[0:2], 16)
+            g = int(hex_color[2:4], 16)
+            b = int(hex_color[4:6], 16)
+            return [r, g, b]
+        else:
+            # Default to blue if hex format is incorrect
+            return [0, 0, 255]
 # An example usage of the segmentation class.
 if __name__ == "__main__":
     import json

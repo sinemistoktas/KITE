@@ -71,7 +71,7 @@ def segment_image(request):
 
             return JsonResponse({
                 "segmented_image": encoded_image, # will be the original image if there are no annotations
-                "predicted_annotations": predicted_points  # will be [] if no annotations
+                "predicted_annotations": predicted_points,  # will be [] if no annotations
             })
 
         except Exception as e:
