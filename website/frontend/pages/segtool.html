@@ -69,21 +69,26 @@
     <div class="text-white p-2 mb-2 rounded bg-primary">
       <strong>Segmented Result</strong>
     </div>
-    <div style="margin: 0; padding: 0;">
+    <div style="margin: 0; padding: 0; text-align: center;">
       <img id="segmentedResultImage"
            class="img-fluid mx-auto d-block"
            style="max-width: 100%; display: block; margin: 0 auto; box-shadow: none; border: none;"
            alt="Segmented Output" />
-        <button class="btn btn-primary" onclick= "handlePreprocessedImg()">Show Preprocessed Image</button>
-
+    
+      <div class="d-flex justify-content-center gap-3 mt-4">
+        <button class="btn btn-outline-primary px-4 py-2 rounded-pill shadow-sm"
+                onclick= "handlePreprocessedImg()">
+          <i class="fa-solid fa-eye"></i> Show Preprocessed Image
+        </button>
+    
+        <a id="downloadSegmentedImage"
+           class="btn btn-outline-success px-4 py-2 rounded-pill shadow-sm"
+           style="display: none;">
+          <i class="fa-solid fa-download"></i> Download Segmented Image
+        </a>
+      </div>
     </div>
-    <div class="mt-3">
-      <a id="downloadSegmentedImage" class="btn btn-success" style="display: none;">
-        <i class="fa-solid fa-download"></i> Download Segmented Image
-      </a>
-    </div>
-  </div>
-
+    
 </div>
 </div>
 <script>
