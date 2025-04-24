@@ -129,7 +129,13 @@ class Preprocessor:
 
     def preprocess_image(self,image): # note to mislina: call this to preprocess the image ! 
         image = self.apply_median_filter(image)
-        return self.normalize_intensity(image)
+        image = self.normalize_intensity(image)
+
+        # Identify the fluid regions. After this, the fluid regions currently turn white.
+        fluid_mask = image < 0.26 # A simple threshold on the image, nothing else.
+        fluid_mask = morphology.opening(fluid_mask, morphology.square(3))  # Denoise
+        
+        return image, fluid_mask
 
     def handle_npz_images(self,npz_path, filename): # this function is only for .npz files.
         np_data = np.load(npz_path)

@@ -113,11 +113,7 @@ class SegmentationModel():
     # change that.
     def run_segmentation_from_json_without_ground_truth(self, image, annotation_json):
         # Preprocess the image with median filtering (our current method, can change later.)
-        image = self.preprocessor.preprocess_image(image)
-
-        # Identify the fluid regions. After this, the fluid regions currently turn white.
-        fluid_mask = image < 0.26 # A simple threshold on the image, nothing else.
-        fluid_mask = morphology.opening(fluid_mask, morphology.square(3))  # Denoise
+        image, fluid_mask = self.preprocessor.preprocess_image(image)
 
         # Convert to grayscale (although the image is most probably already in gray scale)
         gray_image = (image * 255).astype(np.uint8)
