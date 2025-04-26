@@ -56,6 +56,7 @@ function screenToImageCoords(screenX, screenY) {
     return { x: constrainedX, y: constrainedY };
 }
 
+
 window.addEventListener('DOMContentLoaded', event => {
 
     annotationCanvas = document.getElementById("annotationCanvas");
@@ -156,7 +157,8 @@ window.addEventListener('DOMContentLoaded', event => {
             }
         }
     }
-          
+    //TODO: When the window is resized the canvas is DELETED. what to do ?
+      
     if (img.complete) { // If the browser has finished loading the image, resize the canvas. Else resize it when it loads.
         resizeCanvasToImage();
     } else {

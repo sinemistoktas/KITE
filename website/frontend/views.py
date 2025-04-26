@@ -48,6 +48,11 @@ def segment_image(request):
     if request.method == "POST":
         try:
             data = json.loads(request.body)
+
+            for shape in data["shapes"]:
+                points = shape.get("points", [])
+            print("Data", data)
+           
             filename = data.get("image_name")
             if not filename:
                 return JsonResponse({"error": "No image name provided."}, status=400)
@@ -66,7 +71,7 @@ def segment_image(request):
 
             return JsonResponse({
                 "segmented_image": encoded_image, # will be the original image if there are no annotations
-                "predicted_annotations": predicted_points  # will be [] if no annotations
+                "predicted_annotations": predicted_points,  # will be [] if no annotations
             })
 
         except Exception as e:
@@ -88,16 +93,10 @@ def preprocessed_image_view(request):
             if not os.path.exists(image_path):
                 return JsonResponse({"error": "Image file not found."}, status=404)
 
-            # Read the image in grayscale
             image = imread(image_path, as_gray=True)
-
-            # Apply preprocessing
             result_img, fluid_mask = preprocessor.preprocess_image(image)
-
-            # Convert NumPy to uint8 if not already
             result_img_scaled = (fluid_mask.astype(np.uint8)) * 255
             result_pil = Image.fromarray(result_img_scaled)
-            # Encode to base64
             buf = BytesIO()
             result_pil.save(buf, format="PNG")
             buf.seek(0)
