@@ -10977,6 +10977,158 @@ section.info-section .info-section-content {
     padding-bottom: 5rem;
   }
 }
+
+/* ==SEGMENTATION TOOL GENERAL PAGE STYLES== */
+
+/*segmentation tool page*/
+.seg-tool-page {
+  background: #395c6e !important;
+  min-height: 100vh;
+  color: #f3f6f9 !important;
+}
+
+.seg-tool-container h1,
+.seg-tool-container h2,
+.seg-tool-container h5 {
+  color: #f3f6f9 !important;
+}
+
+/*card & background*/
+.seg-tool-container .card {
+  background-color: #466a84 !important;
+  color: #f3f6f9 !important;
+  border-radius: 1rem !important;
+  border: none !important;
+}
+
+/*File input style*/
+input[type="file"] {
+  background: #233742 !important;
+  color: #f3f6f9 !important;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.7rem;
+}
+
+/* makes all button texts to black
+.seg-tool-container input,
+.seg-tool-container button {
+  color: black;
+}*/
+
+/*CANVAS*/
+#annotationCanvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  pointer-events: auto;
+  cursor: crosshair;
+}
+
+#imageCanvasBlock {
+  position: relative;
+  display: inline-block;
+}
+
+#uploadedImage {
+  display: block;
+}
+
+#segmentationResult {
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: none;
+}
+
+#segmentationResult .card-body {
+  padding: 0;
+  margin: 0;
+}
+
+#segmentedResultImage {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}
+
+/* GENERAL LAYOUT */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.zoom-controls {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+#zoomContainer {
+  position: relative;
+  overflow: hidden; 
+  display: inline-block;
+  border: 1px solid #ddd;
+}
+#viewportContainer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+.zoom-info {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  z-index: 10;
+}
+
+/* Cursor styles for zoom mode */
+.zoom-cursor {
+  cursor: zoom-in !important;
+}
+
+/* Zoom indicator */
+#zoomTarget {
+  position: absolute;
+  border: 2px solid rgba(0, 123, 255, 0.8);
+  border-radius: 50%;
+  pointer-events: none;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+#zoomTarget.active {
+  opacity: 1;
+}
+#zoomTarget::before, #zoomTarget::after {
+  content: '';
+  position: absolute;
+  background-color: rgba(0, 123, 255, 0.8);
+}
+#zoomTarget::before {
+  width: 2px;
+  height: 20px;
+}
+#zoomTarget::after {
+  width: 20px;
+  height: 2px;
+}
+
 /* animated button seg tool */
 .animated-button {
   position: relative;
@@ -11066,134 +11218,178 @@ section.info-section .info-section-content {
   opacity: 1;
 }
 
-/*segmentation tool page*/
-.seg-tool-page {
-  background: linear-gradient(135deg, #82b8c5, #9580b6);
-  min-height: 100vh;
-  color: white;
-}
+/* == BUTTON COLORS == */
 
-.seg-tool-container h1,
-.seg-tool-container h2,
-.seg-tool-container h5 {
-  color: white;
-}
-
-.seg-tool-container .card {
-  background-color: rgba(255, 255, 255, 0.9);
-  color: #000;
-}
-
-.seg-tool-container input,
-.seg-tool-container button {
-  color: black;
-}
-
-#annotationCanvas {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 2;
-  pointer-events: auto;
-  cursor: crosshair;
-}
-
-#imageCanvasBlock {
-  position: relative;
+/* Choose File Button */
+.custom-file-upload {
   display: inline-block;
-}
-
-#uploadedImage {
-  display: block;
-}
-
-#segmentationResult {
-  padding: 0;
-  margin: 0;
+  padding: 10px 28px;
+  cursor: pointer;
+  border-radius: 2rem;
+  background: #529aa3;
+  color: #f3f6f9;
+  font-size: 1rem;
+  margin-right: 10px;
+  transition: background 0.2s;
   border: none;
-  background: none;
+  outline: none;
+  text-align: center;
+}
+.custom-file-upload:hover,
+.custom-file-upload:focus {
+  background: #3c7275;
+  color: #f3f6f9;
+  text-decoration: none;
 }
 
-#segmentationResult .card-body {
-  padding: 0;
-  margin: 0;
-}
-
-#segmentedResultImage {
-  display: block;
-  margin: 0 auto;
-  max-width: 100%;
-  height: auto;
-}
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-.zoom-controls {
-  margin-top: 10px;
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-}
-
-#zoomContainer {
-  position: relative;
-  overflow: hidden; 
+.file-name-display {
   display: inline-block;
-  border: 1px solid #ddd;
+  margin-left: 16px;
+  color: #f3f6f9;
+  font-size: 0.98rem;
+  vertical-align: middle;
+  font-style: italic;
 }
-#viewportContainer {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-.zoom-info {
-  position: absolute;
-  bottom: 10px;
-  right: 10px;
-  background: rgba(0,0,0,0.6);
-  color: white;
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  z-index: 10;
-}
-/* Cursor styles for zoom mode */
-.zoom-cursor {
-  cursor: zoom-in !important;
-}
-/* Zoom indicator */
 
-#zoomTarget {
-  position: absolute;
-  border: 2px solid rgba(0, 123, 255, 0.8);
-  border-radius: 50%;
-  pointer-events: none;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  opacity: 0;
-  transition: opacity 0.2s;
+
+/* Upload, Ready To Segment & Show-Preprocessed Image Buttons*/
+.custom-upload-btn,
+.ready-segment-btn {
+  background: #529aa3;
+  color: #f3f6f9;
+  border: none;
+  border-radius: 2rem;
+  padding: 10px 28px;
+  font-size: 1rem;
+  transition: background 0.2s;
+  margin-right: 10px;
+  margin-bottom: 10px;
+  outline: none;
 }
-#zoomTarget.active {
-  opacity: 1;
+.custom-upload-btn:hover,
+.ready-segment-btn:hover,
+.custom-upload-btn:focus,
+.ready-segment-btn:focus {
+  background: #3c7275;
+  color: #f3f6f9;
+  text-decoration: none;
 }
-#zoomTarget::before, #zoomTarget::after {
-  content: '';
-  position: absolute;
-  background-color: rgba(0, 123, 255, 0.8);
+
+.show-pre-btn {
+  background: transparent;
+  border: 2px solid #fff;
+  color: #f3f6f9;
+  border-radius: 2rem;
+  padding: 10px 28px;
+  font-size: 1rem;
+  transition: background 0.2s, color 0.2s, border 0.2s;
+  outline: none;
 }
-#zoomTarget::before {
-  width: 2px;
-  height: 20px;
+.show-pre-btn:hover,
+.show-pre-btn:focus {
+  background: #529aa3;
+  border-color: #2a5053;
+  color: #f3f6f9;
 }
-#zoomTarget::after {
-  width: 20px;
-  height: 2px;
+
+/* Zoom Buttons */
+#zoomInBtn,
+#zoomOutBtn,
+#resetZoomBtn {
+  background: transparent !important;
+  border: 2px solid #fff !important;
+  color: #fff !important;
+  border-radius: 2rem;
+  font-weight: normal;
+  transition: background 0.2s, color 0.2s, border 0.2s;
+}
+#zoomInBtn:hover, #zoomInBtn:active, #zoomInBtn.active,
+#zoomOutBtn:hover, #zoomOutBtn:active, #zoomOutBtn.active,
+#resetZoomBtn:hover, #resetZoomBtn:active, #resetZoomBtn.active {
+  background: #529aa3 !important;
+  border-color: #2a5053 !important;
+  color: #fff !important;
+}
+/* Annotation Tool Buttons (Line, Dot, Eraser) */
+#scribbleMode,
+#dotMode,
+#eraserMode {
+  background: transparent !important;
+  border: 2px solid #fff !important;
+  color: #fff !important;
+  border-radius: 2rem;
+  font-weight: normal;
+  transition: background 0.2s, color 0.2s, border 0.2s;
+}
+
+#scribbleMode:hover, #scribbleMode:active, #scribbleMode.active,
+#dotMode:hover, #dotMode:active, #dotMode.active,
+#eraserMode:hover, #eraserMode:active, #eraserMode.active {
+  background: #946a90 !important;
+  border-color: #634260 !important; /**/
+  color: #fff !important;
+}
+
+/* Download Image Button */
+#downloadSegmentedImage,
+ #downloadSegmentedImage:visited,
+ #downloadSegmentedImage:active,
+ #downloadSegmentedImage:focus {
+   background: #16e38a !important;
+   border: none !important;
+   color: #f3f6f9 !important;
+   border-radius: 2rem;
+   box-shadow: 0 3px 10px 0 rgba(22, 227, 138, 0.18);
+   transition: background 0.2s, color 0.2s, border 0.2s;
+   padding: 10px 30px;
+   display: inline-block;
+   outline: none;
+ }
+
+/* Download button: hover effect for border and text color */
+#downloadSegmentedImage:hover {
+  color: rgba(12, 81, 52, 0.82) !important;
+  border: 2px solid rgba(12, 81, 52, 0.82) !important;
+  background: #16e38a !important;
+}
+
+/*tools bar*/
+.tool-sidebar {
+  min-width: 180px;
+  max-width: 220px;
+  background: rgba(80, 100, 130, 0.13);
+  border-radius: 1rem;
+  padding: 20px 16px 20px 18px;
+  margin-top: 8px;
+}
+
+.tool-sidebar label, .tool-sidebar p {
+  color: #f3f6f9;
+  margin-bottom: 0.35rem;
+  font-size: 1rem;
+}
+.tool-sidebar button {
+  margin-bottom: 0.45rem;
+  font-size: 1rem;
+}
+.tool-sidebar input[type="color"] {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  margin-left: 2px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.uploaded-filename {
+  display: inline-block;
+  color: #f3f6f9;
+  font-size: 1.02rem;
+  margin-left: 4px;
+  margin-bottom: 8px;
+  padding-left: 4px;
+  font-style: italic;
+  letter-spacing: 0.03em;
 }

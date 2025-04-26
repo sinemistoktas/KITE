@@ -225,10 +225,22 @@ window.addEventListener('DOMContentLoaded', event => {
     // clicked again to reset its mode's properties, like the moving eraser cursor.
 
     function setMode(newMode) {
+        console.log('Before removing active:', zoomInBtn.classList, zoomOutBtn.classList, resetZoomBtn.classList);
+
+
+        zoomInBtn.classList.remove("active");
+        zoomOutBtn.classList.remove("active");
+        resetZoomBtn.classList.remove("active");
+
+        console.log('After removing active:', zoomInBtn.classList, zoomOutBtn.classList, resetZoomBtn.classList);
+
+
         if (mode === newMode) {
             // Deselect if user clicks the same button again.
             mode = null;
             showEraserCursor = false;
+
+
         } else {
             // Exit zoom mode if we're switching to a drawing mode
             if (zoomMode) {
@@ -260,11 +272,18 @@ window.addEventListener('DOMContentLoaded', event => {
     // Function to toggle the zoom mode.
     function toggleZoomMode() {
         zoomMode = !zoomMode;
-        
+
+        zoomInBtn.classList.remove("active");
+        zoomOutBtn.classList.remove("active");
+        resetZoomBtn.classList.remove("active");
+
+
         if (zoomMode) {
             // Deactivate any other mode
             mode = null;
             showEraserCursor = false;
+
+            zoomInBtn.classList.add("active");
         }
         
         updateButtonStyles();

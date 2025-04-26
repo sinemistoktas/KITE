@@ -39,57 +39,73 @@
   <h6 class="mb-4">Upload an Image</h6>
   <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
-    <input type="file" name="image" class="form-control mb-3" required>
-    <button class="btn btn-primary">Upload</button>
+    <label for="file-upload" class="custom-file-upload">
+      <i class="fa fa-cloud-upload"></i> Choose File
+    </label>
+    <input id="file-upload" type="file" name="image" class="form-control mb-3" required style="display:none;">
+    <span id="fileNameDisplay" class="file-name-display"></span>
+    <button type="submit" class="custom-upload-btn">Upload</button>
   </form>
 
   {% if image_url %}
+  <div class="mt-2 mb-3">
+    <span class="uploaded-filename"><strong>Filename:</strong> {{ image_name }}</span>
+  </div>
+  {% endif %}
+
+  {% if image_url %}
   <div class="card p-3 mt-4 mb-4">
-    <label for="colorPicker">Annotation Color:</label>
-      <input type="color" id="colorPicker" value="#ff0000">
-    <p><strong>Filename:</strong> {{ image_name }}</p>
-    <div class="d-flex flex-column align-items-center mt-4">
-      <!-- Image + Canvases -->
-      <div id="zoomContainer" style="display: inline-block; position: relative;">
-        <img id="uploadedImage" src="{{ image_url }}" class="img-oct" />
-        <canvas id="predictionCanvas"></canvas>
-        <canvas id="annotationCanvas"></canvas>
-        <div class="zoom-info" id="zoomInfo">Zoom: 100%</div> 
-      </div>
-      
-      <!-- Zoom controls -->
-      <div class="zoom-controls">
-        <button type="button" class="btn btn-outline-primary rounded-pill px-4" id="zoomInBtn">
-          <i class="fa-solid fa-magnifying-glass-plus"></i> Zoom In
-        </button>
-        <button type="button" class="btn btn-outline-primary rounded-pill px-4" id="zoomOutBtn">
-          <i class="fa-solid fa-magnifying-glass-minus"></i> Zoom Out
-        </button>
-        <button type="button" class="btn btn-outline-primary rounded-pill px-4" id="resetZoomBtn">
-          <i class="fa-solid fa-arrows-to-circle"></i> Reset Zoom
-        </button>
-      </div>
-    
-      <!-- Buttons below -->
-      <div class="d-flex flex-wrap justify-content-center gap-3 mt-4">
-        <button type="button" class="btn btn-outline-danger rounded-pill px-4" id="scribbleMode">
+    <div class="d-flex flex-row align-items-start gap-4 mb-3">
+      <!-- TOOLS BOX -->
+      <div class="tool-sidebar d-flex flex-column align-items-start gap-3">
+        <div>
+          <label for="colorPicker" style="margin-bottom: 4px;">Annotation Color:</label><br>
+          <input type="color" id="colorPicker" value="#ff0000">
+        </div>
+
+        <!-- Annotation Buttons -->
+        <button type="button" class="btn btn-outline-danger rounded-pill px-4 w-100" style="width: 130px;" id="scribbleMode">
           <i class="fa-solid fa-minus"></i> Line
         </button>
-        <button type="button" class="btn btn-outline-danger rounded-pill px-4" id="dotMode">
+        <button type="button" class="btn btn-outline-danger rounded-pill px-4 w-100" style="width: 130px;" id="dotMode">
           <i class="fa-solid fa-pencil"></i> Dot
         </button>
-        <button type="button" class="btn btn-outline-danger rounded-pill px-4" id="eraserMode">
+        <button type="button" class="btn btn-outline-danger rounded-pill px-4 w-100" style="width: 130px;" id="eraserMode">
           <i class="fa-solid fa-eraser"></i> Eraser
         </button>
       </div>
+
+      <!-- IMAGE CONTENT -->
+      <div class="flex-grow-1 d-flex flex-column align-items-center" style="min-width: 700px; max-width: 800px;">
+        <div id="zoomContainer" style="display: inline-block; position: relative;">
+          <img id="uploadedImage" src="{{ image_url }}" class="img-oct" style="max-width: 530px; width: 100%;"/>
+          <canvas id="predictionCanvas"></canvas>
+          <canvas id="annotationCanvas"></canvas>
+          <div class="zoom-info" id="zoomInfo">Zoom: 100%</div>
+        </div>
+
+        <!-- Zoom controls -->
+        <div class="zoom-controls mt-3">
+          <button type="button" class="btn btn-outline-primary rounded-pill px-3" id="zoomInBtn">
+            <i class="fa-solid fa-magnifying-glass-plus"></i> Zoom In
+          </button>
+          <button type="button" class="btn btn-outline-primary rounded-pill px-3" id="zoomOutBtn">
+            <i class="fa-solid fa-magnifying-glass-minus"></i> Zoom Out
+          </button>
+          <button type="button" class="btn btn-outline-primary rounded-pill px-3" id="resetZoomBtn">
+            <i class="fa-solid fa-arrows-to-circle"></i> Reset Zoom
+          </button>
+        </div>
+        <button class="ready-segment-btn px-4 py-2 rounded-pill shadow-sm mt-3" onclick="handleAnnotations()">
+          <i class="fa-solid fa-hurricane me-2"></i> Ready to Segment!
+        </button>
+      </div>
+      <!-- LAYERS BURAYA YAZ! -->
+      <div style="width:220px;"></div>
     </div>
   </div>
-  <div class="d-flex justify-content-center mt-4 mb-4">
-    <button class="btn btn-primary px-4 py-2 rounded-pill shadow-sm" onclick="handleAnnotations()">
-      <i class="fa-solid fa-hurricane me-2"></i> Ready to Segment!
-    </button>
-  </div>
-  {% endif %}
+
+{% endif %}
   <div id="segmentationResult" class="text-center mt-4" style="display: none;">
     <div class="text-white p-2 mb-2 rounded bg-primary">
       <strong>Segmented Result</strong>
@@ -101,11 +117,11 @@
            alt="Segmented Output" />
     
       <div class="d-flex justify-content-center gap-3 mt-4">
-        <button class="btn btn-outline-primary px-4 py-2 rounded-pill shadow-sm"
-                onclick= "handlePreprocessedImg()">
+        <button class="show-pre-btn" onclick="handlePreprocessedImg()">
           <i class="fa-solid fa-eye"></i> Show Preprocessed Image
         </button>
-    
+
+
         <a id="downloadSegmentedImage"
            class="btn btn-outline-success px-4 py-2 rounded-pill shadow-sm"
            style="display: none;">
@@ -113,12 +129,27 @@
         </a>
       </div>
     </div>
-    
-</div>
+  </div>
 </div>
 <script>
   window.imageName = "{{ image_name }}";
 </script>
 <script src="{% static 'js/scripts.js' %}"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const fileInput = document.getElementById('file-upload');
+    const fileNameDisplay = document.getElementById('fileNameDisplay');
+
+    if (fileInput && fileNameDisplay) {
+      fileInput.addEventListener('change', function () {
+        if (fileInput.files && fileInput.files.length > 0) {
+          fileNameDisplay.textContent = fileInput.files[0].name;
+        } else {
+          fileNameDisplay.textContent = '';
+        }
+      });
+    }
+  });
+</script>
 </body>
 </html>
