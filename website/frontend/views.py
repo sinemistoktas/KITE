@@ -51,7 +51,7 @@ def segment_image(request):
 
             for shape in data["shapes"]:
                 points = shape.get("points", [])
-            print("Data", data)
+            #print("Data", data) // for debugging
            
             filename = data.get("image_name")
             if not filename:
@@ -110,4 +110,4 @@ def preprocessed_image_view(request):
             traceback_str = traceback.format_exc()
             print("Preprocessing error:\n", traceback_str)
             return JsonResponse({"error": str(e)}, status=500)
-    return JsonResponse({'error': 'Only a POST request is allowed'}, status=405)
+    return JsonResponse({'error': 'Only a POST request is allo

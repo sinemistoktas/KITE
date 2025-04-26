@@ -30,9 +30,12 @@ let selectedColor = "#ff0000"; // def annotation color is red
 let currentStrokeColor = "#ff0000";
 
 // Useful for the eraser feature.
-function distance(p1, p2) { 
-    return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
+function distance(p, x, y) {
+    const dx = p.x - x;
+    const dy = p.y - y;
+    return (dx * dx + dy * dy) <= (ERASE_RADIUS * ERASE_RADIUS);
 }
+
 
 // Converts the mouse clicks on the screen into coordinates directly on the image.
 function screenToImageCoords(screenX, screenY) {
@@ -87,14 +90,39 @@ window.addEventListener('DOMContentLoaded', event => {
     }
 
     function eraseAtPoint(x, y) {
-        scribbles = scribbles.filter(stroke => {
-            if (stroke.isPrediction) return true; // if the line is the machine's predictions, DO NOT erase it.
-            return !stroke.points.some(p => distance(p, { x, y }) < ERASE_RADIUS); // If the scribble has a point that
-            // is within the radius of the eraser, delete it. 
-        });
+        let newScribbles = [];
     
-        redrawAnnotations(); // Rerender the annotations with the newly erased component.
+        for (const stroke of scribbles) {
+            if (stroke.isPrediction) {
+                newScribbles.push(stroke); // keep the made predictions
+                continue;
+            }
+    
+            let currentSegment = [];  // create partial segments while deleting
+    
+            for (const point of stroke.points) {
+                if (!distance(point,x,y) ) {
+                    currentSegment.push(point);
+                } 
+                else {
+                    // if eraser hits a point, break the stroke here
+                    if (currentSegment.length > 1) {
+                        newScribbles.push({ points: currentSegment, isPrediction: false, color: stroke.color });
+                    }
+                    currentSegment = [];
+                }
+            }
+    
+            if (currentSegment.length > 1) {
+                newScribbles.push({ points: currentSegment, isPrediction: false, color: stroke.color });
+            }
+        }
+    
+        scribbles = newScribbles;
+    
+        redrawAnnotations(); // Redraw everything
     }
+    
 
     function drawEraserCursor() {
         if (!showEraserCursor || mode !== "eraser") return;
