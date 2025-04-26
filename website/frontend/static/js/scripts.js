@@ -26,6 +26,8 @@ let originalImageDimensions = { width: 0, height: 0 };
 
 // GLOBAL references to be set on DOMContentLoaded
 let scribbles = [], currentStroke = [];
+let selectedColor = "#ff0000"; // def annotation color is red
+let currentStrokeColor = "#ff0000";
 
 // Useful for the eraser feature.
 function distance(p1, p2) { 
@@ -61,6 +63,27 @@ window.addEventListener('DOMContentLoaded', event => {
 
     predictionCanvas = document.getElementById("predictionCanvas");
     predictionCtx = predictionCanvas.getContext("2d");
+
+    // Color picker functionality from first script
+    const colorPicker = document.getElementById("colorPicker");
+    if (colorPicker) {
+        colorPicker.addEventListener("input", (e) => {
+            selectedColor = e.target.value;
+        });
+    }
+
+    // Draw line function from first script
+    function drawLine(points, color = selectedColor, context = annotationCtx, lineWidth = 2) {
+        if (points.length < 2) return;
+        context.strokeStyle = color;
+        context.lineWidth = lineWidth;
+        context.beginPath();
+        context.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+            context.lineTo(points[i].x, points[i].y);
+        }
+        context.stroke();
+    }
 
     function eraseAtPoint(x, y) {
         scribbles = scribbles.filter(stroke => {
@@ -127,12 +150,13 @@ window.addEventListener('DOMContentLoaded', event => {
             
             // Initialize zoom container dimensions, should again be the same as the image.
             const zoomContainer = document.getElementById("zoomContainer");
-            zoomContainer.style.width = `${rect.width}px`;
-            zoomContainer.style.height = `${rect.height}px`;
+            if (zoomContainer) {
+                zoomContainer.style.width = `${rect.width}px`;
+                zoomContainer.style.height = `${rect.height}px`;
+            }
         }
     }
-    
-      
+          
     if (img.complete) { // If the browser has finished loading the image, resize the canvas. Else resize it when it loads.
         resizeCanvasToImage();
     } else {
@@ -315,7 +339,6 @@ window.addEventListener('DOMContentLoaded', event => {
     
     // Apply the new zoom level.
     function updateZoom() {
-        const img = document.getElementById("uploadedImage");
         const zoomContainer = document.getElementById("zoomContainer");
         
         // Calculate the offset needed to center the view on the zoomed point.
@@ -373,11 +396,16 @@ window.addEventListener('DOMContentLoaded', event => {
             mouseY = imageCoords.y;
         
             if (mode === "dot") {
-                scribbles.push({ points: [{ x: mouseX, y: mouseY }], isPrediction: false });
+                scribbles.push({ 
+                    points: [{ x: mouseX, y: mouseY }], 
+                    isPrediction: false,
+                    color: selectedColor 
+                });
                 redrawAnnotations();
             } else if (mode === "line") {
                 isDrawing = true;
                 currentStroke = [{ x: mouseX, y: mouseY }];
+                currentStrokeColor = selectedColor;
             } else if (mode === "eraser") {
                 isErasing = true;
                 eraseAtPoint(mouseX, mouseY);
@@ -403,9 +431,13 @@ window.addEventListener('DOMContentLoaded', event => {
             }
         });
 
-        annotationCanvas.addEventListener("mouseup", (e) => {
+        annotationCanvas.addEventListener("mouseup", () => {
             if (isDrawing && currentStroke.length > 0) {
-                scribbles.push({ points: currentStroke, isPrediction: false });
+                scribbles.push({ 
+                    points: currentStroke, 
+                    isPrediction: false,
+                    color: currentStrokeColor
+                });
                 currentStroke = [];
                 redrawAnnotations();
             }
@@ -415,35 +447,20 @@ window.addEventListener('DOMContentLoaded', event => {
 
         annotationCanvas.addEventListener("mouseleave", () => {
             if (isDrawing && currentStroke.length > 0) {
-                scribbles.push({ points: currentStroke, isPrediction: false });
+                scribbles.push({ 
+                    points: currentStroke, 
+                    isPrediction: false,
+                    color: currentStrokeColor 
+                });
                 currentStroke = [];
                 redrawAnnotations();
             }
-
             isDrawing = false;
             isErasing = false;
         });
     }
 
-    // Fix for annotation with zoom functionality
-    // Improved screenToImageCoords function
-    function screenToImageCoords(screenX, screenY) {
-        const rect = annotationCanvas.getBoundingClientRect();
-        const containerX = screenX - rect.left;
-        const containerY = screenY - rect.top;
-        
-        // Calculate the current offset based on viewport center
-        const offsetX = viewportCenterX - (originalImageDimensions.width / (2 * zoomLevel));
-        const offsetY = viewportCenterY - (originalImageDimensions.height / (2 * zoomLevel));
-        
-        // Calculate image coordinates taking into account zoom level and viewport center
-        const imageX = (containerX / zoomLevel) + offsetX;
-        const imageY = (containerY / zoomLevel) + offsetY;
-        
-        return { x: imageX, y: imageY };
-    }
-
-    // Basically the rerendering function of the code. 
+    // Main function to redraw all annotations with proper zoom and color
     function redrawAnnotations() {
         annotationCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
         predictionCtx.clearRect(0, 0, predictionCanvas.width, predictionCanvas.height);
@@ -467,12 +484,12 @@ window.addEventListener('DOMContentLoaded', event => {
             
             // A simple dot.
             if (stroke.points.length === 1) {
-                annotationCtx.fillStyle = "red";
+                annotationCtx.fillStyle = stroke.color || "red";
                 annotationCtx.beginPath();
                 annotationCtx.arc(stroke.points[0].x, stroke.points[0].y, 2, 0, 2 * Math.PI);
                 annotationCtx.fill();
             } else { // Otherwise, a line.
-                annotationCtx.strokeStyle = "red";
+                annotationCtx.strokeStyle = stroke.color || "red";
                 annotationCtx.lineWidth = 2 / zoomLevel;
                 annotationCtx.beginPath();
                 annotationCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
@@ -497,7 +514,7 @@ window.addEventListener('DOMContentLoaded', event => {
             for (const stroke of predictionStrokes) {
                 if (stroke.points.length > 0) {
                     for (const point of stroke.points) {
-                        predictionCtx.fillStyle = "blue";
+                        predictionCtx.fillStyle = stroke.color || "blue";
                         predictionCtx.beginPath();
                         predictionCtx.arc(point.x, point.y, 2 / zoomLevel, 0, 2 * Math.PI);
                         predictionCtx.fill();
@@ -512,7 +529,7 @@ window.addEventListener('DOMContentLoaded', event => {
         if (isDrawing && currentStroke.length > 0) {
             adjustForZoom(annotationCtx);
             
-            annotationCtx.strokeStyle = "red";
+            annotationCtx.strokeStyle = currentStrokeColor;
             annotationCtx.lineWidth = 2 / zoomLevel;
             annotationCtx.beginPath();
             annotationCtx.moveTo(currentStroke[0].x, currentStroke[0].y);
@@ -539,18 +556,25 @@ window.addEventListener('DOMContentLoaded', event => {
     }
 
     window.handleAnnotations = function () {
-        // Ensure that the user's annotations are SAVED
+        // Ensure that the user's annotations are SAVED!! We need
+        // the user to continuously modify their segmentation output.
         scribbles = scribbles.filter(s => !s.isPrediction);
         redrawAnnotations();
 
+        // Redraws only the user annotations.
         const allPoints = scribbles
         .filter(s => !s.isPrediction)
-        .flatMap(s => s.points);
+        .flatMap(s => s.points.map(p => ({
+            x: p.x,
+            y: p.y,
+            color: s.color // add color from parent scribble
+        })));
         const annotationsJson = {
             image_name: window.imageName,
             shapes: [{
                 label: "anomaly",
-                points: allPoints.map(p => [p.x, p.y])
+                points: allPoints.map(p => [p.x, p.y]),
+                color: allPoints.map(p => p.color)
             }]
         };
 
@@ -570,6 +594,7 @@ window.addEventListener('DOMContentLoaded', event => {
             return response.json();
         })
         .then(data => {
+            // Reset zoom when showing results
             zoomLevel = 1;
             viewportCenterX = originalImageDimensions.width / 2;
             viewportCenterY = originalImageDimensions.height / 2;
@@ -577,6 +602,7 @@ window.addEventListener('DOMContentLoaded', event => {
             const canvasWidth = annotationCanvas.width;
             const canvasHeight = annotationCanvas.height;
             
+            // Keep canvas dimensions after processing
             const updateCanvasesButPreserveDimensions = () => {
                 for (const c of [annotationCanvas, predictionCanvas]) {
                     c.width = canvasWidth;
@@ -594,13 +620,26 @@ window.addEventListener('DOMContentLoaded', event => {
             const predictedPoints = data.predicted_annotations || [];
             if (predictedPoints.length > 0) {
                 let stroke = [];
-                for (const [x, y] of predictedPoints) {
-                    stroke.push({ x, y });
+                // Handle both formats: [[x,y], color] or [x,y]
+                for (const point of predictedPoints) {
+                    if (Array.isArray(point[0])) {
+                        const [[x, y], color] = point;
+                        stroke.push({ x, y });
+                    } else {
+                        const [x, y] = point;
+                        stroke.push({ x, y });
+                    }
                 }
-                scribbles.push({ points: stroke, isPrediction: true });
+                scribbles.push({ 
+                    points: stroke, 
+                    isPrediction: true,
+                    color: "blue" // Default prediction color
+                });
             }
+            
             updateZoom();
             
+            // Update zoom info
             const zoomInfo = document.getElementById("zoomInfo");
             if (zoomInfo) {
                 zoomInfo.textContent = "Zoom: 100%";
@@ -611,7 +650,7 @@ window.addEventListener('DOMContentLoaded', event => {
             if (data.segmented_image) {
                 document.getElementById("segmentationResult").style.display = "block";
 
-                //download
+                // Download button
                 const downloadBtn = document.getElementById("downloadSegmentedImage");
                 downloadBtn.href = segmentedImageElement.src;
                 downloadBtn.download = "segmented_result.png";
@@ -674,7 +713,6 @@ window.addEventListener('DOMContentLoaded', event => {
                 alert("Error displaying preprocessed image.");
             });
     }
-    
 
     function getCookie(name) {
         const value = `; ${document.cookie}`;
