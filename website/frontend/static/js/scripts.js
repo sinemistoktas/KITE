@@ -56,7 +56,6 @@ function screenToImageCoords(screenX, screenY) {
     return { x: constrainedX, y: constrainedY };
 }
 
-
 window.addEventListener('DOMContentLoaded', event => {
 
     annotationCanvas = document.getElementById("annotationCanvas");
