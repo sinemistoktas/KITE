@@ -516,7 +516,7 @@ window.addEventListener('DOMContentLoaded', event => {
             for (const stroke of predictionStrokes) {
                 if (stroke.points.length > 0) {
                     for (const point of stroke.points) {
-                        predictionCtx.fillStyle = stroke.color || "blue";
+                        predictionCtx.fillStyle = (point.color) ? point.color : (stroke.color || "blue");
                         predictionCtx.beginPath();
                         predictionCtx.arc(point.x, point.y, 2 / zoomLevel, 0, 2 * Math.PI);
                         predictionCtx.fill();
@@ -622,20 +622,28 @@ window.addEventListener('DOMContentLoaded', event => {
             const predictedPoints = data.predicted_annotations || [];
             if (predictedPoints.length > 0) {
                 let stroke = [];
-                // Handle both formats: [[x,y], color] or [x,y]
+                let strokeColors = []; // Array to store individual point colors (Points here because adding the prediction contours point by point is easier.)
                 for (const point of predictedPoints) {
                     if (Array.isArray(point[0])) {
                         const [[x, y], color] = point;
                         stroke.push({ x, y });
+                        strokeColors.push(color);
                     } else {
                         const [x, y] = point;
                         stroke.push({ x, y });
+                        strokeColors.push("blue"); // Default color if no color provided (Never happens but still.)
                     }
                 }
+                const pointsWithColors = stroke.map((point, index) => ({
+                    x: point.x, 
+                    y: point.y,
+                    color: strokeColors[index] // Assign the color to each point
+                }));
+                
                 scribbles.push({ 
-                    points: stroke, 
+                    points: pointsWithColors, 
                     isPrediction: true,
-                    color: "blue" // Default prediction color
+                    color: "blue" // This will be never used but it needs a color so just added blue.
                 });
             }
             
