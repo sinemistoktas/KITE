@@ -57,25 +57,27 @@
   <div class="card p-3 mt-4 mb-4">
     <div class="d-flex flex-row align-items-start gap-4 mb-3">
       <!-- TOOLS BOX -->
-      <div class="tool-sidebar d-flex flex-column align-items-start gap-3">
+      <div class="tool-sidebar d-flex flex-column align-items-start gap-3" style="min-width: 160px;">
         <div>
-          <label for="colorPicker" style="margin-bottom: 4px;">Annotation Color:</label><br>
-          <input type="color" id="colorPicker" value="#ff0000">
+          <label for="colorPicker" class="mb-2" style="width: 100%; text-align: left;">Annotation Color:</label>
+          <input type="color" id="colorPicker" value="#ff0000"
+                 style="width: 38px; height: 38px; border: none; border-radius: 8px; margin-bottom: 10px; display: block;">
         </div>
+
         <!-- Annotation Buttons -->
-        <button type="button" class="btn btn-outline-danger rounded-pill px-4 w-100" style="width: 130px;" id="scribbleMode">
+        <button type="button" class="btn btn-outline-danger rounded-pill px-3"  id="scribbleMode">
           <i class="fa-solid fa-minus"></i> Line
         </button>
-        <button type="button" class="btn btn-outline-danger rounded-pill px-4 w-100" style="width: 130px;" id="dotMode">
+        <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="dotMode">
           <i class="fa-solid fa-pencil"></i> Dot
         </button>
-        <button type="button" class="btn btn-outline-danger rounded-pill px-4 w-100" style="width: 130px;" id="eraserMode">
+        <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="eraserMode">
           <i class="fa-solid fa-eraser"></i> Eraser
         </button>
       </div>
 
       <!-- IMAGE CONTENT -->
-      <div class="flex-grow-1 d-flex flex-column align-items-center" style="min-width: 700px; max-width: 800px;">
+      <div class="flex-grow-1 d-flex flex-column align-items-center" style="min-width: 750px; max-width: 100%;">
         <div id="zoomContainer" style="display: inline-block; position: relative;">
           <img id="uploadedImage" src="{{ image_url }}" class="img-oct" style="max-width: 530px; width: 100%;"/>
           <canvas id="predictionCanvas"></canvas>

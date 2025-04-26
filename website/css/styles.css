@@ -79,6 +79,7 @@
   --bs-highlight-bg: #fff3cd;
 }
 
+
 *,
 *::before,
 *::after {
@@ -11391,4 +11392,10 @@ input[type="file"] {
   padding-left: 4px;
   font-style: italic;
   letter-spacing: 0.03em;
+}
+.btn-outline-danger {
+  min-width: 110px;  /* or your preferred size */
+  max-width: 130px;
+  padding-left: 18px;
+  padding-right: 18px;
 }
