@@ -196,6 +196,7 @@ window.addEventListener('DOMContentLoaded', event => {
 
     window.addEventListener("resize", resizeCanvasToImage); // Whenever the browser window & the image is resized, the canvas would resize with it.
 
+
     const lineBtn = document.getElementById("scribbleMode");
     const dotBtn = document.getElementById("dotMode");
     const eraserBtn = document.getElementById("eraserMode");
