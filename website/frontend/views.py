@@ -51,7 +51,7 @@ def segment_image(request):
 
             for shape in data["shapes"]:
                 points = shape.get("points", [])
-            print("Data", data)
+            #print("Data", data) // for debugging
            
             filename = data.get("image_name")
             if not filename:
