@@ -15,7 +15,7 @@
 <body class="seg-tool-page p-5">
 
 <div class="go-back-home">
-  <a href="{% url 'home' %}" class="button-link">
+  <a href="{% url 'home' %}" class="button-link" style="text-decoration: none;">
     <button class="back-btn">
       <svg height="18" width="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><path d="M874.7 495.5c0 11.3-9.2 20.5-20.5 20.5H249.4l188.1 188.1c8 8 8 20.9 0 28.9-4 4-9.2 6-14.5 6s-10.5-2-14.5-6l-223-223c-3.8-3.8-6-9-6-14.5s2.2-10.6 6-14.5l223-223c8-8 21-8 29 0s8 21 0 29L249.4 475h604.8c11.3 0 20.5 9.2 20.5 20.5z"></path></svg>
       <span>Go to Homepage</span>
@@ -45,25 +45,30 @@
 
   {% if image_url %}
   <div class="card p-3 mt-4 mb-4">
-    <div class="d-flex flex-row align-items-start gap-4 mb-3">
+
+    <!-- Segmentation Workspace Main Container Box -->
+    <div class="d-flex flex-row align-items-start justify-content-between" style="gap: 20px;">
       <!-- TOOLS BOX -->
-      <div class="tool-sidebar d-flex flex-column align-items-start gap-3" style="min-width: 160px;">
-        <div>
-          <label for="colorPicker" class="mb-2" style="width: 100%; text-align: left;">Annotation Color:</label>
+      <div class="tool-sidebar d-flex flex-column align-items-center gap-3" style="min-width: 220px; margin-left: 20px;">
+        <h6 class="mb-2" style="width: 100%; text-align: center;">Tools</h6>
+        <div class="d-flex flex-column align-items-center" style="width: 100%;">
+          <label for="colorPicker" class="mb-2" style="width: 100%; text-align: center;">Annotation Color:</label>
           <input type="color" id="colorPicker" value="#ff0000"
                  style="width: 38px; height: 38px; border: none; border-radius: 8px; margin-bottom: 10px; display: block;">
         </div>
 
         <!-- Annotation Buttons -->
-        <button type="button" class="btn btn-outline-danger rounded-pill px-3"  id="scribbleMode">
-          <i class="fa-solid fa-minus"></i> Line
-        </button>
-        <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="dotMode">
-          <i class="fa-solid fa-pencil"></i> Dot
-        </button>
-        <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="eraserMode">
-          <i class="fa-solid fa-eraser"></i> Eraser
-        </button>
+        <div class="d-flex flex-column align-items-center gap-2" style="width: 100%;">
+          <button type="button" class="btn btn-outline-danger rounded-pill px-3"  id="scribbleMode">
+            <i class="fa-solid fa-minus"></i> Line
+          </button>
+          <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="dotMode">
+            <i class="fa-solid fa-pencil"></i> Dot
+          </button>
+          <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="eraserMode">
+            <i class="fa-solid fa-eraser"></i> Eraser
+          </button>
+        </div>
       </div>
 
       <!-- IMAGE CONTENT -->
@@ -91,8 +96,31 @@
           <i class="fa-solid fa-hurricane me-2"></i> Ready to Segment!
         </button>
       </div>
-      <!-- LAYERS BURAYA YAZ! -->
-      <div style="width:220px;"></div>
+
+      <!-- LAYERS PANEL -->
+      <div class="tool-sidebar d-flex flex-column align-items-center gap-3" style="min-width: 220px; margin-right: 20px;">
+        <h6 class="mb-2" style="width: 100%; text-align: center;">Layers</h6>
+        <div class="d-flex flex-column align-items-center gap-2" style="width: 100%;">
+          <div class="layer-item d-flex align-items-center justify-content-between p-2 rounded" style="width: 100%;">
+            <span style="color: var(--text-light);">Original Image</span>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" checked>
+            </div>
+          </div>
+          <div class="layer-item d-flex align-items-center justify-content-between p-2 rounded" style="width: 100%;">
+            <span style="color: var(--text-light);">Annotations</span>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" checked>
+            </div>
+          </div>
+          <div class="layer-item d-flex align-items-center justify-content-between p-2 rounded" style="width: 100%;">
+            <span style="color: var(--text-light);">Predictions</span>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" checked>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
