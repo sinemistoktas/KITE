@@ -28405,7 +28405,7 @@ progress {
     }
 
     .btn-outline-danger {
-      min-width: 110px; /* or your preferred size */
+      min-width: 110px;
       max-width: 130px;
       padding-left: 18px;
       padding-right: 18px;
@@ -28492,9 +28492,8 @@ progress {
       max-width: 24px !important;
       max-height: 24px !important;
       transition: background 0.15s, color 0.15s, border-color 0.15s !important;
-      \
 
-    #deleteLayerBtn {
+    #deleteLayerBtn{
       background: transparent !important;
       border: 2px solid #fff !important;
       color: #fff !important;

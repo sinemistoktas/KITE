@@ -107,55 +107,66 @@ window.addEventListener('DOMContentLoaded', event => {
     function eraseAtPoint(x, y) {
         let newScribbles = [];
         let existingLayerIds = new Set(); // Track all layer IDs that exist, to be used for deleting layers that no longer have any strokes.
-        
+        let erasedStroke = false;
+
         // First pass: collect all layer IDs
         for (const stroke of scribbles) {
             if (stroke.layerId) {
                 existingLayerIds.add(stroke.layerId);
             }
         }
-        
+
         // Process erasing
         for (const stroke of scribbles) {
             if (stroke.isPrediction) {
                 newScribbles.push(stroke); // keep the made predictions
                 continue;
             }
-        
+
+            // Check if stroke has any points within eraser radius
+            const hasPointInEraser = stroke.points.some(point => distance(point, x, y));
+
+            if (!hasPointInEraser || erasedStroke) {
+                newScribbles.push(stroke);
+                continue;
+            }
+
+            erasedStroke = true;
+
             let currentSegment = [];
             let hasRemainingPoints = false;
-        
+
             for (const point of stroke.points) {
                 if (!distance(point,x,y)) {
                     currentSegment.push(point);
                     hasRemainingPoints = true;
-                } 
+                }
                 else {
                     // if eraser hits a point, break the stroke here
                     if (currentSegment.length > 1) {
-                        newScribbles.push({ 
-                            points: currentSegment, 
-                            isPrediction: false, 
-                            color: stroke.color, 
-                            layerId: stroke.layerId 
+                        newScribbles.push({
+                            points: currentSegment,
+                            isPrediction: false,
+                            color: stroke.color,
+                            layerId: stroke.layerId
                         });
                     }
                     currentSegment = [];
                 }
             }
-        
+
             if (currentSegment.length > 1) {
-                newScribbles.push({ 
-                    points: currentSegment, 
-                    isPrediction: false, 
-                    color: stroke.color, 
-                    layerId: stroke.layerId 
+                newScribbles.push({
+                    points: currentSegment,
+                    isPrediction: false,
+                    color: stroke.color,
+                    layerId: stroke.layerId
                 });
             }
         }
-        
+
         scribbles = newScribbles;
-        
+
         // Check which layers still have strokes
         let remainingLayerIds = new Set();
         for (const stroke of newScribbles) {
@@ -163,7 +174,7 @@ window.addEventListener('DOMContentLoaded', event => {
                 remainingLayerIds.add(stroke.layerId);
             }
         }
-        
+
         // Delete layers that no longer have any strokes
         for (const layerId of existingLayerIds) {
             if (!remainingLayerIds.has(layerId)) {
@@ -173,7 +184,7 @@ window.addEventListener('DOMContentLoaded', event => {
                 }
             }
         }
-        
+
         redrawAnnotations(); // Redraw everything
     }
     
