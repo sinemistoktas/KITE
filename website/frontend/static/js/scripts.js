@@ -28,6 +28,8 @@ let originalImageDimensions = { width: 0, height: 0 };
 let scribbles = [], currentStroke = [];
 let selectedColor = "#ff0000"; // def annotation color is red
 let currentStrokeColor = "#ff0000";
+let layerCounter = 0; // Counter for unique layer IDs
+let currentLayerId;
 
 // Useful for the eraser feature.
 function distance(p, x, y) {
@@ -90,35 +92,74 @@ window.addEventListener('DOMContentLoaded', event => {
 
     function eraseAtPoint(x, y) {
         let newScribbles = [];
-    
+        let existingLayerIds = new Set(); // Track all layer IDs that exist, to be used for deleting layers that no longer have any strokes.
+        
+        // First pass: collect all layer IDs
+        for (const stroke of scribbles) {
+            if (stroke.layerId) {
+                existingLayerIds.add(stroke.layerId);
+            }
+        }
+        
+        // Process erasing
         for (const stroke of scribbles) {
             if (stroke.isPrediction) {
                 newScribbles.push(stroke); // keep the made predictions
                 continue;
             }
-    
-            let currentSegment = [];  // create partial segments while deleting
-    
+        
+            let currentSegment = [];
+            let hasRemainingPoints = false;
+        
             for (const point of stroke.points) {
-                if (!distance(point,x,y) ) {
+                if (!distance(point,x,y)) {
                     currentSegment.push(point);
+                    hasRemainingPoints = true;
                 } 
                 else {
                     // if eraser hits a point, break the stroke here
                     if (currentSegment.length > 1) {
-                        newScribbles.push({ points: currentSegment, isPrediction: false, color: stroke.color });
+                        newScribbles.push({ 
+                            points: currentSegment, 
+                            isPrediction: false, 
+                            color: stroke.color, 
+                            layerId: stroke.layerId 
+                        });
                     }
                     currentSegment = [];
                 }
             }
-    
+        
             if (currentSegment.length > 1) {
-                newScribbles.push({ points: currentSegment, isPrediction: false, color: stroke.color });
+                newScribbles.push({ 
+                    points: currentSegment, 
+                    isPrediction: false, 
+                    color: stroke.color, 
+                    layerId: stroke.layerId 
+                });
             }
         }
-    
+        
         scribbles = newScribbles;
-    
+        
+        // Check which layers still have strokes
+        let remainingLayerIds = new Set();
+        for (const stroke of newScribbles) {
+            if (stroke.layerId) {
+                remainingLayerIds.add(stroke.layerId);
+            }
+        }
+        
+        // Delete layers that no longer have any strokes
+        for (const layerId of existingLayerIds) {
+            if (!remainingLayerIds.has(layerId)) {
+                const layerElement = document.getElementById(layerId);
+                if (layerElement) {
+                    layerElement.remove();
+                }
+            }
+        }
+        
         redrawAnnotations(); // Redraw everything
     }
     
@@ -439,16 +480,20 @@ window.addEventListener('DOMContentLoaded', event => {
             mouseY = imageCoords.y;
         
             if (mode === "dot") {
+                const layerId = createLayer("Dot", selectedColor);
                 scribbles.push({ 
                     points: [{ x: mouseX, y: mouseY }], 
                     isPrediction: false,
-                    color: selectedColor 
+                    color: selectedColor,
+                    layerId: layerId
                 });
                 redrawAnnotations();
             } else if (mode === "line") {
                 isDrawing = true;
+                const layerId = createLayer("Line", selectedColor);
                 currentStroke = [{ x: mouseX, y: mouseY }];
                 currentStrokeColor = selectedColor;
+                currentLayerId = layerId;
             } else if (mode === "eraser") {
                 isErasing = true;
                 eraseAtPoint(mouseX, mouseY);
@@ -479,7 +524,8 @@ window.addEventListener('DOMContentLoaded', event => {
                 scribbles.push({ 
                     points: currentStroke, 
                     isPrediction: false,
-                    color: currentStrokeColor
+                    color: currentStrokeColor,
+                    layerId: currentLayerId
                 });
                 currentStroke = [];
                 redrawAnnotations();
@@ -769,5 +815,66 @@ window.addEventListener('DOMContentLoaded', event => {
         const value = `; ${document.cookie}`;
         const parts = value.split(`; ${name}=`);
         return parts.length === 2 ? parts.pop().split(';').shift() : '';
+    }
+
+    function createLayer(type, color) {
+        const layerId = `layer-${layerCounter++}`;
+        const layerContainer = document.getElementById('layersContainer');
+        
+        const layerDiv = document.createElement('div');
+        layerDiv.className = 'layer-item d-flex align-items-center justify-content-between p-2 rounded';
+        layerDiv.style.width = '100%';
+        layerDiv.id = layerId;
+        layerDiv.setAttribute('data-layer-type', type);
+        
+        const layerName = document.createElement('input');
+        layerName.type = 'text';
+        layerName.value = `${type} ${layerCounter}`;
+        layerName.style.color = 'var(--text-light)';
+        layerName.style.backgroundColor = 'transparent';
+        layerName.style.border = 'none';
+        layerName.style.outline = 'none';
+        layerName.style.width = '100px';
+        layerName.addEventListener('change', function() {
+            // Update the layer type tag when the name is changed
+            layerDiv.setAttribute('data-layer-type', this.value.split(' ')[0]);
+        });
+        
+        const layerControls = document.createElement('div');
+        layerControls.className = 'd-flex align-items-center gap-2';
+        
+        const visibilityToggle = document.createElement('div');
+        visibilityToggle.className = 'form-check form-switch';
+        const visibilityInput = document.createElement('input');
+        visibilityInput.className = 'form-check-input';
+        visibilityInput.type = 'checkbox';
+        visibilityInput.checked = true;
+        visibilityInput.onchange = function() {
+            toggleLayerVisibility(layerId);
+        };
+        visibilityToggle.appendChild(visibilityInput);
+        
+        const colorIndicator = document.createElement('div');
+        colorIndicator.style.width = '20px';
+        colorIndicator.style.height = '20px';
+        colorIndicator.style.backgroundColor = color;
+        colorIndicator.style.borderRadius = '4px';
+        colorIndicator.style.border = '1px solid #ccc';
+        
+        layerControls.appendChild(visibilityToggle);
+        layerControls.appendChild(colorIndicator);
+        
+        layerDiv.appendChild(layerName);
+        layerDiv.appendChild(layerControls);
+        layerContainer.appendChild(layerDiv);
+        
+        return layerId;
+    }
+
+    function toggleLayerVisibility(layerId) {
+        const layer = document.getElementById(layerId);
+        const isVisible = layer.querySelector('input[type="checkbox"]').checked;
+        // Here we'll need to implement the actual visibility toggling of the annotation
+        // This will be implemented when we modify the drawing functions
     }
 });
