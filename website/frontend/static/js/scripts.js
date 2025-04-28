@@ -71,10 +71,22 @@ window.addEventListener('DOMContentLoaded', event => {
     predictionCanvas = document.getElementById("predictionCanvas");
     predictionCtx = predictionCanvas.getContext("2d");
 
-    // Color picker functionality from first script
+    // Color picker functionality
     const colorPicker = document.getElementById("colorPicker");
     if (colorPicker) {
-        colorPicker.addEventListener("input", (e) => {
+        // Set initial color
+        selectedColor = colorPicker.value;
+        
+        // Make sure the color picker is properly configured
+        colorPicker.style.cursor = 'pointer';
+        colorPicker.style.width = '38px';
+        colorPicker.style.height = '38px';
+        colorPicker.style.padding = '0';
+        colorPicker.style.border = 'none';
+        colorPicker.style.borderRadius = '8px';
+        
+        // Handle color changes from the toolbox color picker
+        colorPicker.addEventListener("input", function(e) {
             selectedColor = e.target.value;
         });
     }
@@ -660,14 +672,14 @@ window.addEventListener('DOMContentLoaded', event => {
         .flatMap(s => s.points.map(p => ({
             x: p.x,
             y: p.y,
-            color: s.color // add color from parent scribble
+            color: s.color // Keep the original color from the layer
         })));
         const annotationsJson = {
             image_name: window.imageName,
             shapes: [{
                 label: "anomaly",
                 points: allPoints.map(p => [p.x, p.y]),
-                color: allPoints.map(p => p.color)
+                color: allPoints.map(p => p.color) // Send the original colors
             }]
         };
 
@@ -846,8 +858,6 @@ window.addEventListener('DOMContentLoaded', event => {
         
         const layerControls = document.createElement('div');
         layerControls.className = 'd-flex align-items-center gap-2';
-        layerControls.style.display = 'flex';
-        layerControls.style.alignItems = 'center';
         
         const visibilityToggle = document.createElement('div');
         visibilityToggle.className = 'form-check form-switch';
@@ -861,11 +871,59 @@ window.addEventListener('DOMContentLoaded', event => {
         visibilityToggle.appendChild(visibilityInput);
         
         const colorIndicator = document.createElement('div');
+        colorIndicator.className = 'layer-color-indicator';
         colorIndicator.style.width = '20px';
         colorIndicator.style.height = '20px';
         colorIndicator.style.backgroundColor = color;
         colorIndicator.style.borderRadius = '4px';
         colorIndicator.style.border = '1px solid #ccc';
+        colorIndicator.style.cursor = 'pointer';
+        
+        // Create a color picker input for the layer
+        const layerColorPicker = document.createElement('input');
+        layerColorPicker.type = 'color';
+        layerColorPicker.value = color;
+        layerColorPicker.style.width = '38px';
+        layerColorPicker.style.height = '38px';
+        layerColorPicker.style.padding = '0';
+        layerColorPicker.style.border = 'none';
+        layerColorPicker.style.borderRadius = '8px';
+        layerColorPicker.style.cursor = 'pointer';
+        layerColorPicker.style.position = 'fixed';
+        layerColorPicker.style.opacity = '0';
+        layerColorPicker.style.pointerEvents = 'none';
+        
+        // Create a container for the color picker to control its positioning
+        const colorPickerContainer = document.createElement('div');
+        colorPickerContainer.style.position = 'relative';
+        colorPickerContainer.style.display = 'inline-block';
+        colorPickerContainer.style.marginRight = '8px';
+        colorPickerContainer.appendChild(colorIndicator);
+        colorPickerContainer.appendChild(layerColorPicker);
+        
+        // Add click event to show color picker
+        colorIndicator.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const rect = colorIndicator.getBoundingClientRect();
+            layerColorPicker.style.left = `${rect.left}px`;
+            layerColorPicker.style.top = `${rect.bottom}px`;
+            layerColorPicker.click();
+        });
+        
+        // Handle color changes from the layer's color picker
+        layerColorPicker.addEventListener('input', function(e) {
+            const newColor = e.target.value;
+            colorIndicator.style.backgroundColor = newColor;
+            
+            // Update all strokes in this layer with the new color
+            scribbles.forEach(stroke => {
+                if (stroke.layerId === layerId) {
+                    stroke.color = newColor;
+                }
+            });
+            
+            redrawAnnotations();
+        });
         
         // Add delete button with trash icon
         const deleteButton = document.createElement('button');
@@ -897,7 +955,7 @@ window.addEventListener('DOMContentLoaded', event => {
         };
         
         layerControls.appendChild(visibilityToggle);
-        layerControls.appendChild(colorIndicator);
+        layerControls.appendChild(colorPickerContainer);
         layerControls.appendChild(deleteButton);
         
         layerDiv.appendChild(layerName);

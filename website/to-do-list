@@ -1,7 +1,7 @@
 - fix eraser bug
 - make all annotations button highlight border -> only works for eraser currently
 - api call
-- image file type restriction
+
 
 *layers*
 - add color changer
@@ -15,3 +15,4 @@
     PurgeCSS or UnCSS: These tools scan your HTML and JS files and remove unused CSS.
     Browser DevTools: Chrome DevTools has a "Coverage" tab (in the Sources panel) that shows which CSS rules are unused on a given page.
 - make changes in visibility toggle reflect to segmentation
+- dynamic layer numbering
