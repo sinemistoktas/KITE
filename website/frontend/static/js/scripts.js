@@ -30,6 +30,8 @@ let selectedColor = "#ff0000"; // def annotation color is red
 let currentStrokeColor = "#ff0000";
 let layerCounter = 0; // Counter for unique layer IDs
 let currentLayerId;
+let visibleLayerIds = []; // Add this at the top with other global variables
+let showPredictions = true; // Add this with other global variables
 
 // Useful for the eraser feature.
 function distance(p, x, y) {
@@ -567,8 +569,8 @@ window.addEventListener('DOMContentLoaded', event => {
             context.scale(zoomLevel, zoomLevel);
         };
         
-        // Draw all of the user's annotations that are NOT predictions.
-        for (const stroke of scribbles.filter(s => !s.isPrediction)) {
+        // Draw all of the user's annotations that are NOT predictions and are in visible layers
+        for (const stroke of scribbles.filter(s => !s.isPrediction && (!s.layerId || visibleLayerIds.includes(s.layerId)))) {
             adjustForZoom(annotationCtx);
             
             // A simple dot.
@@ -591,27 +593,29 @@ window.addEventListener('DOMContentLoaded', event => {
             annotationCtx.restore();
         }
         
-        // Code for prediction strokes.
-        const predictionStrokes = scribbles.filter(s => s.isPrediction);
-        if (predictionStrokes.length > 0) {
-            adjustForZoom(predictionCtx);
-            
-            predictionCtx.strokeStyle = "blue";
-            predictionCtx.lineWidth = 2 / zoomLevel;
-            
-            // I draw every contour point by point as it doesn't work well as a line.
-            for (const stroke of predictionStrokes) {
-                if (stroke.points.length > 0) {
-                    for (const point of stroke.points) {
-                        predictionCtx.fillStyle = (point.color) ? point.color : (stroke.color || "blue");
-                        predictionCtx.beginPath();
-                        predictionCtx.arc(point.x, point.y, 2 / zoomLevel, 0, 2 * Math.PI);
-                        predictionCtx.fill();
+        // Code for prediction strokes - only draw if showPredictions is true
+        if (showPredictions) {
+            const predictionStrokes = scribbles.filter(s => s.isPrediction);
+            if (predictionStrokes.length > 0) {
+                adjustForZoom(predictionCtx);
+                
+                predictionCtx.strokeStyle = "blue";
+                predictionCtx.lineWidth = 2 / zoomLevel;
+                
+                // I draw every contour point by point as it doesn't work well as a line.
+                for (const stroke of predictionStrokes) {
+                    if (stroke.points.length > 0) {
+                        for (const point of stroke.points) {
+                            predictionCtx.fillStyle = (point.color) ? point.color : (stroke.color || "blue");
+                            predictionCtx.beginPath();
+                            predictionCtx.arc(point.x, point.y, 2 / zoomLevel, 0, 2 * Math.PI);
+                            predictionCtx.fill();
+                        }
                     }
                 }
+                
+                predictionCtx.restore();
             }
-            
-            predictionCtx.restore();
         }
         
         // If we're currently drawing, draw the current stroke
@@ -842,6 +846,8 @@ window.addEventListener('DOMContentLoaded', event => {
         
         const layerControls = document.createElement('div');
         layerControls.className = 'd-flex align-items-center gap-2';
+        layerControls.style.display = 'flex';
+        layerControls.style.alignItems = 'center';
         
         const visibilityToggle = document.createElement('div');
         visibilityToggle.className = 'form-check form-switch';
@@ -861,12 +867,47 @@ window.addEventListener('DOMContentLoaded', event => {
         colorIndicator.style.borderRadius = '4px';
         colorIndicator.style.border = '1px solid #ccc';
         
+        // Add delete button with trash icon
+        const deleteButton = document.createElement('button');
+        deleteButton.innerHTML = '<i class="fa-solid fa-trash"></i>';
+        deleteButton.className = 'btn btn-link p-0';
+        deleteButton.style.color = '#6c757d';
+        deleteButton.style.transition = 'color 0.2s';
+        deleteButton.style.marginLeft = '8px';
+        deleteButton.style.display = 'inline-flex';
+        deleteButton.style.alignItems = 'center';
+        deleteButton.style.justifyContent = 'center';
+        deleteButton.querySelector('i').style.fontSize = '17px';
+        deleteButton.querySelector('i').style.marginTop = '7px';
+        deleteButton.onmouseover = function() {
+            this.style.color = '#dc3545';
+        };
+        deleteButton.onmouseout = function() {
+            this.style.color = '#6c757d';
+        };
+        deleteButton.onclick = function(e) {
+            e.stopPropagation();
+            // Remove the layer from DOM
+            layerDiv.remove();
+            // Remove all strokes associated with this layer
+            scribbles = scribbles.filter(stroke => stroke.layerId !== layerId);
+            // Remove from visible layers if present
+            visibleLayerIds = visibleLayerIds.filter(id => id !== layerId);
+            redrawAnnotations();
+        };
+        
         layerControls.appendChild(visibilityToggle);
         layerControls.appendChild(colorIndicator);
+        layerControls.appendChild(deleteButton);
         
         layerDiv.appendChild(layerName);
         layerDiv.appendChild(layerControls);
         layerContainer.appendChild(layerDiv);
+        
+        // Add the new layer ID to visibleLayerIds by default
+        if (!visibleLayerIds.includes(layerId)) {
+            visibleLayerIds.push(layerId);
+        }
         
         return layerId;
     }
@@ -874,7 +915,21 @@ window.addEventListener('DOMContentLoaded', event => {
     function toggleLayerVisibility(layerId) {
         const layer = document.getElementById(layerId);
         const isVisible = layer.querySelector('input[type="checkbox"]').checked;
-        // Here we'll need to implement the actual visibility toggling of the annotation
-        // This will be implemented when we modify the drawing functions
+        
+        // Here we implement the actual visibility toggling of the annotation
+        if (isVisible) {
+            if (!visibleLayerIds.includes(layerId)) {
+                visibleLayerIds.push(layerId);
+            }
+        } else {
+            visibleLayerIds = visibleLayerIds.filter(id => id !== layerId);
+        }
+        redrawAnnotations();
+    }
+
+    // Add a function to toggle predictions visibility
+    window.togglePredictions = function() {
+        showPredictions = !showPredictions;
+        redrawAnnotations();
     }
 });
