@@ -255,6 +255,7 @@ window.addEventListener('DOMContentLoaded', event => {
     const lineBtn = document.getElementById("scribbleMode");
     const dotBtn = document.getElementById("dotMode");
     const eraserBtn = document.getElementById("eraserMode");
+    const eraseAllBtn = document.getElementById("eraseAllMode");
     const zoomInBtn = document.getElementById("zoomInBtn");
     const zoomOutBtn = document.getElementById("zoomOutBtn");
     const resetZoomBtn = document.getElementById("resetZoomBtn");
@@ -268,6 +269,8 @@ window.addEventListener('DOMContentLoaded', event => {
             dotBtn.classList.add("btn-outline-danger");
             eraserBtn.classList.remove("btn-danger");
             eraserBtn.classList.add("btn-outline-danger");
+            eraseAllBtn.classList.remove("btn-danger");
+            eraseAllBtn.classList.add("btn-outline-danger");
         } else if (mode === "dot") {
             dotBtn.classList.remove("btn-outline-danger");
             dotBtn.classList.add("btn-danger");
@@ -275,6 +278,8 @@ window.addEventListener('DOMContentLoaded', event => {
             lineBtn.classList.add("btn-outline-danger");
             eraserBtn.classList.remove("btn-danger");
             eraserBtn.classList.add("btn-outline-danger");
+            eraseAllBtn.classList.remove("btn-danger");
+            eraseAllBtn.classList.add("btn-outline-danger");
         } else if (mode === "eraser") {
             eraserBtn.classList.remove("btn-outline-danger");
             eraserBtn.classList.add("btn-danger");
@@ -282,6 +287,17 @@ window.addEventListener('DOMContentLoaded', event => {
             lineBtn.classList.add("btn-outline-danger");
             dotBtn.classList.remove("btn-danger");
             dotBtn.classList.add("btn-outline-danger");
+            eraseAllBtn.classList.remove("btn-danger");
+            eraseAllBtn.classList.add("btn-outline-danger");
+        } else if (mode === "eraseAll") {
+            eraseAllBtn.classList.remove("btn-outline-danger");
+            eraseAllBtn.classList.add("btn-danger");
+            lineBtn.classList.remove("btn-danger");
+            lineBtn.classList.add("btn-outline-danger");
+            dotBtn.classList.remove("btn-danger");
+            dotBtn.classList.add("btn-outline-danger");
+            eraserBtn.classList.remove("btn-danger");
+            eraserBtn.classList.add("btn-outline-danger");
         }
         else { // Deselect all buttons if the user has clicked on a button that they have already clicked on.
             lineBtn.classList.remove("btn-danger");
@@ -290,6 +306,8 @@ window.addEventListener('DOMContentLoaded', event => {
             dotBtn.classList.add("btn-outline-danger");
             eraserBtn.classList.remove("btn-danger");
             eraserBtn.classList.add("btn-outline-danger");
+            eraseAllBtn.classList.remove("btn-danger");
+            eraseAllBtn.classList.add("btn-outline-danger");
         }
         
         // Same idea, but for the zoom buttons.
@@ -316,8 +334,9 @@ window.addEventListener('DOMContentLoaded', event => {
             // Deselect if user clicks the same button again.
             mode = null;
             showEraserCursor = false;
-
-
+            if (newMode === "eraseAll") {
+                eraseAllAnnotations();
+            }
         } else {
             // Exit zoom mode if we're switching to a drawing mode
             if (zoomMode) {
@@ -338,6 +357,8 @@ window.addEventListener('DOMContentLoaded', event => {
             // Update cursor visibility based on mode.
             if (newMode === "eraser") {
                 annotationCanvas.style.cursor = "none";
+            } else if (newMode === "eraseAll") {
+                eraseAllAnnotations();
             } else {
                 annotationCanvas.style.cursor = "crosshair";
             }
@@ -349,18 +370,14 @@ window.addEventListener('DOMContentLoaded', event => {
     // Function to toggle the zoom mode.
     function toggleZoomMode() {
         zoomMode = !zoomMode;
-
-        zoomInBtn.classList.remove("active");
-        zoomOutBtn.classList.remove("active");
-        resetZoomBtn.classList.remove("active");
-
-
+        
         if (zoomMode) {
             // Deactivate any other mode
             mode = null;
             showEraserCursor = false;
-
-            zoomInBtn.classList.add("active");
+            annotationCanvas.style.cursor = "zoom-in";
+        } else {
+            annotationCanvas.style.cursor = "crosshair";
         }
         
         updateButtonStyles();
@@ -468,11 +485,25 @@ window.addEventListener('DOMContentLoaded', event => {
     lineBtn?.addEventListener("click", () => setMode("line"));
     dotBtn?.addEventListener("click", () => setMode("dot"));
     eraserBtn?.addEventListener("click", () => setMode("eraser"));
+    eraseAllBtn?.addEventListener("click", () => setMode("eraseAll"));
     
     // Added event listeners for the zoom buttons as well.
-    zoomInBtn?.addEventListener("click", toggleZoomMode);
-    zoomOutBtn?.addEventListener("click", zoomOut);
-    resetZoomBtn?.addEventListener("click", resetZoom);
+    zoomInBtn?.addEventListener("click", function() {
+        if (zoomMode) {
+            const imageCoords = screenToImageCoords(mouseX, mouseY);
+            zoomToPoint(imageCoords.x, imageCoords.y);
+        } else {
+            toggleZoomMode();
+        }
+    });
+
+    zoomOutBtn?.addEventListener("click", function() {
+        zoomOut();
+    });
+
+    resetZoomBtn?.addEventListener("click", function() {
+        resetZoom();
+    });
 
     if (img && annotationCanvas && annotationCtx) {
         // I added a mousedown, mousemove, mouseup and mouseleave listener to the canvas
@@ -988,6 +1019,26 @@ window.addEventListener('DOMContentLoaded', event => {
     // Add a function to toggle predictions visibility
     window.togglePredictions = function() {
         showPredictions = !showPredictions;
+        redrawAnnotations();
+    }
+
+    // Function to erase all annotations
+    function eraseAllAnnotations() {
+        // Remove all non-prediction strokes
+        scribbles = scribbles.filter(stroke => stroke.isPrediction);
+        
+        // Remove all layer elements
+        const layersContainer = document.getElementById('layersContainer');
+        while (layersContainer.firstChild) {
+            layersContainer.removeChild(layersContainer.firstChild);
+        }
+        
+        // Reset layer-related variables
+        layerCounter = 0;
+        visibleLayerIds = [];
+        currentLayerId = null;
+        
+        // Redraw annotations (which will now be empty)
         redrawAnnotations();
     }
 });

@@ -1,10 +1,7 @@
 - fix eraser bug
 - make all annotations button highlight border -> only works for eraser currently
 - api call
-
-
-*layers*
-- add color changer
+- fix erase all button styling
 
 
 
