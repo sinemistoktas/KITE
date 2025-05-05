@@ -1052,4 +1052,42 @@ window.addEventListener('DOMContentLoaded', event => {
         // Redraw annotations (which will now be empty)
         redrawAnnotations();
     }
+
+    //Keyboard shortcuts
+    document.addEventListener('keydown', function (event) {
+        //won't listen if user is typing
+        if(["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
+            return;
+        }
+
+        const key = event.key.toUpperCase();
+
+        if (key === "L") {
+            setMode(mode ==="line" ? null: "line");
+        }
+        else if (key === "E") {
+            setMode(mode ==="eraser" ? null: "eraser");
+        }
+        else if (key === "D") {
+            setMode(mode ==="dot" ? null: "dot");
+        }
+        else if (key === "A") {
+            setMode(mode ==="eraseAll" ? null: "eraseAll");
+        }
+        else if (key === "Z") {
+            toggleZoomMode();
+
+            if (zoomMode) {
+                zoomInBtn.classList.add("active");
+                zoomInBtn.classList.remove("btun-outline-primary");
+                zoomInBtn.classList.add("btn-primary");
+            }
+            else {
+                zoomInBtn.classList.remove("active");
+                zoomInBtn.classList.add("btun-outline-primary");
+                zoomInBtn.classList.remove("btn-primary");
+            }
+
+        }
+    });
 });
