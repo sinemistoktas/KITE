@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        {% load static %}
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+        <meta name="description" content="" />
+        <meta name="author" content="" />
+        <title>KITE Segmentation</title>
+
+        <link rel="icon" type="image/x-icon" href="{% static 'img/favicon.ico' %}">
+        <link rel="stylesheet" href="{% static 'styles.css' %}">
+
+        <!-- Font Awesome icons (free version)-->
+        <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
+        <!-- Google fonts-->
+        <link href="https://fonts.googleapis.com/css?family=Saira+Extra+Condensed:500,700" rel="stylesheet" type="text/css" />
+        <link href="https://fonts.googleapis.com/css?family=Muli:400,400i,800,800i" rel="stylesheet" type="text/css" />
+    </head>
+
+    <body id="page-top">
+        <!-- Navigation-->
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top" id="sideNav">
+            <a class="navbar-brand js-scroll-trigger" href="{% url 'seg_tool' %}">
+                <span class="d-block d-lg-none">KITE</span>
+                <span class="d-none d-lg-block"><img class="img-fluid img-profile rounded-circle mx-auto mb-2" src="{% static 'img/logo.webp' %}" alt="logo" /></span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
+            <div class="collapse navbar-collapse" id="navbarResponsive">
+                <ul class="navbar-nav">
+                    <li class="nav-item"><a class="nav-link js-scroll-trigger" href="#about">About</a></li>
+                    <li class="nav-item"><a class="nav-link js-scroll-trigger" href="#segmentation">Segmentation Tool</a></li>
+                    <li class="nav-item"><a class="nav-link js-scroll-trigger" href="#references">References</a></li>
+                </ul>
+            </div>
+        </nav>
+        <!-- Page Content-->
+        <div class="container-fluid p-0">
+            <!-- About-->
+            <section class="info-section" id="about">
+                <div class="info-section-content">
+                    <h1 class="mb-0">
+                        KITE
+                        <span class="text-primary">Segmentation Tool</span>
+                    </h1>
+                    <div class="subheading mb-5">
+                        34450 Koç University · Istanbul · Turkey
+                        <br>
+                    </div>
+                    <h3 class="lead mb-3">Segmentation and Characterization of Retinal Fluids/Deposits in OCT Images</h3>
+                    <p class="lead mb-3">
+                        This project contains implementation of a web-based semi-automated tool for segmenting and characterizing retinal fluids/deposits in optical coherence tomography (OCT) images.
+                        <br>
+                        The project is developed as part of COMP 491 - Computer Engineering Design Project at Koç University.
+                    </p>
+                    <br>
+                    <h4 class="lead mb-3">Contributors</h4>
+                    <p class="lead mb-5">
+                        Duru Tandoğan
+                        <br>
+                        Mislina Akça
+                        <br>
+                        Sinemis Toktaş
+                        <br>
+                        Yamaç Ömür
+                        <br>
+                        <br>
+                        <b>Project Advisor:</b> Çiğdem Gündüz Demir – Koç University
+                    </p>
+
+                    <div class="social-icons">
+                        <a class="social-icon" href="mailto:kite-group@ku.edu.tr"><i class="fa-solid fa-envelope"></i></a>
+                        <a class="social-icon" href="https://github.com/sinemistoktas/KITE" target="_blank"><i class="fab fa-github"></i></a>
+                    </div>
+                </div>
+            </section>
+            <hr class="m-0" />
+            <!-- Segmentation Tool-->
+            <section class="info-section" id="segmentation">
+                <div class="info-section-content">
+                    <h2 class="mb-5">Segmentation Tool</h2>
+                    <p>Continue to our segmentation tool</p>
+
+                    <a href="{% url 'seg_tool' %}" class="button-link">
+                        <button class="animated-button">
+                            <svg viewBox="0 0 24 24" class="arr-2" xmlns="http://www.w3.org/2000/svg">
+                                <path
+                                        d="M16.1716 10.9999L10.8076 5.63589L12.2218 4.22168L20 11.9999L12.2218 19.778L10.8076 18.3638L16.1716 12.9999H4V10.9999H16.1716Z"
+                                ></path>
+                            </svg>
+                            <span class="text">Segmentation tool</span>
+                            <span class="circle"></span>
+                            <svg viewBox="0 0 24 24" class="arr-1" xmlns="http://www.w3.org/2000/svg">
+                                <path
+                                        d="M16.1716 10.9999L10.8076 5.63589L12.2218 4.22168L20 11.9999L12.2218 19.778L10.8076 18.3638L16.1716 12.9999H4V10.9999H16.1716Z"
+                                ></path>
+                            </svg>
+                        </button>
+                    </a>
+                </div>
+            </section>
+            <!-- References-->
+            <section class="info-section" id="references">
+                <div class="info-section-content">
+                    <h2 class="mb-5">References</h2>
+                    <div class="subheading mb-3">Programming Languages & Tools</div>
+                    <ul class="list-inline dev-icons">
+                        <li class="list-inline-item"><i class="fab fa-html5" style="color: #611661"></i></li>
+                        <li class="list-inline-item"><i class="fab fa-css3-alt" style="color: #611661"></i></li>
+                        <li class="list-inline-item"><i class="fab fa-js" style="color: #611661"></i></li>
+                        <li class="list-inline-item"><i class="fab fa-npm" style="color: #611661"></i></li>
+                    </ul>
+                    <div class="subheading mb-3">References</div>
+                    <ul class="fa-ul mb-0">
+                        <li>
+                            <span class="fa-li"><i class="fa-solid fa-heart" style="color: #611661"></i></span>
+                            BiomedParse
+                        </li>
+                        <li>
+                            <span class="fa-li"><i class="fa-solid fa-heart" style="color: #611661"></i></span>
+                            MedSam
+                        </li>
+                        <li>
+                            <span class="fa-li"><i class="fa-solid fa-heart" style="color: #611661"></i></span>
+                            MedSag
+                        </li>
+                    </ul>
+                </div>
+            </section>
+            <hr class="m-0" />
+            <hr class="m-0" />
+        </div>
+        <!-- Bootstrap core JS-->
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+        <!-- Core theme JS-->
+        <script src="../static/js/scripts.js"></script>
+    </body>
+</html>
