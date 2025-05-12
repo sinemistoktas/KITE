@@ -245,6 +245,15 @@ function toggleZoomMode() {
 
 function eraseAt(x, y) {
     const newScribbles = [];
+    const existingLayerIds = new Set(); // Track all layers
+    const remainingLayerIds = new Set(); // Track layers that survive
+
+    // Track existing layers first
+    for (const stroke of state.scribbles) {
+        if (stroke.layerId) {
+            existingLayerIds.add(stroke.layerId);
+        }
+    }
 
     for (const stroke of state.scribbles) {
         if (stroke.isPrediction) {
@@ -255,9 +264,11 @@ function eraseAt(x, y) {
         const hasPointInEraser = stroke.points.some(p => Math.hypot(p.x - x, p.y - y) < 10);
         if (!hasPointInEraser) {
             newScribbles.push(stroke);
+            if (stroke.layerId) remainingLayerIds.add(stroke.layerId);
             continue;
         }
 
+        // Try splitting stroke into partials
         let segment = [];
         for (const point of stroke.points) {
             const within = Math.hypot(point.x - x, point.y - y) < 10;
@@ -271,6 +282,7 @@ function eraseAt(x, y) {
                         color: stroke.color,
                         layerId: stroke.layerId
                     });
+                    if (stroke.layerId) remainingLayerIds.add(stroke.layerId);
                 }
                 segment = [];
             }
@@ -283,6 +295,16 @@ function eraseAt(x, y) {
                 color: stroke.color,
                 layerId: stroke.layerId
             });
+            if (stroke.layerId) remainingLayerIds.add(stroke.layerId);
+        }
+    }
+
+    // Remove layers that no longer have any strokes
+    for (const layerId of existingLayerIds) {
+        if (!remainingLayerIds.has(layerId)) {
+            const el = document.getElementById(layerId);
+            if (el) el.remove();
+            state.visibleLayerIds = state.visibleLayerIds.filter(id => id !== layerId);
         }
     }
 
