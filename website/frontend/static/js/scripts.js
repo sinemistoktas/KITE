@@ -11,6 +11,10 @@ let mouseX = 0;
 let mouseY = 0;
 let showEraserCursor = false;
 let mode = null; // The current mode of the tool: Line, dot, or eraser.
+let isFillToolActive = false;  // Track if we're in fill tool mode
+let isDrawingBoundary = false; // Track if drawing the boundary
+let currentBoundary = [];      // Store the current boundary points
+let boundaryComplete = false;  // Track if a boundary is complete
 let isDrawing = false;
 let isErasing = false;
 const ERASE_RADIUS = 10; // Could be changed to make it smaller?
@@ -64,6 +68,22 @@ function screenToImageCoords(screenX, screenY) {
 }
 
 window.addEventListener('DOMContentLoaded', event => {
+
+    const fillToolBtn = document.getElementById('fillToolBtn');
+    
+    // Add event listener for the fill tool button
+    fillToolBtn?.addEventListener('click', toggleFillTool);
+    
+    // Add keyboard shortcut for fill tool (F)
+    document.addEventListener('keydown', function(e) {
+        if (["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
+            return;
+        }
+        
+        if (e.key.toUpperCase() === 'F') {
+            toggleFillTool();
+        }
+    });
 
     annotationCanvas = document.getElementById("annotationCanvas");
     annotationCtx = annotationCanvas.getContext("2d");
@@ -340,7 +360,22 @@ window.addEventListener('DOMContentLoaded', event => {
         zoomInBtn.classList.remove("active");
         zoomOutBtn.classList.remove("active");
         resetZoomBtn.classList.remove("active");
-
+    
+        // If fill tool is active, deactivate it when switching to another mode
+        if (isFillToolActive && newMode !== null) {
+            isFillToolActive = false;
+            const fillBtn = document.getElementById('fillToolBtn');
+            if (fillBtn) {
+                fillBtn.classList.remove('btn-danger');
+                fillBtn.classList.add('btn-outline-danger');
+            }
+            const fillStatus = document.getElementById('fillToolStatus');
+            if (fillStatus) {
+                fillStatus.style.display = 'none';
+            }
+            resetFillTool();
+        }
+    
         if (mode === newMode) {
             // Deselect if user clicks the same button again.
             mode = null;
@@ -383,9 +418,25 @@ window.addEventListener('DOMContentLoaded', event => {
         zoomMode = !zoomMode;
         
         if (zoomMode) {
-            // Deactivate any other mode
+            // Deactivate any other mode, including fill tool
             mode = null;
             showEraserCursor = false;
+            
+            // Deselect fill tool if it's active
+            if (isFillToolActive) {
+                isFillToolActive = false;
+                const fillBtn = document.getElementById('fillToolBtn');
+                if (fillBtn) {
+                    fillBtn.classList.remove('btn-danger');
+                    fillBtn.classList.add('btn-outline-danger');
+                }
+                const fillStatus = document.getElementById('fillToolStatus');
+                if (fillStatus) {
+                    fillStatus.style.display = 'none';
+                }
+                resetFillTool();
+            }
+            
             annotationCanvas.style.cursor = "zoom-in";
         } else {
             annotationCanvas.style.cursor = "crosshair";
@@ -393,6 +444,7 @@ window.addEventListener('DOMContentLoaded', event => {
         
         updateButtonStyles();
     }
+    
     
     // Zoom in function, the function argument is the x and y coordinates of what the user has clicked on
     // to zoom.
@@ -499,11 +551,26 @@ window.addEventListener('DOMContentLoaded', event => {
     eraseAllBtn?.addEventListener("click", () => setMode("eraseAll"));
     
     // Added event listeners for the zoom buttons as well.
-    zoomInBtn?.addEventListener("click", function() {
+    zoomInBtn.addEventListener("click", function() {
         if (zoomMode) {
             const imageCoords = screenToImageCoords(mouseX, mouseY);
             zoomToPoint(imageCoords.x, imageCoords.y);
         } else {
+            // When activating zoom mode, deselect fill tool
+            if (isFillToolActive) {
+                isFillToolActive = false;
+                const fillBtn = document.getElementById('fillToolBtn');
+                if (fillBtn) {
+                    fillBtn.classList.remove('btn-danger');
+                    fillBtn.classList.add('btn-outline-danger');
+                }
+                const fillStatus = document.getElementById('fillToolStatus');
+                if (fillStatus) {
+                    fillStatus.style.display = 'none';
+                }
+                resetFillTool();
+            }
+            
             toggleZoomMode();
         }
     });
@@ -534,6 +601,10 @@ window.addEventListener('DOMContentLoaded', event => {
             const imageCoords = screenToImageCoords(e.clientX, e.clientY);
             mouseX = imageCoords.x;
             mouseY = imageCoords.y;
+
+            if (isFillToolActive) {
+                handleFillToolClick(imageCoords);
+            }
         
             if (mode === "dot") {
                 const layerId = createLayer("Dot", selectedColor);
@@ -560,7 +631,12 @@ window.addEventListener('DOMContentLoaded', event => {
             const imageCoords = screenToImageCoords(e.clientX, e.clientY);
             mouseX = imageCoords.x;
             mouseY = imageCoords.y;
-        
+
+            if (isFillToolActive && isDrawingBoundary) {
+                currentBoundary.push({ x: mouseX, y: mouseY });
+                redrawAnnotations();
+            }
+
             if (isDrawing && mode === "line") {
                 currentStroke.push({ x: mouseX, y: mouseY });
                 redrawAnnotations();
@@ -586,6 +662,23 @@ window.addEventListener('DOMContentLoaded', event => {
                 currentStroke = [];
                 redrawAnnotations();
             }
+            if (isFillToolActive && isDrawingBoundary) {
+                isDrawingBoundary = false;
+                
+                // Close the boundary if we have at least 3 points
+                if (currentBoundary.length >= 3) {
+                    // Add the first point again to close the loop
+                    currentBoundary.push({ ...currentBoundary[0] });
+                    boundaryComplete = true;
+                    updateFillToolStatus("Now click inside the boundary to fill it");
+                } else {
+                    // Not enough points for a valid boundary
+                    currentBoundary = [];
+                    updateFillToolStatus("Please draw a closed boundary with at least 3 points");
+                }
+                
+                redrawAnnotations();
+            }
             isDrawing = false;
             isErasing = false;
         });
@@ -605,8 +698,190 @@ window.addEventListener('DOMContentLoaded', event => {
         });
     }
 
+    function toggleFillTool() {
+        // Reset other tools if active
+        if (mode !== null) {
+            mode = null;
+            updateButtonStyles();
+        }
+        
+        // Exit zoom mode if active
+        if (zoomMode) {
+            zoomMode = false;
+            const zoomInBtn = document.getElementById('zoomInBtn');
+            if (zoomInBtn) {
+                zoomInBtn.classList.remove("btn-primary");
+                zoomInBtn.classList.add("btn-outline-primary");
+            }
+            annotationCanvas.classList.remove("zoom-cursor");
+            annotationCanvas.style.cursor = "crosshair";
+        }
+        
+        // Toggle fill tool
+        isFillToolActive = !isFillToolActive;
+        
+        // Update UI
+        const fillBtn = document.getElementById('fillToolBtn');
+        if (fillBtn) {
+            if (isFillToolActive) {
+                fillBtn.classList.remove('btn-outline-danger');
+                fillBtn.classList.add('btn-danger');
+                resetFillTool();
+                updateFillToolStatus("Draw a closed boundary around the area you want to fill");
+            } else {
+                fillBtn.classList.remove('btn-danger');
+                fillBtn.classList.add('btn-outline-danger');
+                const status = document.getElementById('fillToolStatus');
+                if (status) {
+                    status.style.display = 'none';
+                }
+            }
+        }
+        
+        // Update button styles
+        updateButtonStyles();
+    }
+    
+    // Reset fill tool state
+    function resetFillTool() {
+        isDrawingBoundary = false;
+        currentBoundary = [];
+        boundaryComplete = false;
+    }
+    
+    // Update the status message
+    function updateFillToolStatus(message) {
+        const status = document.getElementById('fillToolStatus');
+        if (status) {
+            status.textContent = message;
+            status.style.display = 'block';
+        }
+    }
+    
+    function handleFillToolClick(imageCoords) {
+        if (!boundaryComplete) {
+            isDrawingBoundary = true;
+            currentBoundary = [{ x: imageCoords.x, y: imageCoords.y }];
+        } else {
+            const fillPoint = { x: imageCoords.x, y: imageCoords.y };
+            
+            // Check if click is inside the boundary
+            if (isPointInPolygon(fillPoint, currentBoundary)) {
+                // Create layer for the filled region
+                const layerId = createLayer("Fill", selectedColor);
+                
+                // Add boundary to scribbles
+                scribbles.push({
+                    points: [...currentBoundary],
+                    isPrediction: false,
+                    color: selectedColor,
+                    layerId: layerId
+                });
+                
+                // Show loading message
+                updateFillToolStatus("Filling region with dots... please wait");
+                
+                // Use setTimeout to allow the UI to update before doing the fill
+                setTimeout(() => {
+                    // Get fill points
+                    const fillPoints = floodFill(fillPoint);
+                    
+                    // Add each dot as a separate stroke with a single point
+                    // This matches your existing annotation system for dots
+                    fillPoints.forEach(point => {
+                        scribbles.push({
+                            points: [point], // Single dot
+                            isPrediction: false,
+                            color: selectedColor,
+                            layerId: layerId
+                        });
+                    });
+                    
+                    // Reset the fill tool
+                    resetFillTool();
+                    updateFillToolStatus("Fill complete. Draw another boundary or switch tools.");
+                    redrawAnnotations();
+                }, 50);
+            } else {
+                updateFillToolStatus("Click must be inside the boundary. Try again.");
+            }
+        }
+    }
+    
+    // Check if a point is inside a polygon
+    function isPointInPolygon(point, polygon) {
+        // Using ray casting algorithm to determine if point is in polygon
+        let inside = false;
+        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+            const xi = polygon[i].x, yi = polygon[i].y;
+            const xj = polygon[j].x, yj = polygon[j].y;
+            
+            const intersect = ((yi > point.y) !== (yj > point.y)) &&
+                (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi);
+                
+            if (intersect) inside = !inside;
+        }
+        return inside;
+    }
+    
+    // Flood fill algorithm (simplified for the canvas)
+    function floodFill(fillPoint) {
+        // Create a temporary canvas to perform the fill
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = annotationCanvas.width;
+        tempCanvas.height = annotationCanvas.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        
+        // Apply the same zoom transformations to the temp canvas
+        const offsetX = viewportCenterX - (originalImageDimensions.width / (2 * zoomLevel));
+        const offsetY = viewportCenterY - (originalImageDimensions.height / (2 * zoomLevel));
+        
+        // Setup the transform to account for zoom (matching the main canvas)
+        tempCtx.save();
+        tempCtx.translate(-offsetX * zoomLevel, -offsetY * zoomLevel);
+        tempCtx.scale(zoomLevel, zoomLevel);
+        
+        // Draw the boundary on the temp canvas with the same transformations as the main canvas
+        tempCtx.beginPath();
+        tempCtx.moveTo(currentBoundary[0].x, currentBoundary[0].y);
+        for (let i = 1; i < currentBoundary.length; i++) {
+            tempCtx.lineTo(currentBoundary[i].x, currentBoundary[i].y);
+        }
+        tempCtx.closePath();
+        tempCtx.fill();
+        tempCtx.restore();
+        
+        // Get the image data to find the filled pixels
+        const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+        const data = imageData.data;
+        
+        // Create an array to hold filled points
+        const filledPoints = [];
+        
+        // Sample points at a specific interval to create a grid of dots
+        // Adjust sampleRate to control dot density
+        const sampleRate = 5;
+        
+        for (let y = 0; y < tempCanvas.height; y += sampleRate) {
+            for (let x = 0; x < tempCanvas.width; x += sampleRate) {
+                const index = (y * tempCanvas.width + x) * 4; // RGBA format
+                
+                // If pixel is filled (non-zero alpha channel)
+                if (data[index + 3] > 0) {
+                    // Convert canvas coordinates back to image coordinates
+                    const imageCoords = screenToImageCoords(x + annotationCanvas.getBoundingClientRect().left, 
+                                                          y + annotationCanvas.getBoundingClientRect().top);
+                    filledPoints.push(imageCoords);
+                }
+            }
+        }
+        
+        return filledPoints;
+    }
+
     // Main function to redraw all annotations with proper zoom and color
-    function redrawAnnotations() {
+    redrawAnnotations = function() {
+        // Call the original function to clear and setup
         annotationCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
         predictionCtx.clearRect(0, 0, predictionCanvas.width, predictionCanvas.height);
         
@@ -627,13 +902,24 @@ window.addEventListener('DOMContentLoaded', event => {
         for (const stroke of scribbles.filter(s => !s.isPrediction && (!s.layerId || visibleLayerIds.includes(s.layerId)))) {
             adjustForZoom(annotationCtx);
             
-            // A simple dot.
-            if (stroke.points.length === 1) {
+            // Handle fill batches more efficiently
+            if (stroke.isFillBatch) {
+                annotationCtx.fillStyle = stroke.color || "red";
+                for (const point of stroke.points) {
+                    annotationCtx.beginPath();
+                    annotationCtx.arc(point.x, point.y, 1, 0, 2 * Math.PI);
+                    annotationCtx.fill();
+                }
+            }
+            // A simple dot
+            else if (stroke.points.length === 1) {
                 annotationCtx.fillStyle = stroke.color || "red";
                 annotationCtx.beginPath();
                 annotationCtx.arc(stroke.points[0].x, stroke.points[0].y, 2, 0, 2 * Math.PI);
                 annotationCtx.fill();
-            } else { // Otherwise, a line.
+            } 
+            // A line/polygon
+            else {
                 annotationCtx.strokeStyle = stroke.color || "red";
                 annotationCtx.lineWidth = 2 / zoomLevel;
                 annotationCtx.beginPath();
@@ -687,7 +973,7 @@ window.addEventListener('DOMContentLoaded', event => {
             
             annotationCtx.restore();
         }
-
+    
         // Draw the eraser cursor.
         if (showEraserCursor && mode === "eraser") {
             adjustForZoom(annotationCtx);
@@ -698,6 +984,29 @@ window.addEventListener('DOMContentLoaded', event => {
             annotationCtx.arc(mouseX, mouseY, ERASE_RADIUS, 0, 2 * Math.PI);
             annotationCtx.stroke();
             
+            annotationCtx.restore();
+        }
+        
+        // Draw the current boundary if in fill tool mode
+        if (isFillToolActive && currentBoundary.length > 1) {
+            adjustForZoom(annotationCtx);
+            
+            annotationCtx.strokeStyle = selectedColor;
+            annotationCtx.lineWidth = 2 / zoomLevel;
+            
+            // Draw the boundary
+            annotationCtx.beginPath();
+            annotationCtx.moveTo(currentBoundary[0].x, currentBoundary[0].y);
+            for (let i = 1; i < currentBoundary.length; i++) {
+                annotationCtx.lineTo(currentBoundary[i].x, currentBoundary[i].y);
+            }
+            
+            if (boundaryComplete) {
+                // If boundary is complete, close it
+                annotationCtx.closePath();
+            }
+            
+            annotationCtx.stroke();
             annotationCtx.restore();
         }
     }
