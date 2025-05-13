@@ -4,6 +4,9 @@ website/backend/media/
 # macOS files
 *.DS_Store
 
+# Ignore large model weights (need to be downloaded from Google Drive, it was too large for Git)
+data/medsam/model/*.pth
+
 # Ignore IDE files
 .idea/
 
