@@ -1,5 +1,11 @@
+# ignore media files (images uploaded to the website)
+website/backend/media/
+
 # macOS files
-.DS_Store
+*.DS_Store
+
+# Ignore IDE files
+.idea/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
