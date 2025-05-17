@@ -49,37 +49,54 @@ export function handleAnnotations() {
         downloadBtn.download = "segmented_result.png";
         downloadBtn.style.display = "inline-block";
 
-        const maskPixels = data.final_mask || [];
 
+        
         const stageContainer = document.getElementById("segmentationStage");
         stageContainer.innerHTML = ""; // Clear previous content
       
+
+        const width = resultImage.naturalWidth || resultImage.clientWidth;
+        const height = resultImage.naturalHeight || resultImage.clientHeight;
+        stageContainer.style.width = width + "px";
+        stageContainer.style.height = height + "px";
+            
         const stage = new Konva.Stage({
           container: "segmentationStage",
-          width: resultImage.width,
-          height: resultImage.height,
+          width: width,
+          height: height,
         });
-      
+
         const layer = new Konva.Layer();
         stage.add(layer);
+
       
-        const group = new Konva.Group({
-            draggable: true,
-          });
-          
-          maskPixels.forEach(([y, x]) => {
-            const dot = new Konva.Rect({
-              x: x,
-              y: y,
-              width: 1,
-              height: 1,
-              fill: "rgba(0,255,0,0.5)",
+        (data.final_mask || []).forEach(({ regionId, pixels, color }) => {
+            const group = new Konva.Group({
+              id: regionId,
+              draggable: true,
             });
-            group.add(dot);
+          
+            pixels.forEach(([y, x]) => {
+              const rect = new Konva.Rect({
+                x: x,
+                y: y,
+                width: 1,
+                height: 1,
+                fill: color || "rgba(233, 37, 37, 0.98)",
+              });
+              group.add(rect);
+            });
+          
+            group.on("click", () => {
+              console.log(`Clicked region: ${regionId}`);
+            });
+          
+            layer.add(group);
           });
           
-          layer.add(group);
           layer.draw();
+          
+        
           
 
         const predictedPoints = data.predicted_annotations || [];

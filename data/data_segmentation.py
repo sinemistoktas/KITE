@@ -174,7 +174,20 @@ class SegmentationModel():
             # Post-processing, here I applied closing and the infill method.
             final_mask = morphology.closing(final_mask, morphology.disk(4))
             final_mask = binary_fill_holes(final_mask).astype(np.uint8)
-            self.final_mask = final_mask 
+
+            # Send final masks for Konva groups with ids, colors, and points
+            region_id = f"region-{len(self.final_mask)}"
+
+            # Find all non-zero pixel coordinates in the final mask
+            ys, xs = np.where(final_mask == 1)
+            pixels = [[int(y), int(x)] for y, x in zip(ys, xs)]
+
+            # Add to the mask collection
+            self.final_mask.append({
+                "regionId": region_id,
+                "pixels": pixels,
+                "color": color_hex
+            })
             # Apply color to segmented region
             rgb_color = self.hex_to_rgb(color_hex)
             image_rgb[final_mask == 1] = rgb_color
@@ -195,8 +208,8 @@ class SegmentationModel():
         return self.last_predicted_points
     
     def get_final_mask(self):
-        mask = np.column_stack(np.where(self.final_mask == 1)).tolist()
-        return mask 
+        #mask = np.column_stack(np.where(self.final_mask == 1)).tolist()
+        return self.final_mask 
 
 
     def hex_to_rgb(self, hex_color):
