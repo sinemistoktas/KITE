@@ -182,6 +182,7 @@ class SegmentationModel():
             ys, xs = np.where(final_mask == 1)
             pixels = [[int(y), int(x)] for y, x in zip(ys, xs)]
 
+            
             # Add to the mask collection
             self.final_mask.append({
                 "regionId": region_id,

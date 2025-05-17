@@ -69,7 +69,10 @@ export function handleAnnotations() {
         const layer = new Konva.Layer();
         stage.add(layer);
 
-      
+      // Current problems noted so we wouldn't forget
+      // 1. the deleted regions are not removed from the canvas since it takes from the backend, it needs to be refreshed every time 
+      // 2. it works a bit slow when there are too many regions on the image, try other alternatives rather than grouping them all
+      // 3. canvas tools and events should be updated accordingly to support this function 
         (data.final_mask || []).forEach(({ regionId, pixels, color }) => {
             const group = new Konva.Group({
               id: regionId,
