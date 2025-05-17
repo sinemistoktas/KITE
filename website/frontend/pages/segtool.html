@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="icon" type="image/x-icon" href="{% static 'img/favicon.ico' %}">
   <script type="module" src="{% static 'js/main.js' %}"></script>
+  <script src="https://unpkg.com/konva@9.2.0/konva.min.js"></script>
 
 </head>
 
@@ -119,11 +120,15 @@
       <strong>Segmented Result</strong>
     </div>
     <div style="margin: 0; padding: 0; text-align: center;">
-      <img id="segmentedResultImage"
-           class="img-fluid mx-auto d-block"
-           style="max-width: 100%; display: block; margin: 0 auto; box-shadow: none; border: none;"
-           alt="Segmented Output" />
-    
+      <div id="segmentationStageContainer" style="position: relative;">
+        <img id="segmentedResultImage"
+             class="img-fluid mx-auto d-block"
+             style="max-width: 512px; display: block;"
+             alt="Segmented Output" />
+        <div id="segmentationStage"
+             style="position: absolute; top: 0; left: 0;"></div>
+      </div>
+      
       <div class="d-flex justify-content-center gap-3 mt-4">
         <button class="show-pre-btn" onclick="handlePreprocessedImg()">
           <i class="fa-solid fa-eye"></i> Show Preprocessed Image

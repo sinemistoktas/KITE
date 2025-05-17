@@ -49,6 +49,39 @@ export function handleAnnotations() {
         downloadBtn.download = "segmented_result.png";
         downloadBtn.style.display = "inline-block";
 
+        const maskPixels = data.final_mask || [];
+
+        const stageContainer = document.getElementById("segmentationStage");
+        stageContainer.innerHTML = ""; // Clear previous content
+      
+        const stage = new Konva.Stage({
+          container: "segmentationStage",
+          width: resultImage.width,
+          height: resultImage.height,
+        });
+      
+        const layer = new Konva.Layer();
+        stage.add(layer);
+      
+        const group = new Konva.Group({
+            draggable: true,
+          });
+          
+          maskPixels.forEach(([y, x]) => {
+            const dot = new Konva.Rect({
+              x: x,
+              y: y,
+              width: 1,
+              height: 1,
+              fill: "rgba(0,255,0,0.5)",
+            });
+            group.add(dot);
+          });
+          
+          layer.add(group);
+          layer.draw();
+          
+
         const predictedPoints = data.predicted_annotations || [];
         const strokes = predictedPoints.map(p => {
             if (Array.isArray(p[0])) {

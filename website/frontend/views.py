@@ -62,6 +62,7 @@ def segment_image(request):
             image = imread(image_path, as_gray= True)
             result_img = segmentation_model.run_segmentation_from_json_without_ground_truth(image, data)
             predicted_points = segmentation_model.get_predicted_points()
+            final_mask = segmentation_model.get_final_mask()
 
             # Ensures that the original image is returned when there are no annotations.
             buf = io.BytesIO()
@@ -72,6 +73,7 @@ def segment_image(request):
             return JsonResponse({
                 "segmented_image": encoded_image, # will be the original image if there are no annotations
                 "predicted_annotations": predicted_points,  # will be [] if no annotations
+                "final_mask": final_mask
             })
 
         except Exception as e:

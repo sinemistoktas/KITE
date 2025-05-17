@@ -29,6 +29,7 @@ class SegmentationModel():
         self.ground_truth_directory = "./duke_original/lesion"
         self.last_mask = None # Used to store the last output.
         self.last_predicted_points = []
+        self.final_mask = []
     
     def grow_region(self,image, seed_mask,fluid_mask=None, threshold=5, max_area=4000):
         height, width = image.shape
@@ -173,7 +174,7 @@ class SegmentationModel():
             # Post-processing, here I applied closing and the infill method.
             final_mask = morphology.closing(final_mask, morphology.disk(4))
             final_mask = binary_fill_holes(final_mask).astype(np.uint8)
-            
+            self.final_mask = final_mask 
             # Apply color to segmented region
             rgb_color = self.hex_to_rgb(color_hex)
             image_rgb[final_mask == 1] = rgb_color
@@ -192,6 +193,11 @@ class SegmentationModel():
     
     def get_predicted_points(self):
         return self.last_predicted_points
+    
+    def get_final_mask(self):
+        mask = np.column_stack(np.where(self.final_mask == 1)).tolist()
+        return mask 
+
 
     def hex_to_rgb(self, hex_color):
         """Convert hex color string to RGB list"""
