@@ -24,14 +24,15 @@
 </div>
 <br>
 
+
 <div class="seg-tool-container container">
   <h3 class="mb-6">KITE - Semi Automated Segmentation Tool</h3>
   <h6 class="mb-4" style="letter-spacing: 0.5px">Upload an image</h6>
   <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
-    <div class="d-flex align-items-center gap-5" style="margin-top: 10px;">
+    <div class="d-flex align-items-center gap-5">
       <div class="algorithm-selection">
-        <select name="algorithm" id="algorithm" class="form-select" style="height: 60px; border-radius: 30px; text-align: center; text-align-last: center;">
+        <select name="algorithm" id="algorithm" class="form-select" style="height: 60px; border-radius: 30px; text-align: center; text-align-last: center; margin-top: -34px;">
           <option value="" disabled selected>Choose Algorithm</option>
           <option value="kite">KITE (Available)</option>
           <option value="medsam">MedSAM (Coming Soon)</option>
@@ -41,7 +42,7 @@
 
       <div>
         <input id="file-upload" type="file" name="image" class="form-control" required style="display:none;" accept="image/*">
-        <button type="button" class="custom-upload-btn" style="height: 60px; margin-top: 34px; text-align: center; display: flex; align-items: center; justify-content: center;" onclick="document.getElementById('file-upload').click()">
+        <button type="button" class="custom-upload-btn" style="height: 60px; text-align: center; display: flex; align-items: center; justify-content: center;" onclick="document.getElementById('file-upload').click()">
           <i class="fa fa-cloud-upload me-2"></i> Upload Image
         </button>
         <span id="fileNameDisplay" class="file-name-display"></span>
@@ -174,14 +175,28 @@
             return;
           }
           
-          // Get the selected algorithm text
-          const selectedAlgorithm = algorithmSelect.options[algorithmSelect.selectedIndex].text;
+          // Get the selected algorithm value and map it to a display name
+          const selectedAlgorithmValue = algorithmSelect.value;
+          let selectedAlgorithmDisplayName;
+          switch (selectedAlgorithmValue) {
+            case 'kite':
+              selectedAlgorithmDisplayName = 'KITE';
+              break;
+            case 'medsam':
+              selectedAlgorithmDisplayName = 'MedSAM';
+              break;
+            case 'unet':
+              selectedAlgorithmDisplayName = 'U-Net';
+              break;
+            default:
+              selectedAlgorithmDisplayName = selectedAlgorithmValue; // Fallback to value if not mapped
+          }
           
           // Create a hidden input for the algorithm name
           let algorithmNameInput = document.createElement('input');
           algorithmNameInput.type = 'hidden';
           algorithmNameInput.name = 'algorithm_name';
-          algorithmNameInput.value = selectedAlgorithm;
+          algorithmNameInput.value = selectedAlgorithmDisplayName;
           
           // Add it to the form
           fileInput.form.appendChild(algorithmNameInput);
