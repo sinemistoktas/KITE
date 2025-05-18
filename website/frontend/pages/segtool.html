@@ -26,20 +26,33 @@
 
 <div class="seg-tool-container container">
   <h3 class="mb-6">KITE - Semi Automated Segmentation Tool</h3>
-  <h6 class="mb-4">Upload an Image</h6>
+  <h6 class="mb-4" style="letter-spacing: 0.5px">Upload an image</h6>
   <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
-    <label for="file-upload" class="custom-file-upload">
-      <i class="fa fa-cloud-upload"></i> Choose File
-    </label>
-    <input id="file-upload" type="file" name="image" class="form-control mb-3" required style="display:none;" accept="image/*">
-    <span id="fileNameDisplay" class="file-name-display"></span>
-    <button type="submit" class="custom-upload-btn">Upload</button>
+    <div class="d-flex align-items-center gap-5" style="margin-top: 10px;">
+      <div class="algorithm-selection">
+        <select name="algorithm" id="algorithm" class="form-select" style="height: 60px; border-radius: 30px; text-align: center; text-align-last: center;">
+          <option value="" disabled selected>Choose Algorithm</option>
+          <option value="kite">KITE (Available)</option>
+          <option value="medsam">MedSAM (Coming Soon)</option>
+          <option value="unet">U-Net (Coming Soon)</option>
+        </select>
+      </div>
+
+      <div>
+        <input id="file-upload" type="file" name="image" class="form-control" required style="display:none;" accept="image/*">
+        <button type="button" class="custom-upload-btn" style="height: 60px; margin-top: 34px; text-align: center; display: flex; align-items: center; justify-content: center;" onclick="document.getElementById('file-upload').click()">
+          <i class="fa fa-cloud-upload me-2"></i> Upload Image
+        </button>
+        <span id="fileNameDisplay" class="file-name-display"></span>
+      </div>
+    </div>
   </form>
 
   {% if image_url %}
   <div class="mt-2 mb-3">
-    <span class="uploaded-filename"><strong>Filename:</strong> {{ image_name }}</span>
+    <span class="uploaded-filename"><strong>Algorithm:</strong> {{ algorithm_name }}</span>
+    <span class="uploaded-filename ms-4"><strong>Filename:</strong> {{ image_name }}</span>
   </div>
   {% endif %}
 
@@ -146,11 +159,35 @@
   document.addEventListener('DOMContentLoaded', function () {
     const fileInput = document.getElementById('file-upload');
     const fileNameDisplay = document.getElementById('fileNameDisplay');
+    const algorithmSelect = document.getElementById('algorithm');
 
     if (fileInput && fileNameDisplay) {
       fileInput.addEventListener('change', function () {
         if (fileInput.files && fileInput.files.length > 0) {
           fileNameDisplay.textContent = fileInput.files[0].name;
+          
+          // Check if algorithm is selected
+          if (!algorithmSelect.value) {
+            alert('Please select an algorithm first');
+            fileNameDisplay.textContent = '';
+            fileInput.value = ''; // Clear the file input
+            return;
+          }
+          
+          // Get the selected algorithm text
+          const selectedAlgorithm = algorithmSelect.options[algorithmSelect.selectedIndex].text;
+          
+          // Create a hidden input for the algorithm name
+          let algorithmNameInput = document.createElement('input');
+          algorithmNameInput.type = 'hidden';
+          algorithmNameInput.name = 'algorithm_name';
+          algorithmNameInput.value = selectedAlgorithm;
+          
+          // Add it to the form
+          fileInput.form.appendChild(algorithmNameInput);
+          
+          // Automatically submit the form when a file is selected
+          fileInput.form.submit();
         } else {
           fileNameDisplay.textContent = '';
         }
