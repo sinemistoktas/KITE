@@ -8,6 +8,9 @@ export function getCSRFToken(name = "csrftoken") {
 }
 
 export function handleAnnotations() {
+    // Get the selected algorithm
+    const algorithm = document.getElementById('algorithm').value;
+
     state.scribbles = state.scribbles.filter(s => !s.isPrediction);
     redrawAnnotations();
 
@@ -21,6 +24,7 @@ export function handleAnnotations() {
 
     const payload = {
         image_name: state.imageName,
+        algorithm: algorithm, // Add the selected algorithm
         shapes: [{
             label: "anomaly",
             points: allPoints.map(p => [p.x, p.y]),

@@ -1012,9 +1012,6 @@ window.addEventListener('DOMContentLoaded', event => {
     }
 
     window.handleAnnotations = function () {
-        // Get the selected algorithm: kite, medsam or unet
-        const algorithm = document.getElementById('algorithm').value;
-        
         // Ensure that the user's annotations are SAVED!! We need
         // the user to continuously modify their segmentation output.
         scribbles = scribbles.filter(s => !s.isPrediction);
@@ -1030,7 +1027,6 @@ window.addEventListener('DOMContentLoaded', event => {
         })));
         const annotationsJson = {
             image_name: window.imageName,
-            algorithm: algorithm, // Add the selected algorithm
             shapes: [{
                 label: "anomaly",
                 points: allPoints.map(p => [p.x, p.y]),
