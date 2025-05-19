@@ -6,9 +6,15 @@ export const state = {
     showEraserCursor: false,
     isDrawing: false,
     isErasing: false,
+
+    // fill tool state variables
     isFillToolActive: false,
     isDrawingBoundary: false,
     boundaryComplete: false,
+
+    // box state variables
+    isBoxDrawing: false,
+    boxStartPoint: null,
 
     // Drawing and annotation
     currentStroke: [],

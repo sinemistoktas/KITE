@@ -4,6 +4,8 @@ import { redrawAnnotations } from './canvas-tools.js';
 import { createLayer } from './layers.js';
 import { toggleFillTool, handleFillToolClick, resetFillTool, updateFillToolStatus } from './fill-tool.js';
 import { zoomToPoint, zoomOut, resetZoom } from './canvas-tools.js';
+import { handleBoxMouseDown, handleBoxMouseMove, handleBoxMouseUp, handleBoxMouseLeave } from './box-tool.js';
+
 
 export function bindUIEvents() {
     const { annotationCanvas } = state;
@@ -16,6 +18,8 @@ export function bindUIEvents() {
     document.getElementById('fillToolBtn')?.addEventListener('click', () => {
         setMode(state.mode === "fill" ? null : "fill");
     });
+    // Add box mode button handler - let the box-tool.js handle this directly
+    // document.getElementById('boxMode')?.addEventListener('click', () => setMode('box'));
 
     document.getElementById('zoomInBtn')?.addEventListener('click', () => {
         if (state.zoomMode) {
@@ -34,6 +38,8 @@ export function bindUIEvents() {
         const coords = screenToImageCoords(e.clientX, e.clientY);
         state.mouseX = coords.x;
         state.mouseY = coords.y;
+
+        if (handleBoxMouseDown(e)) return;
 
         if (state.zoomMode) {
             zoomToPoint(coords.x, coords.y);
@@ -67,6 +73,8 @@ export function bindUIEvents() {
     });
 
     annotationCanvas.addEventListener('mousemove', (e) => {
+        if (handleBoxMouseMove(e)) return;
+
         const coords = screenToImageCoords(e.clientX, e.clientY);
         state.mouseX = coords.x;
         state.mouseY = coords.y;
@@ -91,6 +99,8 @@ export function bindUIEvents() {
     });
 
     annotationCanvas.addEventListener('mouseup', () => {
+        if (handleBoxMouseUp(e)) return;
+
         if (state.isDrawing && state.currentStroke.length > 0) {
             state.scribbles.push({
                 points: state.currentStroke,
@@ -120,6 +130,8 @@ export function bindUIEvents() {
     });
 
     annotationCanvas.addEventListener('mouseleave', () => {
+        if (handleBoxMouseLeave()) return;
+
         if (state.isDrawing && state.currentStroke.length > 0) {
             state.scribbles.push({
                 points: state.currentStroke,
@@ -146,6 +158,7 @@ export function bindUIEvents() {
         else if (key === "A") setMode(state.mode === "eraseAll" ? null : "eraseAll");
         else if (key === "Z") toggleZoomMode();
         else if (key === "F") toggleFillTool();
+        // Note: Box keyboard shortcut "B" is handled in box-tool.js
     });
 }
 

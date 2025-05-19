@@ -1,5 +1,6 @@
 import { state } from './state.js';
 import { distance } from './canvas-utils.js';
+import { drawBoxPreview } from './box-tool.js';
 
 export function redrawAnnotations() {
     const aCtx = state.annotationCtx;
@@ -74,6 +75,9 @@ export function redrawAnnotations() {
         aCtx.stroke();
         restoreZoom(aCtx);
     }
+
+    // Draw box preview
+    drawBoxPreview(aCtx, adjustForZoom, restoreZoom);
 
     // Draw eraser cursor
     if (state.showEraserCursor && state.mode === "eraser") {

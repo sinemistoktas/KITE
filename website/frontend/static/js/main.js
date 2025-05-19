@@ -4,6 +4,7 @@ import { bindUIEvents } from './events.js';
 import { redrawAnnotations } from './canvas-tools.js';
 import { initColorPicker } from './color-picker.js';
 import { handleAnnotations, handlePreprocessedImg } from './api-service.js';
+import { initBoxTool } from './box-tool.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const annotationCanvas = document.getElementById("annotationCanvas");
@@ -57,4 +58,5 @@ document.addEventListener('DOMContentLoaded', () => {
     // Hook up all button + canvas events
     bindUIEvents();
     initColorPicker();
+    initBoxTool();
 });

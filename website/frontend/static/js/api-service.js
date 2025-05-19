@@ -22,6 +22,27 @@ export function handleAnnotations() {
         }))
     );
 
+    // send box information specially
+    const boxes = state.scribbles
+        .filter(s => s.isBox)
+        .map(box => {
+            // Get top-left and bottom-right coordinates
+            const xValues = box.points.map(p => p.x);
+            const yValues = box.points.map(p => p.y);
+            const xMin = Math.min(...xValues);
+            const yMin = Math.min(...yValues);
+            const xMax = Math.max(...xValues);
+            const yMax = Math.max(...yValues);
+            
+            return {
+                color: box.color,
+                x_min: xMin,
+                y_min: yMin,
+                x_max: xMax,
+                y_max: yMax
+            };
+        });
+
     const payload = {
         image_name: state.imageName,
         algorithm: algorithm, // Add the selected algorithm
@@ -29,7 +50,8 @@ export function handleAnnotations() {
             label: "anomaly",
             points: allPoints.map(p => [p.x, p.y]),
             color: allPoints.map(p => p.color)
-        }]
+        }],
+        boxes: boxes
     };
 
     fetch("/segment/", {
