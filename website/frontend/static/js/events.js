@@ -99,8 +99,13 @@ export function bindUIEvents() {
     });
 
     annotationCanvas.addEventListener('mouseup', () => {
-        if (handleBoxMouseUp(e)) return;
+        // First check if box tool handles this event
+        // IMPORTANT: Only let the box tool handle it if we're in box mode
+        if (state.mode === 'box' && handleBoxMouseUp()) {
+            return; // Box tool handled it, stop processing
+        }
 
+        // line
         if (state.isDrawing && state.currentStroke.length > 0) {
             state.scribbles.push({
                 points: state.currentStroke,
@@ -112,6 +117,7 @@ export function bindUIEvents() {
             redrawAnnotations();
         }
 
+        // fill tool
         if (state.isFillToolActive && state.isDrawingBoundary) {
             state.isDrawingBoundary = false;
             if (state.currentBoundary.length >= 3) {
@@ -130,8 +136,13 @@ export function bindUIEvents() {
     });
 
     annotationCanvas.addEventListener('mouseleave', () => {
-        if (handleBoxMouseLeave()) return;
+        // First check if box tool handles this event
+        // IMPORTANT: Only let the box tool handle it if we're in box mode
+        if (state.mode === 'box' && handleBoxMouseLeave()) {
+            return; // Box tool handled it, stop processing
+        }
 
+        // line
         if (state.isDrawing && state.currentStroke.length > 0) {
             state.scribbles.push({
                 points: state.currentStroke,
