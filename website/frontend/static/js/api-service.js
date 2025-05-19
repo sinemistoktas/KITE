@@ -2,14 +2,47 @@ import { state } from './state.js';
 import { redrawAnnotations, resetZoom } from './canvas-tools.js';
 
 export function getCSRFToken(name = "csrftoken") {
+    // First try to get token from window object
+    if (window.csrfToken) {
+        console.log('Using CSRF token from window object');
+        return window.csrfToken;
+    }
+    
+    // Fallback to cookie
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
-    return parts.length === 2 ? parts.pop().split(';').shift() : '';
+    if (parts.length === 2) {
+        const token = parts.pop().split(';').shift();
+        console.log('Using CSRF token from cookie');
+        return token;
+    }
+    // else, no CSRF token found
+    console.warn('No CSRF token found in window object or cookies');
+    return '';
+}
+
+function fetchWithCSRF(url, options = {}) {
+    const csrfToken = getCSRFToken();
+    if (!csrfToken) {
+        console.error('No CSRF token available');
+        return Promise.reject(new Error('No CSRF token available'));
+    }
+
+    const defaultOptions = {
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        credentials: 'same-origin'  // Added this to ensure cookies are sent
+    };
+
+    return fetch(url, { ...defaultOptions, ...options });
 }
 
 export function handleAnnotations() {
-    // Get the selected algorithm
-    const algorithm = document.getElementById('algorithm').value;
+    // Get the selected algorithm or default to 'kite'
+    const algorithm = document.getElementById('algorithm')?.value || 'kite'; // might need to change this later
+    console.log('Using algorithm:', algorithm);
 
     state.scribbles = state.scribbles.filter(s => !s.isPrediction);
     redrawAnnotations();
@@ -32,16 +65,21 @@ export function handleAnnotations() {
         }]
     };
 
-    fetch("/segment/", {
+    fetchWithCSRF("/segment/", {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": getCSRFToken()
-        },
         body: JSON.stringify(payload)
     })
-    .then(res => res.json())
+    .then(res => {
+        console.log('Response status:', res.status);
+        if (!res.ok) {
+            return res.text().then(text => {
+                throw new Error(`HTTP error! status: ${res.status}, message: ${text}`);
+            });
+        }
+        return res.json();
+    })
     .then(data => {
+        console.log('Received data:', data);
         resetZoom();
 
         const resultImage = document.getElementById("segmentedResultImage");
@@ -71,16 +109,16 @@ export function handleAnnotations() {
         });
 
         redrawAnnotations();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error processing segmentation: ' + error.message);
     });
 }
 
 export function handlePreprocessedImg() {
-    fetch("/preprocessed-image/", {
+    fetchWithCSRF("/preprocessed-image/", {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": getCSRFToken()
-        },
         body: JSON.stringify({ image_name: state.imageName })
     })
     .then(res => res.json())
@@ -108,5 +146,9 @@ export function handlePreprocessedImg() {
 
         popup.append(img, close);
         document.body.appendChild(popup);
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error processing preprocessed image: ' + error.message);
     });
 }

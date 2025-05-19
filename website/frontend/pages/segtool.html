@@ -158,9 +158,14 @@
 </div>
 <script>
   window.imageName = "{{ image_name }}";
+  // Add CSRF token to window object
+  window.csrfToken = "{{ csrf_token }}";
 </script>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
+    // Log CSRF token availability
+    console.log('CSRF Token available:', !!window.csrfToken);
+
     const fileInput = document.getElementById('file-upload');
     const fileNameDisplay = document.getElementById('fileNameDisplay');
     const algorithmSelect = document.getElementById('algorithm');
