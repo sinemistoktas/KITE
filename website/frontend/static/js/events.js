@@ -4,9 +4,11 @@ import { redrawAnnotations } from './canvas-tools.js';
 import { createLayer } from './layers.js';
 import { toggleFillTool, handleFillToolClick, resetFillTool, updateFillToolStatus } from './fill-tool.js';
 import { zoomToPoint, zoomOut, resetZoom } from './canvas-tools.js';
+import { processUNetPredictions, initializeAnnotationsFromPredictions } from './canvas-utils.js';
+import { initializeUNetPredictions } from './api-service.js';
 
 export function bindUIEvents() {
-    const { annotationCanvas } = state;
+    const {annotationCanvas} = state;
 
     // Buttons
     document.getElementById('scribbleMode')?.addEventListener('click', () => setMode('line'));
@@ -28,6 +30,46 @@ export function bindUIEvents() {
 
     document.getElementById('zoomOutBtn')?.addEventListener('click', zoomOut);
     document.getElementById('resetZoomBtn')?.addEventListener('click', resetZoom);
+
+    //Method selector
+    const traditionalMethod = document.getElementById('traditionalMethod');
+    const unetMethod = document.getElementById('unetMethod');
+
+    if (traditionalMethod && unetMethod) {
+        traditionalMethod.addEventListener('change', () => {
+            state.unetMode = false;
+            updateMethodDescription();
+        });
+
+        unetMethod.addEventListener('change', () => {
+            state.unetMode = true;
+            updateMethodDescription();
+
+            if (state.imageName) {
+                initializeUNetPredictions(state.imageName)
+                    .then(predictions => {
+                        if (predictions.length > 0) {
+                            const processedPredictions = processUNetPredictions(predictions);
+                            state.predictedPoints = processedPredictions;
+                            initializeAnnotationsFromPredictions([{
+                                points: processedPredictions
+                            }]);
+                        }
+                    });
+            }
+
+        });
+
+        if (state.segmentationMethod === "unet") {
+            state.unetMode = true;
+            unetMethod.checked = true;
+        } else {
+            state.unetMode = false;
+            traditionalMethod.checked = true;
+        }
+
+        updateMethodDescription();
+    }
 
     // Mouse events
     annotationCanvas.addEventListener('mousedown', (e) => {
@@ -105,7 +147,7 @@ export function bindUIEvents() {
         if (state.isFillToolActive && state.isDrawingBoundary) {
             state.isDrawingBoundary = false;
             if (state.currentBoundary.length >= 3) {
-                state.currentBoundary.push({ ...state.currentBoundary[0] });
+                state.currentBoundary.push({...state.currentBoundary[0]});
                 state.boundaryComplete = true;
                 updateFillToolStatus("Now click inside the boundary to fill it");
             } else {
@@ -147,6 +189,45 @@ export function bindUIEvents() {
         else if (key === "Z") toggleZoomMode();
         else if (key === "F") toggleFillTool();
     });
+
+//segmentation mode
+    const uploadForm = document.querySelector('form[enctype="multipart/form-data"]');
+
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', function (event) {
+            const formData = new FormData(this);
+            const method = formData.get('segmentation_method');
+            if (method) {
+                state.segmentationMethod = method;
+                state.unetMode = method === 'unet';
+            }
+
+        });
+    }
+}
+
+export function updateMethodDescription() {
+        const descriptionElement = document.getElementById('methodDescription');
+        if (!descriptionElement) return;
+
+        const unetMethod = document.getElementById('unetMethod');
+
+        if (unetMethod && unetMethod.checked) {
+            descriptionElement.innerHTML =
+                '<div class="alert alert-info">' +
+                '<i class="fa-solid fa-robot me-2"></i> ' +
+                '<strong>UNet Assisted Mode:</strong> Initial segmentation is generated automatically by the UNet model. ' +
+                'You can then refine the results using the annotation tools.' +
+                '</div>';
+        } else {
+            descriptionElement.innerHTML =
+                '<div class="alert alert-info">' +
+                '<i class="fa-solid fa-pencil me-2"></i> ' +
+                '<strong>Traditional Mode:</strong> Semi-automated segmentation using manual annotations. ' +
+                'Draw annotations to indicate regions of interest.' +
+                '</div>';
+        }
+
 }
 
 function setMode(newMode) {

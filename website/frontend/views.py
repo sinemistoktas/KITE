@@ -19,16 +19,127 @@ from PIL import Image
 import traceback
 from io import BytesIO
 import numpy as np
+import torch
+import cv2 as cv
 
 preprocessor = Preprocessor()
 segmentation_model = SegmentationModel(preprocessor)
 
+
+#UNet
+class UnetPredictor:
+    def __init__(self, model_path):
+        self.model = torch.jit.load(model_path)
+        self.model.eval()
+
+    def predict(self, img_path):
+
+        img = Image.open(img_path)
+        original_size = img.size
+
+        img = img.resize((512, 224))
+        if img.mode != 'L':
+            img = img.convert('L')
+
+        img_array = np.array(img).astype(np.float32) / 255.0
+        img_tensor = torch.from_numpy(img_array).unsqueeze(0).unsqueeze(0)
+
+        with torch.no_grad():
+            output = self.model(img_tensor)
+
+        _, predicted = torch.max(output, 1)
+        segmentation_map = predicted.squeeze().cpu().numpy()
+
+        original_image = Image.open(img_path).convert('RGB')
+        original_array = np.array(original_image.resize((512, 224)))
+
+        binary_mask = (segmentation_map == 1).astype(np.uint8) * 255
+
+        overlay = self.overlay_on_original(original_array, binary_mask)
+
+        result_img = Image.fromarray(overlay)
+        predicted_points = self.segmentation_to_points(segmentation_map)
+
+        return result_img, predicted_points
+
+    def overlay_on_original(self, original_image, segmentation_mask, alpha=0.5):
+        if original_image.shape[:2] != segmentation_mask.shape:
+            original_image = cv.resize(original_image, (segmentation_mask.shape[1], segmentation_mask.shape[0]))
+
+        if len(original_image.shape) == 2:  # Grayscale (1 channel)
+            original_3ch = cv.cvtColor(original_image, cv.COLOR_GRAY2BGR)
+        elif len(original_image.shape) == 3 and original_image.shape[2] == 3:  # Already RGB/BGR (3 channels)
+            original_3ch = original_image.copy()
+        else:
+            print(f"Unexpected image shape: {original_image.shape}")
+
+            if len(original_image.shape) == 3 and original_image.shape[2] == 4:  # RGBA
+                original_3ch = original_image[:, :, :3]  # Just take RGB channels
+            else:
+                original_3ch = np.zeros((original_image.shape[0], original_image.shape[1], 3), dtype=np.uint8)
+                for i in range(3):
+                    original_3ch[:, :, i] = original_image[:, :, 0] if len(original_image.shape) == 3 else original_image
+
+        highlight = np.zeros_like(original_3ch)
+        highlight[segmentation_mask > 0] = [0, 0, 255]  # Red channel
+
+        overlay = cv.addWeighted(original_3ch, 1.0, highlight, alpha, 0)
+
+        return overlay
+
+    def segmentation_to_points(self, segmentation_map, class_index = 1):
+
+        binary_mask = (segmentation_map == class_index).astype(np.uint8)
+
+        contours, _ = cv.findContours(binary_mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+
+        points = []
+        for contour in contours:
+            contour_points = []
+            for point in contour:
+                x, y = point[0]
+                contour_points.append([float(x), float(y)])
+
+            if len(contour_points) > 2:  # Only include if there are enough points
+                points.append({
+                    "shape_type": "polygon",
+                    "points": contour_points,
+                    "color": [255, 0, 0]  # Red color for the contour outline
+                })
+
+        return points
+
+
+#initialize UNet
+unet_model_path = '/Users/durutandogan/KITE/unet/notebooks/unet_traced.pt'
+
+print("UNet model path:", unet_model_path)
+print("Exists:", os.path.exists(unet_model_path))
+unet_predictor = None
+
+try:
+    if os.path.exists(unet_model_path):
+        unet_predictor = UnetPredictor(unet_model_path)
+        print("UNet model loaded successfully")
+    else:
+        print("UNet model path not found ")
+except Exception as e:
+    print(f"UNet model loading failed: {e}")
 def home(request):
     return render(request, 'pages/home.html')
 
 def seg_tool(request):
     image_url = None
     image_name = None
+    segmentation_tool = None
+    segmentation_method = request.POST.get('segmentation_method', 'traditional')  if request.method == 'POST' else 'traditional'
+
+    context = {
+        'image_url': image_url,
+        'image_name': image_name,
+        'segmentation_method': segmentation_method,
+        'unet_available': unet_predictor is not None
+    }
 
     if request.method == 'POST' and request.FILES.get('image'):
         image = request.FILES['image']
@@ -36,10 +147,37 @@ def seg_tool(request):
         fs = FileSystemStorage()
         filename = fs.save(image_name, image)
         image_url = fs.url(filename)
-    return render(request, 'pages/segtool.html', {
-        'image_url': image_url,
-        'image_name': image_name
-    })
+        segmentation_method = request.POST.get('segmentation_method', 'traditional')
+
+        context = {
+            'image_url': image_url,
+            'image_name': image_name,
+            'segmentation_method': segmentation_method,
+            'unet_available': unet_predictor is not None
+        }
+
+        if segmentation_method == 'unet' and unet_predictor is not None:
+            try:
+                image_path = os.path.join(settings.MEDIA_ROOT, filename)
+                result_img, predicted_points = unet_predictor.predict(image_path)
+                print("UNet predicted points:", predicted_points)
+                print("Image size:", result_img.size)
+                result_filename = f"{os.path.splitext(filename)[0]}_unet_segmented.png"
+                result_path = os.path.join(settings.MEDIA_ROOT, result_filename)
+                result_img.save(result_path)
+
+                context['segmented_image_url'] = fs.url(result_filename)
+                context['show_segmentation_result'] = True
+                context['unet_mode'] = True
+                context['predicted_points'] = json.dumps(predicted_points)
+            except Exception as e:
+                traceback_str = traceback.format_exc()
+                print(f"UNet processing error:\n{traceback_str}")
+                context['unet_error'] = str(e)
+        else:
+            context['unet_mode'] = False
+
+    return render(request, 'pages/segtool.html', context)
 
 # Takes an HTTP request, which must include the name of the image uploaded, and the json formatted annotated file.
 # The function then applies segmentation on the image, and returns the segmented image in a PNG format.
@@ -49,21 +187,42 @@ def segment_image(request):
         try:
             data = json.loads(request.body)
 
-            for shape in data["shapes"]:
-                points = shape.get("points", [])
-            #print("Data", data) // for debugging
-           
+            use_unet = data.get("use_unet", False)
+
             filename = data.get("image_name")
             if not filename:
                 return JsonResponse({"error": "No image name provided."}, status=400)
+
             image_path = os.path.join(settings.MEDIA_ROOT, filename)
             if not os.path.exists(image_path):
                 return JsonResponse({"error": "Image file not found."}, status=404)
+
+            if use_unet and unet_predictor is not None:
+                result_img, predicted_points = unet_predictor.predict(image_path)
+
+                # Ensures that the original image is returned when there are no annotations.
+                buf = io.BytesIO()
+                result_img.save(buf, format="PNG")
+                buf.seek(0)
+                encoded_image = b64encode(buf.getvalue()).decode("utf-8")
+
+                return JsonResponse({
+                    "segmented_image": encoded_image,
+                    "predicted_annotations": predicted_points,
+                })
+
+
+            #Traditional Method
+
+            for shape in data["shapes"]:
+                points = shape.get("points", [])
+            #print("Data", data) // for debugging
+
+
             image = imread(image_path, as_gray= True)
             result_img = segmentation_model.run_segmentation_from_json_without_ground_truth(image, data)
             predicted_points = segmentation_model.get_predicted_points()
 
-            # Ensures that the original image is returned when there are no annotations.
             buf = io.BytesIO()
             result_img.save(buf, format="PNG")
             buf.seek(0)
@@ -110,4 +269,40 @@ def preprocessed_image_view(request):
             traceback_str = traceback.format_exc()
             print("Preprocessing error:\n", traceback_str)
             return JsonResponse({"error": str(e)}, status=500)
+
     return JsonResponse({'error': 'Only a POST request is allowed'}, status=405)
+
+def process_with_unet(request):
+        if request.method == "POST":
+            try:
+                data = json.loads(request.body)
+                filename = data.get("image_name")
+
+                if not unet_predictor:
+                    return JsonResponse({"error": "UNet model is not available."}, status=503)
+
+                if not filename:
+                    return JsonResponse({"error": "No image name provided."}, status=400)
+
+                image_path = os.path.join(settings.MEDIA_ROOT, filename)
+                if not os.path.exists(image_path):
+                    return JsonResponse({"error": "Image file not found."}, status=404)
+
+                result_img, predicted_points = unet_predictor.predict(image_path)
+
+                buf = io.BytesIO()
+                result_img.save(buf, format="PNG")
+                buf.seek(0)
+                encoded_image = b64encode(buf.getvalue()).decode("utf-8")
+
+                return JsonResponse({
+                    "segmented_image": encoded_image,
+                    "predicted_annotations": predicted_points,
+                })
+
+            except Exception as e:
+                traceback_str = traceback.format_exc()
+                print(f"UNet processing error:\n{traceback_str}")
+                return JsonResponse({"error": str(e)}, status=500)
+
+        return JsonResponse({'error': 'Only a POST request is allowed'}, status=405)

@@ -34,6 +34,29 @@
     </label>
     <input id="file-upload" type="file" name="image" class="form-control mb-3" required style="display:none;" accept="image/*">
     <span id="fileNameDisplay" class="file-name-display"></span>
+    <!--Segmentation Method Selector-->
+
+    {% if True %}
+
+    <div class="segmentation-method mt-3 mb-3">
+      <label class="me-3">Segmentation Method:</label>
+
+      <div class="form-check form-check-inline">
+        <input class="form-check-input" type="radio" name="segmentation_method" id="traditionalMethod" value="traditional"
+               {% if segmentation_method == "traditional" %}checked{% endif %}> <!-- ✅ Dynamically sets checked -->
+        <label class="form-check-label" for="traditionalMethod">Traditional</label>
+      </div>
+      <div class="form-check form-check-inline">
+        <input class="form-check-input" type="radio" name="segmentation_method" id="unetMethod" value="unet"
+               {% if segmentation_method == "unet" %}checked{% endif %}> <!-- ✅ Dynamically sets checked -->
+        <label class="form-check-label" for="unetMethod">UNet Assisted</label>
+      </div>
+
+    </div>
+
+    <div id="methodDescription" class="mt-2"></div>
+    {% endif %}
+
     <button type="submit" class="custom-upload-btn">Upload</button>
   </form>
 
@@ -139,6 +162,10 @@
     </div>
   </div>
 </div>
+<script>
+  window.segmentationMethod = "{{ segmentation_method|default:'traditional' }}";
+</script>
+
 <script>
   window.imageName = "{{ image_name }}";
 </script>

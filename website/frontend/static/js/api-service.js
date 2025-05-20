@@ -7,6 +7,24 @@ export function getCSRFToken(name = "csrftoken") {
     return parts.length === 2 ? parts.pop().split(';').shift() : '';
 }
 
+export function processWithUNet(imageName) {
+    return fetch("/process-with-unet/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCSRFToken()
+        },
+        body: JSON.stringify({ image_name: imageName })
+    })
+    .then(response => {
+            if (!response.ok) {
+                throw new Error("Failed to process with UNet. Status: " + response.status);
+            }
+            return response.json();
+    });
+}
+
+
 export function handleAnnotations() {
     state.scribbles = state.scribbles.filter(s => !s.isPrediction);
     redrawAnnotations();
@@ -25,7 +43,8 @@ export function handleAnnotations() {
             label: "anomaly",
             points: allPoints.map(p => [p.x, p.y]),
             color: allPoints.map(p => p.color)
-        }]
+        }],
+        use_unet: state.unetMode
     };
 
     fetch("/segment/", {
@@ -38,9 +57,17 @@ export function handleAnnotations() {
     })
     .then(res => res.json())
     .then(data => {
+        console.log("✅ Segmentation response:", data); // ✅ Debug output
+
         resetZoom();
 
         const resultImage = document.getElementById("segmentedResultImage");
+        console.log("🖼️ resultImage element:", resultImage); // ✅ Check element
+        if (!data.segmented_image) {
+            console.error("❌ No segmented_image returned!");
+            return;
+        }
+
         resultImage.src = `data:image/png;base64,${data.segmented_image}`;
 
         document.getElementById("segmentationResult").style.display = "block";
@@ -68,6 +95,20 @@ export function handleAnnotations() {
 
         redrawAnnotations();
     });
+}
+
+export function initializeUNetPredictions(imageName){
+    return processWithUNet(imageName)
+        .then(data => {
+            if (data.predicted_annotations && data.predicted_annotations.length > 0) {
+                return data.predicted_annotations;
+            }
+            return [];
+        })
+        .catch(error => {
+            console.error("Error initializing UNet predictions:", error);
+            return [];
+        });
 }
 
 export function handlePreprocessedImg() {
@@ -105,4 +146,17 @@ export function handlePreprocessedImg() {
         popup.append(img, close);
         document.body.appendChild(popup);
     });
+}
+
+export function handleUNetFormSubmission(event, formData) {
+
+    const segmentationMethod = formData.get('segmentation_method');
+
+    if (segmentationMethod === 'unet') {
+        state.unetMode = true;
+        return false;
+    }
+
+    state.unetMode = false;
+    return false;
 }

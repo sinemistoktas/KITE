@@ -1,9 +1,11 @@
 // main.js
-import { state } from './state.js';
-import { bindUIEvents } from './events.js';
+import { state, initializeFromServer } from './state.js';
+import { bindUIEvents, updateMethodDescription } from './events.js';
 import { redrawAnnotations } from './canvas-tools.js';
 import { initColorPicker } from './color-picker.js';
 import { handleAnnotations, handlePreprocessedImg } from './api-service.js';
+import { initializeAnnotationsFromPredictions } from './canvas-utils.js';
+
 
 document.addEventListener('DOMContentLoaded', () => {
     const annotationCanvas = document.getElementById("annotationCanvas");
@@ -15,6 +17,28 @@ document.addEventListener('DOMContentLoaded', () => {
     state.annotationCtx = annotationCanvas.getContext("2d");
     state.predictionCtx = predictionCanvas.getContext("2d");
     state.imageName = window.imageName;
+
+    if (window.segmentationMethod) {
+        state.segmentationMethod = window.segmentationMethod;
+        state.unetMode = window.segmentationMethod === 'unet';
+    }
+
+    if (typeof initializeFromServer === 'function') {
+        initializeFromServer({
+            imageName: window.imageName,
+            segmentationMethod: window.segmentationMethod,
+            predictedPoints: window.predictedPoints
+        });
+    }
+
+    if (window.predictedPoints && window.predictedPoints.length > 0) {
+        try {
+            const predictions = [{ points: window.predictedPoints }];
+            initializeAnnotationsFromPredictions(predictions);
+        } catch (error) {
+            console.error('Error initializing UNet predictions:', error);
+        }
+    }
 
     const resizeCanvasToImage = () => {
         const rect = img.getBoundingClientRect();
@@ -57,4 +81,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // Hook up all button + canvas events
     bindUIEvents();
     initColorPicker();
+
+    updateMethodDescription();
+
+    if (state.unetMode) {
+        const segmentBtn = document.querySelector('.ready-segment-btn');
+        if (segmentBtn) {
+            segmentBtn.innerHTML = '<i class="fa-solid fa-hurricane me-2"></i> Ready to Segment with UNet!';
+        }
+    }
 });
+
+//Debug
+window.testFunction = function() {
+    alert('JavaScript is working!');
+};
+
