@@ -65,13 +65,31 @@ export function initializeAnnotationsFromPredictions(predictions) {
 export function processUNetPredictions(predictedPoints) {
     if (!predictedPoints || predictedPoints.length === 0) return [];
 
-    return predictedPoints.map(point => {
-        if (Array.isArray(point[0])) {
-            const [[x, y], color] = point;
-            return { x, y, color };
-        } else {
-            const [x, y] = point;
-            return { x, y, color: "#ff0000" };
+    return predictedPoints.flatMap(shape => {
+        if (shape.shape_type === "polygon" && shape.points && shape.points.length > 0) {
+            // For polygon shapes with points array
+            return shape.points.map(point => ({
+                x: point[0],
+                y: point[1],
+                color: shape.color ? shape.color[0] : "#ff0000"
+            }));
+        } else if (Array.isArray(shape)) {
+            // For simple point arrays
+            if (Array.isArray(shape[0])) {
+                const [coords, color] = shape;
+                return {
+                    x: coords[0], 
+                    y: coords[1],
+                    color: color || "#ff0000"
+                };
+            } else {
+                return {
+                    x: shape[0],
+                    y: shape[1],
+                    color: "#ff0000"
+                };
+            }
         }
-    });
+        return null;
+    }).filter(Boolean);
 }

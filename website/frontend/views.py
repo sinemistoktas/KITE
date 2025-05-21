@@ -111,7 +111,7 @@ class UnetPredictor:
 
 
 #initialize UNet
-unet_model_path = '/Users/durutandogan/KITE/unet/notebooks/unet_traced.pt'
+unet_model_path = '/Users/yamacomur/Desktop/KITE/unet/notebooks/unet_traced.pt'
 
 print("UNet model path:", unet_model_path)
 print("Exists:", os.path.exists(unet_model_path))

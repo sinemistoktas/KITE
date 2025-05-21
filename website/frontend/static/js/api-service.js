@@ -24,7 +24,6 @@ export function processWithUNet(imageName) {
     });
 }
 
-
 export function handleAnnotations() {
     state.scribbles = state.scribbles.filter(s => !s.isPrediction);
     redrawAnnotations();
@@ -57,43 +56,77 @@ export function handleAnnotations() {
     })
     .then(res => res.json())
     .then(data => {
-        console.log("✅ Segmentation response:", data); // ✅ Debug output
-
+        console.log("✅ Segmentation response:", data);
+        
         resetZoom();
 
         const resultImage = document.getElementById("segmentedResultImage");
-        console.log("🖼️ resultImage element:", resultImage); // ✅ Check element
+        console.log("🖼️ resultImage element:", resultImage);
+        
         if (!data.segmented_image) {
-            console.error("❌ No segmented_image returned!");
+            console.error("No segmented_image returned!");
             return;
         }
 
         resultImage.src = `data:image/png;base64,${data.segmented_image}`;
-
         document.getElementById("segmentationResult").style.display = "block";
+        
         const downloadBtn = document.getElementById("downloadSegmentedImage");
         downloadBtn.href = resultImage.src;
         downloadBtn.download = "segmented_result.png";
         downloadBtn.style.display = "inline-block";
 
-        const predictedPoints = data.predicted_annotations || [];
-        const strokes = predictedPoints.map(p => {
-            if (Array.isArray(p[0])) {
-                const [[x, y], color] = p;
-                return { x, y, color };
+        console.log("Predicted annotations full data:", JSON.stringify(data.predicted_annotations));
+        
+        if (!data.predicted_annotations || data.predicted_annotations.length === 0) {
+            console.log("No predicted annotations found");
+            return;
+        }
+        
+        try {
+            const predictedAnnotations = data.predicted_annotations;
+            
+            if (Array.isArray(predictedAnnotations)) {
+                console.log("Annotation is an array with length:", predictedAnnotations.length);
+                
+                predictedAnnotations.forEach((annotation, index) => {
+                    console.log(`Annotation ${index} type:`, typeof annotation);
+                    console.log(`Annotation ${index} value:`, annotation);
+                    
+                    if (annotation && annotation.shape_type === "polygon" && Array.isArray(annotation.points)) {
+                        // Handle polygon format
+                        const points = annotation.points.map(point => ({
+                            x: point[0], 
+                            y: point[1],
+                            color: Array.isArray(annotation.color) ? annotation.color[0] : "blue"
+                        }));
+                        
+                        state.scribbles.push({
+                            points: points,
+                            isPrediction: true,
+                            color: "blue"
+                        });
+                        
+                        console.log("Added polygon with", points.length, "points");
+                    } else if (Array.isArray(annotation)) {
+                        // Handle array format
+                        console.log("Array annotation:", annotation);
+                    } else {
+                        console.warn("Unrecognized annotation format:", annotation);
+                    }
+                });
             } else {
-                const [x, y] = p;
-                return { x, y, color: "blue" };
+                console.warn("Predicted annotations is not an array:", predictedAnnotations);
             }
-        });
-
-        state.scribbles.push({
-            points: strokes,
-            isPrediction: true,
-            color: "blue"
-        });
-
-        redrawAnnotations();
+            
+            redrawAnnotations();
+        } catch (err) {
+            console.error("Error processing annotations:", err);
+        }
+    })
+    .catch(error => {
+        console.error("Error in segmentation request:", error);
+        alert("An error occurred during segmentation. Please try again.");
     });
 }
 
@@ -149,7 +182,7 @@ export function handlePreprocessedImg() {
 }
 
 export function handleUNetFormSubmission(event, formData) {
-
+    
     const segmentationMethod = formData.get('segmentation_method');
 
     if (segmentationMethod === 'unet') {
