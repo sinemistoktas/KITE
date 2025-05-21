@@ -37,22 +37,41 @@ export function initializeAnnotationsFromPredictions(predictions) {
     import('./layers.js').then(module => {
         const { createLayer } = module;
 
-        const layerId = createLayer("UNet", "#ff0000");
-
+        const predictionsByClass = {};
+        
         predictions.forEach(shape => {
             if (shape.points && shape.points.length > 0) {
+                const classId = shape.class_id || 1;
+                if (!predictionsByClass[classId]) {
+                    predictionsByClass[classId] = [];
+                }
+                predictionsByClass[classId].push(shape);
+            }
+        });
+        
+        // Create a layer for each class
+        Object.entries(predictionsByClass).forEach(([classId, shapes]) => {
+            const layerName = `Layer ${classId}`;
+            const color = shapes[0].color ? 
+                `rgb(${shapes[0].color[0]}, ${shapes[0].color[1]}, ${shapes[0].color[2]})` : 
+                "#ff0000";
+                
+            const layerId = createLayer(layerName, color);
+            
+            shapes.forEach(shape => {
                 const points = shape.points.map(point => ({
                     x: point[0],
                     y: point[1]
                 }));
-
+                
                 state.scribbles.push({
                     points: points,
                     isPrediction: false, // Treat as a normal annotation that can be edited
-                    color: shape.color || "#ff0000",
-                    layerId: layerId
+                    color: color,
+                    layerId: layerId,
+                    class_id: parseInt(classId)
                 });
-            }
+            });
         });
 
         import('./canvas-tools.js').then(module => {

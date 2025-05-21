@@ -33,7 +33,6 @@ class UnetPredictor:
         self.model.eval()
 
     def predict(self, img_path):
-
         img = Image.open(img_path)
         original_size = img.size
 
@@ -53,13 +52,60 @@ class UnetPredictor:
         original_image = Image.open(img_path).convert('RGB')
         original_array = np.array(original_image.resize((512, 224)))
 
-        binary_mask = (segmentation_map == 1).astype(np.uint8) * 255
+        # Define colors for each class (RGB)
+        colors = [
+            [0, 0, 0],      # Class 0: Black (background)
+            [255, 0, 0],    # Class 1: Red
+            [0, 255, 0],    # Class 2: Green
+            [0, 0, 255],    # Class 3: Blue
+            [255, 255, 0],  # Class 4: Yellow
+            [255, 0, 255],  # Class 5: Magenta
+            [0, 255, 255],  # Class 6: Cyan
+            [128, 0, 0],    # Class 7: Maroon
+            [0, 128, 0],    # Class 8: Dark green
+            [0, 0, 128]     # Class 9: Navy blue
+        ]
 
-        overlay = self.overlay_on_original(original_array, binary_mask)
-
+        overlay = original_array.copy()
+        
+        # Generate polygons for each class
+        predicted_points = []
+        
+        # Process each class except background (class 0)
+        for class_idx in range(1, min(10, len(colors))):
+            binary_mask = (segmentation_map == class_idx).astype(np.uint8)
+            
+            if np.sum(binary_mask) == 0:
+                continue
+                
+            class_mask = np.zeros_like(original_array)
+            class_mask[binary_mask > 0] = colors[class_idx]
+            overlay = cv.addWeighted(overlay, 1.0, class_mask, 0.5, 0)
+            
+            # Find contours for this class
+            contours, _ = cv.findContours(binary_mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+            
+            # Convert contours to points
+            for contour in contours:
+                area = cv.contourArea(contour)
+                if area < 10:
+                    continue
+                    
+                contour_points = []
+                for point in contour:
+                    x, y = point[0]
+                    contour_points.append([float(x), float(y)])
+                
+                if len(contour_points) > 2:  
+                    predicted_points.append({
+                        "shape_type": "polygon",
+                        "points": contour_points,
+                        "color": colors[class_idx],  
+                        "class_id": class_idx 
+                    })
+        
         result_img = Image.fromarray(overlay)
-        predicted_points = self.segmentation_to_points(segmentation_map)
-
+        
         return result_img, predicted_points
 
     def overlay_on_original(self, original_image, segmentation_mask, alpha=0.5):
@@ -205,10 +251,25 @@ def segment_image(request):
                 result_img.save(buf, format="PNG")
                 buf.seek(0)
                 encoded_image = b64encode(buf.getvalue()).decode("utf-8")
+                
+                # Add class information
+                class_info = [
+                    {"id": 0, "name": "Background", "color": [0, 0, 0]},
+                    {"id": 1, "name": "Layer 1", "color": [255, 0, 0]},
+                    {"id": 2, "name": "Layer 2", "color": [0, 255, 0]},
+                    {"id": 3, "name": "Layer 3", "color": [0, 0, 255]},
+                    {"id": 4, "name": "Layer 4", "color": [255, 255, 0]},
+                    {"id": 5, "name": "Layer 5", "color": [255, 0, 255]},
+                    {"id": 6, "name": "Layer 6", "color": [0, 255, 255]},
+                    {"id": 7, "name": "Layer 7", "color": [128, 0, 0]},
+                    {"id": 8, "name": "Layer 8", "color": [0, 128, 0]},
+                    {"id": 9, "name": "Layer 9", "color": [0, 0, 128]}
+                ]
 
                 return JsonResponse({
                     "segmented_image": encoded_image,
                     "predicted_annotations": predicted_points,
+                    "class_info": class_info
                 })
 
 

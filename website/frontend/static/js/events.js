@@ -42,23 +42,19 @@ export function bindUIEvents() {
         });
 
         unetMethod.addEventListener('change', () => {
-            state.unetMode = true;
-            updateMethodDescription();
+        state.unetMode = true;
+        updateMethodDescription();
 
-            if (state.imageName) {
-                initializeUNetPredictions(state.imageName)
-                    .then(predictions => {
-                        if (predictions.length > 0) {
-                            const processedPredictions = processUNetPredictions(predictions);
-                            state.predictedPoints = processedPredictions;
-                            initializeAnnotationsFromPredictions([{
-                                points: processedPredictions
-                            }]);
-                        }
-                    });
-            }
-
-        });
+        if (state.imageName) {
+            initializeUNetPredictions(state.imageName)
+                .then(predictions => {
+                    if (predictions.length > 0) {
+                        // Use the full predictions data with class info
+                        initializeAnnotationsFromPredictions(predictions);
+                    }
+                });
+        }
+    });
 
         if (state.segmentationMethod === "unet") {
             state.unetMode = true;
