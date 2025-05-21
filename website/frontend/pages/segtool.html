@@ -128,20 +128,27 @@
         <div id="segmentationStage"
              style="position: absolute; top: 0; left: 0;"></div>
       </div>
-      
+ 
       <div class="d-flex justify-content-center gap-3 mt-4">
         <button class="show-pre-btn" onclick="handlePreprocessedImg()">
           <i class="fa-solid fa-eye"></i> Show Preprocessed Image
         </button>
-
-
+      
         <a id="downloadSegmentedImage"
            class="btn btn-outline-success px-4 py-2 rounded-pill shadow-sm"
            style="display: none;">
           <i class="fa-solid fa-download"></i> Download Segmented Image
         </a>
+      
+        <a id="downloadMaskArray"
+           class="btn btn-secondary px-4 py-2 rounded-pill shadow-sm"
+           style="display: none;">
+          <i class="fa-solid fa-download"></i> Download Mask Metadata (.npy)
+        </a>
       </div>
+      
     </div>
+    
   </div>
 </div>
 <script>

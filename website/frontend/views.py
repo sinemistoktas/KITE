@@ -64,6 +64,10 @@ def segment_image(request):
             predicted_points = segmentation_model.get_predicted_points()
             final_mask = segmentation_model.get_final_mask()
 
+            filename_base = os.path.splitext(os.path.basename(image_path))[0]
+            npy_filename = f"{filename_base}_mask.npy"
+            segmentation_masks = segmentation_model.get_segmentation_masks(npy_filename)
+
             # Ensures that the original image is returned when there are no annotations.
             buf = io.BytesIO()
             result_img.save(buf, format="PNG")
@@ -73,7 +77,8 @@ def segment_image(request):
             return JsonResponse({
                 "segmented_image": encoded_image, # will be the original image if there are no annotations
                 "predicted_annotations": predicted_points,  # will be [] if no annotations
-                "final_mask": final_mask
+                "final_mask": final_mask,
+                "segmentation_mask_npy": segmentation_masks
             })
 
         except Exception as e:

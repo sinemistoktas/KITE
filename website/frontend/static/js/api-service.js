@@ -40,6 +40,10 @@ export function handleAnnotations() {
     .then(data => {
         resetZoom();
 
+        // Added for downloading the general segmentation mask 
+        console.log(data.segmentation_mask_npy);
+        console.log("Segment response:", data);
+
         const resultImage = document.getElementById("segmentedResultImage");
         resultImage.src = `data:image/png;base64,${data.segmented_image}`;
 
@@ -59,6 +63,14 @@ export function handleAnnotations() {
         const height = resultImage.naturalHeight || resultImage.clientHeight;
         stageContainer.style.width = width + "px";
         stageContainer.style.height = height + "px";
+
+  
+        if (data.segmentation_mask_npy) {
+            const npyLink = document.getElementById("downloadMaskArray");
+            npyLink.href = data.segmentation_mask_npy;
+            npyLink.download = "segmentation_metadata.npy";  // optional
+            npyLink.style.display = "inline-block"; //   the button visible
+        }
             
         const stage = new Konva.Stage({
           container: "segmentationStage",

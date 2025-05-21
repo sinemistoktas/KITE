@@ -1,3 +1,6 @@
+import base64
+import io
+from django.conf import settings
 import numpy as np
 import matplotlib.pyplot as plt
 from skimage import data, filters, morphology, restoration, transform, registration, exposure, feature, measure
@@ -212,6 +215,21 @@ class SegmentationModel():
         #mask = np.column_stack(np.where(self.final_mask == 1)).tolist()
         return self.final_mask 
 
+    def get_segmentation_masks(self, filename):
+        segmentation_dir = os.path.join(settings.MEDIA_ROOT, "segmentations")
+        os.makedirs(segmentation_dir, exist_ok=True)
+        
+        # File naming
+        filename_base = os.path.splitext(filename)[0]
+        npy_filename = f"{filename_base}_mask.npy"
+        npy_path = os.path.join(segmentation_dir, npy_filename)
+        
+        # Save the file
+        np.save(npy_path, np.array(self.final_mask, dtype=object))
+        
+        # Construct download URL using your MEDIA_URL
+        mask_url = f"{settings.MEDIA_URL}segmentations/{npy_filename}"
+        return mask_url
 
     def hex_to_rgb(self, hex_color):
         """Convert hex color string to RGB list"""
