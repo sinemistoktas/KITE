@@ -31,8 +31,9 @@ class UnetPredictor:
     def __init__(self, model_path):
         self.model = torch.jit.load(model_path)
         self.model.eval()
+        self.fluid_class_ids = [0, 1, 9] #adjust accordingly
 
-    def predict(self, img_path):
+    def predict(self, img_path, fluid_only=True):
         img = Image.open(img_path)
         original_size = img.size
 
@@ -41,10 +42,26 @@ class UnetPredictor:
             img = img.convert('L')
 
         img_array = np.array(img).astype(np.float32) / 255.0
+
+        """ 
+        # Convert to numpy array and normalize
+        img_array = np.array(img).astype(np.float32)
+        
+        # Apply the same normalization used during training
+        # This is crucial for model performance!
+        if np.std(img_array) > 0:
+            # Normalize to 0-1 range using min-max scaling
+            img_array = (img_array - np.min(img_array)) / (np.max(img_array) - np.min(img_array))
+        else:
+            # Fallback if image has no variation
+            img_array = img_array / 255.0
+        """
         img_tensor = torch.from_numpy(img_array).unsqueeze(0).unsqueeze(0)
 
         with torch.no_grad():
             output = self.model(img_tensor)
+
+        probabilities = torch.softmax(output, dim=1)
 
         _, predicted = torch.max(output, 1)
         segmentation_map = predicted.squeeze().cpu().numpy()
@@ -65,7 +82,36 @@ class UnetPredictor:
             [0, 128, 0],    # Class 8: Dark green
             [0, 0, 128]     # Class 9: Navy blue
         ]
+        prediced_points = None
 
+        if fluid_only:
+            combined_fluid_mask = np.zeros_like(segmentation_map, dtype=np.uint8)
+
+            for fluid_class in self.fluid_class_ids:
+                fluid_prob = probabilities[0, fluid_class, :, :].cpu().numpy()
+
+                fluid_regions = (fluid_prob > 0.5).astype(np.uint8)
+                combined_fluid_mask = np.logical_or(combined_fluid_mask, fluid_regions).astype(np.uint8)
+
+            kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (3, 3))  # Small circular kernel
+            combined_fluid_mask = cv.morphologyEx(combined_fluid_mask, cv.MORPH_CLOSE, kernel)  # Fill gaps
+            combined_fluid_mask = cv.morphologyEx(combined_fluid_mask, cv.MORPH_OPEN, kernel)   # Remove noise
+
+            overlay = original_array.copy()
+            highlight = np.zeros_like(original_array)
+            highlight[combined_fluid_mask > 0] = [0, 255, 255]  # Cyan
+            overlay = cv.addWeighted(overlay, 1.0, highlight, 0.6, 0)
+
+            result_img = Image.fromarray(overlay)
+            predicted_points = self.get_fluid_contours(combined_fluid_mask)
+
+        else:
+            overlay = self.create_multiclass_overlay(original_array, segmentation_map)
+            result_img = Image.fromarray(overlay)
+            predicted_points = self.get_all_class_contours(segmentation_map)
+
+
+        """
         overlay = original_array.copy()
         
         # Generate polygons for each class
@@ -105,8 +151,20 @@ class UnetPredictor:
                     })
         
         result_img = Image.fromarray(overlay)
-        
+        """
         return result_img, predicted_points
+
+    def create_fluid_overlay(self, original_array, fluid_mask, alpha=0.6):
+        overlay = original_array.copy()  # Start with original image
+
+        fluid_color = [0, 255, 255]  # RGB: Cyan
+
+        highlight = np.zeros_like(original_array)  # Black image same size as original
+        highlight[fluid_mask > 0] = fluid_color   # Set fluid pixels to cyan
+
+        overlay = cv.addWeighted(overlay, 1.0, highlight, alpha, 0)
+
+        return overlay
 
     def overlay_on_original(self, original_image, segmentation_mask, alpha=0.5):
         if original_image.shape[:2] != segmentation_mask.shape:
@@ -133,6 +191,156 @@ class UnetPredictor:
 
         return overlay
 
+    def create_multiclass_overlay(self, original_array, segmentation_map):
+
+        colors = [
+            [0, 0, 0],      # Class 0: Black (background)
+            [255, 0, 0],    # Class 1: Red
+            [0, 255, 0],    # Class 2: Green
+            [0, 0, 255],    # Class 3: Blue
+            [255, 255, 0],  # Class 4: Yellow
+            [255, 0, 255],  # Class 5: Magenta
+            [0, 255, 255],  # Class 6: Cyan
+            [128, 0, 0],    # Class 7: Maroon
+            [0, 128, 0],    # Class 8: Dark green
+            [0, 0, 128]     # Class 9: Navy blue
+        ]
+
+        overlay = original_array.copy()
+
+        for class_idx in range(1, min(10, len(colors))):
+            binary_mask = (segmentation_map == class_idx).astype(np.uint8)
+
+            if np.sum(binary_mask) == 0:
+                continue
+
+            class_mask = np.zeros_like(original_array)
+            class_mask[binary_mask > 0] = colors[class_idx]
+
+            overlay = cv.addWeighted(overlay, 1.0, class_mask, 0.5, 0)
+
+        return overlay
+
+    def get_fluid_contours(self, fluid_mask, min_area=20):
+
+        contours, _ = cv.findContours(fluid_mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+
+        points = []
+
+        for contour in contours:
+            area = cv.contourArea(contour)
+            if area < min_area:  # Skip small contours (likely noise)
+                continue
+
+            contour_points = []
+            for point in contour:
+                x, y = point[0]  # Extract x, y coordinates
+                contour_points.append([float(x), float(y)])  # Convert to float for JSON
+
+            if len(contour_points) > 2:
+                points.append({
+                    "shape_type": "polygon",
+                    "points": contour_points,
+                    "color": [0, 255, 255],
+                    "class_id": "fluid",
+                    "label": "fluid"
+                })
+
+        return points
+
+    def get_all_class_contours(self, segmentation_map):
+
+        colors = [
+            [0, 0, 0],      # Class 0: Black (background)
+            [255, 0, 0],    # Class 1: Red
+            [0, 255, 0],    # Class 2: Green
+            [0, 0, 255],    # Class 3: Blue
+            [255, 255, 0],  # Class 4: Yellow
+            [255, 0, 255],  # Class 5: Magenta
+            [0, 255, 255],  # Class 6: Cyan
+            [128, 0, 0],    # Class 7: Maroon
+            [0, 128, 0],    # Class 8: Dark green
+            [0, 0, 128]     # Class 9: Navy blue
+        ]
+
+        predicted_points = []
+
+        for class_idx in range(1, min(10, len(colors))):
+            binary_mask = (segmentation_map == class_idx).astype(np.uint8)
+
+            if np.sum(binary_mask) == 0:
+                continue
+
+            contours, _ = cv.findContours(binary_mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+
+            for contour in contours:
+                area = cv.contourArea(contour)
+                if area < 10:  # Filter very small contours
+                    continue
+
+                contour_points = []
+                for point in contour:
+                    x, y = point[0]
+                    contour_points.append([float(x), float(y)])
+
+                if len(contour_points) > 2:
+                    predicted_points.append({
+                        "shape_type": "polygon",
+                        "points": contour_points,
+                        "color": colors[class_idx],  # Use class-specific color
+                        "class_id": class_idx        # Include class ID
+                    })
+
+        return predicted_points
+
+    def predict_fluid_with_confidence(self, img_path, confidence_threshold=0.7, min_area=50):
+
+        img = Image.open(img_path)
+        img = img.resize((512, 224))
+        if img.mode != 'L':
+            img = img.convert('L')
+
+        img_array = np.array(img).astype(np.float32)
+
+        if np.std(img_array) > 0:
+            img_array = (img_array - np.min(img_array)) / (np.max(img_array) - np.min(img_array))
+        else:
+            img_array = img_array / 255.0
+
+        img_tensor = torch.from_numpy(img_array).unsqueeze(0).unsqueeze(0)
+
+        with torch.no_grad():
+            output = self.model(img_tensor)
+
+        probabilities = torch.softmax(output, dim=1)
+
+
+        combined_fluid_prob = torch.zeros_like(probabilities[0, 0, :, :])
+        for fluid_class in self.fluid_class_ids:
+            combined_fluid_prob += probabilities[0, fluid_class, :, :]
+
+
+        fluid_mask = (combined_fluid_prob.cpu().numpy() > confidence_threshold).astype(np.uint8)
+
+        kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))  # Larger kernel for more aggressive cleaning
+        fluid_mask = cv.morphologyEx(fluid_mask, cv.MORPH_CLOSE, kernel)  # Close gaps
+        fluid_mask = cv.morphologyEx(fluid_mask, cv.MORPH_OPEN, kernel)   # Remove noise
+
+        contours, _ = cv.findContours(fluid_mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+        for contour in contours:
+            if cv.contourArea(contour) < min_area:
+                cv.fillPoly(fluid_mask, [contour], 0)
+
+        original_image = Image.open(img_path).convert('RGB')
+        original_array = np.array(original_image.resize((512, 224)))
+
+        overlay = self.create_fluid_overlay(original_array, fluid_mask)
+        result_img = Image.fromarray(overlay)
+        predicted_points = self.get_fluid_contours(fluid_mask, min_area)
+
+        return result_img, predicted_points, combined_fluid_prob.cpu().numpy()
+
+
     def segmentation_to_points(self, segmentation_map, class_index = 1):
 
         binary_mask = (segmentation_map == class_index).astype(np.uint8)
@@ -157,7 +365,7 @@ class UnetPredictor:
 
 
 #initialize UNet
-unet_model_path = '/Users/yamacomur/Desktop/KITE/unet/notebooks/unet_traced.pt'
+unet_model_path = '/Users/durutandogan/KITE/unet/notebooks/unet_traced.pt'
 
 print("UNet model path:", unet_model_path)
 print("Exists:", os.path.exists(unet_model_path))
@@ -244,7 +452,7 @@ def segment_image(request):
                 return JsonResponse({"error": "Image file not found."}, status=404)
 
             if use_unet and unet_predictor is not None:
-                result_img, predicted_points = unet_predictor.predict(image_path)
+                result_img, predicted_points = unet_predictor.predict(image_path, fluid_only = True)
 
                 # Ensures that the original image is returned when there are no annotations.
                 buf = io.BytesIO()
@@ -255,15 +463,7 @@ def segment_image(request):
                 # Add class information
                 class_info = [
                     {"id": 0, "name": "Background", "color": [0, 0, 0]},
-                    {"id": 1, "name": "Layer 1", "color": [255, 0, 0]},
-                    {"id": 2, "name": "Layer 2", "color": [0, 255, 0]},
-                    {"id": 3, "name": "Layer 3", "color": [0, 0, 255]},
-                    {"id": 4, "name": "Layer 4", "color": [255, 255, 0]},
-                    {"id": 5, "name": "Layer 5", "color": [255, 0, 255]},
-                    {"id": 6, "name": "Layer 6", "color": [0, 255, 255]},
-                    {"id": 7, "name": "Layer 7", "color": [128, 0, 0]},
-                    {"id": 8, "name": "Layer 8", "color": [0, 128, 0]},
-                    {"id": 9, "name": "Layer 9", "color": [0, 0, 128]}
+                    {"id": "fluid", "name": "Fluid", "color": [0, 255, 255]}
                 ]
 
                 return JsonResponse({
@@ -349,7 +549,7 @@ def process_with_unet(request):
                 if not os.path.exists(image_path):
                     return JsonResponse({"error": "Image file not found."}, status=404)
 
-                result_img, predicted_points = unet_predictor.predict(image_path)
+                result_img, predicted_points = unet_predictor.predict(image_path, fluid_only = True)
 
                 buf = io.BytesIO()
                 result_img.save(buf, format="PNG")

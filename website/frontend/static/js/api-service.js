@@ -56,12 +56,12 @@ export function handleAnnotations() {
     })
     .then(res => res.json())
     .then(data => {
-    console.log("✅ Segmentation response:", data);
+    console.log("Segmentation response:", data);
     
     resetZoom();
 
     const resultImage = document.getElementById("segmentedResultImage");
-    console.log("🖼️ resultImage element:", resultImage);
+    console.log("resultImage element:", resultImage);
     
     if (!data.segmented_image) {
         console.error("No segmented_image returned!");
@@ -95,23 +95,22 @@ export function handleAnnotations() {
             predictedAnnotations.forEach((annotation, index) => {
                 console.log(`Annotation ${index} type:`, typeof annotation);
                 console.log(`Annotation ${index} value:`, annotation);
-                
+
                 if (annotation && annotation.shape_type === "polygon" && Array.isArray(annotation.points)) {
-                    // Handle polygon format
                     const points = annotation.points.map(point => ({
-                        x: point[0], 
+                        x: point[0],
                         y: point[1],
-                        color: annotation.color ? `rgb(${annotation.color[0]}, ${annotation.color[1]}, ${annotation.color[2]})` : "blue"
+                        color: annotation.color ? `rgb(${annotation.color[0]}, ${annotation.color[1]}, ${annotation.color[2]})` : "cyan"
                     }));
-                    
+
                     state.scribbles.push({
                         points: points,
                         isPrediction: true,
-                        color: annotation.color ? `rgb(${annotation.color[0]}, ${annotation.color[1]}, ${annotation.color[2]})` : "blue",
-                        class_id: annotation.class_id
+                        color: annotation.color ? `rgb(${annotation.color[0]}, ${annotation.color[1]}, ${annotation.color[2]})` : "cyan",
+                        class_id: annotation.class_id || "fluid"  // Default to "fluid"
                     });
-                    
-                    console.log("Added polygon with", points.length, "points");
+
+                    console.log("Added fluid polygon with", points.length, "points");
                 }
             });
             // Create class legend if available
