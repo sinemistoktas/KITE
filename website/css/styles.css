@@ -11058,6 +11058,13 @@ input[type="file"] {
   cursor: crosshair;
 }
 
+#segmentationStage canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+
 #imageCanvasBlock {
   position: relative;
   display: inline-block;
