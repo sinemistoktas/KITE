@@ -24,6 +24,8 @@ export function processWithUNet(imageName) {
         });
 }
 
+let segmentationMapData = null;
+
 export function handleAnnotations() {
     state.scribbles = state.scribbles.filter(s => !s.isPrediction);
     redrawAnnotations();
@@ -75,6 +77,20 @@ export function handleAnnotations() {
             downloadBtn.href = resultImage.src;
             downloadBtn.download = "segmented_result.png";
             downloadBtn.style.display = "inline-block";
+
+            if (data.segmentation_map) {
+                segmentationMapData = data.segmentation_map;
+                const showSegMapBtn = document.getElementById("showSegMapBtn");
+                if (showSegMapBtn) {
+                    showSegMapBtn.style.display = "inline-block";
+                }
+            } else {
+                // Hide button if no segmentation map available
+                const showSegMapBtn = document.getElementById("showSegMapBtn");
+                if (showSegMapBtn) {
+                    showSegMapBtn.style.display = "none";
+                }
+            }
 
             // Handle Konva stage rendering for interactive regions (from paste-2.txt)
             if (data.final_mask && data.final_mask.length > 0) {
@@ -147,6 +163,73 @@ export function handleAnnotations() {
             console.error("Error in handleAnnotations:", error);
         });
 }
+
+export function handleSegmentationMap() {
+    if (!segmentationMapData) {
+        alert("No segmentation map data available.");
+        return;
+    }
+
+    const popup = document.createElement("div");
+    popup.style = `
+        position: fixed; top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: #fff; padding: 20px;
+        border: 2px solid #444; z-index: 9999;
+        box-shadow: 0 0 20px rgba(0,0,0,0.7);
+        border-radius: 10px;
+        max-width: 90vw;
+        max-height: 90vh;
+        overflow: auto;
+    `;
+
+    const title = document.createElement("h4");
+    title.textContent = "Raw Segmentation Map";
+    title.style = "margin-top: 0; margin-bottom: 15px; text-align: center;";
+
+    const description = document.createElement("p");
+    description.textContent = "This shows the raw pixel-level class predictions from the UNet model:";
+    description.style = "margin-bottom: 15px; color: #666; text-align: center;";
+
+    const legend = document.createElement("div");
+    legend.style = "margin-bottom: 15px; font-size: 12px;";
+    legend.innerHTML = `
+        <strong>Color Legend:</strong><br>
+        <span style="color: #000;">■ Black: Background</span><br>
+        <span style="color: #ff0000;">■ Red: Class 1</span><br>
+        <span style="color: #00ff00;">■ Green: Class 2</span><br>
+        <span style="color: #0000ff;">■ Blue: Class 3</span><br>
+        <span style="color: #ffff00;">■ Yellow: Class 4</span><br>
+        <span style="color: #ff00ff;">■ Magenta: Class 5</span><br>
+        <span style="color: #00ffff;">■ Cyan: Class 6</span><br>
+        <span style="color: #800000;">■ Maroon: Class 7</span><br>
+        <span style="color: #008000;">■ Dark Green: Class 8</span><br>
+        <span style="color: #000080;">■ Navy: Class 9</span>
+    `;
+
+    const img = document.createElement("img");
+    img.src = `data:image/png;base64,${segmentationMapData}`;
+    img.style = "max-width: 100%; max-height: 70vh; display: block; margin: 0 auto;";
+
+    const buttonContainer = document.createElement("div");
+    buttonContainer.style = "text-align: center; margin-top: 15px;";
+
+    const downloadBtn = document.createElement("a");
+    downloadBtn.href = img.src;
+    downloadBtn.download = "segmentation_map.png";
+    downloadBtn.className = "btn btn-outline-primary me-2";
+    downloadBtn.innerHTML = '<i class="fa-solid fa-download"></i> Download';
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "btn btn-danger";
+    closeBtn.innerHTML = '<i class="fa-solid fa-times"></i> Close';
+    closeBtn.onclick = () => popup.remove();
+
+    buttonContainer.append(downloadBtn, closeBtn);
+    popup.append(title, description, legend, img, buttonContainer);
+    document.body.appendChild(popup);
+}
+window.handleSegmentationMap = handleSegmentationMap;
 
 function renderInteractiveRegions(resultImage, finalMask) {
     // Enhanced version of the Konva rendering from paste-2.txt
