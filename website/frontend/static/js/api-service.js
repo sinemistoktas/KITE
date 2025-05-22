@@ -16,12 +16,12 @@ export function processWithUNet(imageName) {
         },
         body: JSON.stringify({ image_name: imageName })
     })
-    .then(response => {
+        .then(response => {
             if (!response.ok) {
                 throw new Error("Failed to process with UNet. Status: " + response.status);
             }
             return response.json();
-    });
+        });
 }
 
 export function handleAnnotations() {
@@ -43,7 +43,7 @@ export function handleAnnotations() {
             points: allPoints.map(p => [p.x, p.y]),
             color: allPoints.map(p => p.color)
         }],
-        use_unet: state.unetMode
+        use_unet: state.unetMode || false  // Include UNet mode if available
     };
 
     fetch("/segment/", {
@@ -54,79 +54,155 @@ export function handleAnnotations() {
         },
         body: JSON.stringify(payload)
     })
-    .then(res => res.json())
-    .then(data => {
-    console.log("Segmentation response:", data);
-    
-    resetZoom();
+        .then(res => res.json())
+        .then(data => {
+            console.log("Segmentation response:", data);
 
-    const resultImage = document.getElementById("segmentedResultImage");
-    console.log("resultImage element:", resultImage);
-    
-    if (!data.segmented_image) {
-        console.error("No segmented_image returned!");
-        return;
-    }
+            resetZoom();
 
-    resultImage.src = `data:image/png;base64,${data.segmented_image}`;
-    document.getElementById("segmentationResult").style.display = "block";
-    
-    const downloadBtn = document.getElementById("downloadSegmentedImage");
-    downloadBtn.href = resultImage.src;
-    downloadBtn.download = "segmented_result.png";
-    downloadBtn.style.display = "inline-block";
+            const resultImage = document.getElementById("segmentedResultImage");
+            console.log("resultImage element:", resultImage);
 
-    console.log("Predicted annotations full data:", JSON.stringify(data.predicted_annotations));
-    
-    if (!data.predicted_annotations || data.predicted_annotations.length === 0) {
-        console.log("No predicted annotations found");
-        return;
-    }
-    
-    try {
-        // Clear previous predictions
-        state.scribbles = state.scribbles.filter(s => !s.isPrediction);
-        
-        const predictedAnnotations = data.predicted_annotations;
-        
-        if (Array.isArray(predictedAnnotations)) {
-            console.log("Annotation is an array with length:", predictedAnnotations.length);
-            
-            predictedAnnotations.forEach((annotation, index) => {
-                console.log(`Annotation ${index} type:`, typeof annotation);
-                console.log(`Annotation ${index} value:`, annotation);
+            if (!data.segmented_image) {
+                console.error("No segmented_image returned!");
+                return;
+            }
 
-                if (annotation && annotation.shape_type === "polygon" && Array.isArray(annotation.points)) {
-                    const points = annotation.points.map(point => ({
-                        x: point[0],
-                        y: point[1],
-                        color: annotation.color ? `rgb(${annotation.color[0]}, ${annotation.color[1]}, ${annotation.color[2]})` : "cyan"
-                    }));
+            resultImage.src = `data:image/png;base64,${data.segmented_image}`;
+            document.getElementById("segmentationResult").style.display = "block";
 
-                    state.scribbles.push({
-                        points: points,
-                        isPrediction: true,
-                        color: annotation.color ? `rgb(${annotation.color[0]}, ${annotation.color[1]}, ${annotation.color[2]})` : "cyan",
-                        class_id: annotation.class_id || "fluid"  // Default to "fluid"
+            const downloadBtn = document.getElementById("downloadSegmentedImage");
+            downloadBtn.href = resultImage.src;
+            downloadBtn.download = "segmented_result.png";
+            downloadBtn.style.display = "inline-block";
+
+            // Handle Konva stage rendering for interactive regions (from paste-2.txt)
+            if (data.final_mask && data.final_mask.length > 0) {
+                renderInteractiveRegions(resultImage, data.final_mask);
+            }
+
+            // Handle predicted annotations (enhanced from paste.txt)
+            console.log("Predicted annotations full data:", JSON.stringify(data.predicted_annotations));
+
+            if (!data.predicted_annotations || data.predicted_annotations.length === 0) {
+                console.log("No predicted annotations found");
+                return;
+            }
+
+            try {
+                // Clear previous predictions
+                state.scribbles = state.scribbles.filter(s => !s.isPrediction);
+
+                const predictedAnnotations = data.predicted_annotations;
+
+                if (Array.isArray(predictedAnnotations)) {
+                    console.log("Annotation is an array with length:", predictedAnnotations.length);
+
+                    predictedAnnotations.forEach((annotation, index) => {
+                        console.log(`Annotation ${index} type:`, typeof annotation);
+                        console.log(`Annotation ${index} value:`, annotation);
+
+                        // Handle polygon annotations (from paste.txt)
+                        if (annotation && annotation.shape_type === "polygon" && Array.isArray(annotation.points)) {
+                            const points = annotation.points.map(point => ({
+                                x: point[0],
+                                y: point[1],
+                                color: annotation.color ? `rgb(${annotation.color[0]}, ${annotation.color[1]}, ${annotation.color[2]})` : "cyan"
+                            }));
+
+                            state.scribbles.push({
+                                points: points,
+                                isPrediction: true,
+                                color: annotation.color ? `rgb(${annotation.color[0]}, ${annotation.color[1]}, ${annotation.color[2]})` : "cyan",
+                                class_id: annotation.class_id || "fluid"
+                            });
+
+                            console.log("Added fluid polygon with", points.length, "points");
+                        }
+                        // Handle point annotations (from paste-2.txt)
+                        else if (Array.isArray(annotation)) {
+                            const [x, y] = Array.isArray(annotation[0]) ? annotation[0] : annotation;
+                            const color = annotation[1] || "blue";
+
+                            state.scribbles.push({
+                                points: [{ x, y, color }],
+                                isPrediction: true,
+                                color: color
+                            });
+                        }
                     });
 
-                    console.log("Added fluid polygon with", points.length, "points");
+                    // Create class legend if available (from paste.txt)
+                    if (data.class_info) {
+                        createClassLegend(data.class_info);
+                    }
                 }
-            });
-            // Create class legend if available
-            if (data.class_info) {
-                createClassLegend(data.class_info);
+
+                redrawAnnotations();
+            } catch (err) {
+                console.error("Error processing annotations:", err);
             }
-        }
-        
-        redrawAnnotations();
-    } catch (err) {
-        console.error("Error processing annotations:", err);
-    }
-    });
+        })
+        .catch(error => {
+            console.error("Error in handleAnnotations:", error);
+        });
 }
 
-export function initializeUNetPredictions(imageName){
+function renderInteractiveRegions(resultImage, finalMask) {
+    // Enhanced version of the Konva rendering from paste-2.txt
+    resultImage.onload = () => {
+        const stageContainer = document.getElementById("segmentationStage");
+
+        if (!stageContainer) {
+            console.warn("segmentationStage container not found");
+            return;
+        }
+
+        const existingStage = stageContainer.querySelector(".konvajs-content");
+        if (existingStage) existingStage.remove(); // clear existing Konva stage if any
+
+        const width = resultImage.naturalWidth || resultImage.clientWidth;
+        const height = resultImage.naturalHeight || resultImage.clientHeight;
+
+        const stage = new Konva.Stage({
+            container: "segmentationStage",
+            width,
+            height
+        });
+
+        const layer = new Konva.Layer();
+        stage.add(layer);
+
+        finalMask.forEach(({regionId, pixels, color}) => {
+            const group = new Konva.Group({
+                id: regionId,
+                draggable: true
+            });
+
+            pixels.forEach(([y, x]) => {
+                const rect = new Konva.Rect({
+                    x,
+                    y,
+                    width: 1,
+                    height: 1,
+                    fill: color || "rgba(250, 37, 37, 0.98)"
+                });
+                group.add(rect);
+            });
+
+            group.on("click", () => {
+                console.log(`Clicked region: ${regionId}`);
+                // TODO: Add region deletion or modification functionality here
+            });
+
+            layer.add(group);
+        });
+
+        layer.draw();
+    };
+}
+
+export function initializeUNetPredictions(imageName) {
     return processWithUNet(imageName)
         .then(data => {
             if (data.predicted_annotations && data.predicted_annotations.length > 0) {
@@ -149,12 +225,12 @@ export function handlePreprocessedImg() {
         },
         body: JSON.stringify({ image_name: state.imageName })
     })
-    .then(res => res.json())
-    .then(data => {
-        if (!data?.preprocessed_image) return alert("No preprocessed image returned.");
+        .then(res => res.json())
+        .then(data => {
+            if (!data?.preprocessed_image) return alert("No preprocessed image returned.");
 
-        const popup = document.createElement("div");
-        popup.style = `
+            const popup = document.createElement("div");
+            popup.style = `
             position: fixed; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             background-color: #fff; padding: 10px;
@@ -162,23 +238,26 @@ export function handlePreprocessedImg() {
             box-shadow: 0 0 10px rgba(0,0,0,0.5)
         `;
 
-        const img = document.createElement("img");
-        img.src = `data:image/png;base64,${data.preprocessed_image}`;
-        img.style.maxWidth = "100%";
-        img.style.maxHeight = "80vh";
+            const img = document.createElement("img");
+            img.src = `data:image/png;base64,${data.preprocessed_image}`;
+            img.style.maxWidth = "100%";
+            img.style.maxHeight = "80vh";
 
-        const close = document.createElement("button");
-        close.className = "btn btn-danger mt-3";
-        close.innerText = "Close";
-        close.onclick = () => popup.remove();
+            const close = document.createElement("button");
+            close.className = "btn btn-danger mt-3";
+            close.innerText = "Close";
+            close.onclick = () => popup.remove();
 
-        popup.append(img, close);
-        document.body.appendChild(popup);
-    });
+            popup.append(img, close);
+            document.body.appendChild(popup);
+        })
+        .catch(error => {
+            console.error("Error fetching preprocessed image:", error);
+            alert("Error fetching preprocessed image. Please try again.");
+        });
 }
 
 export function handleUNetFormSubmission(event, formData) {
-
     const segmentationMethod = formData.get('segmentation_method');
 
     if (segmentationMethod === 'unet') {
@@ -195,7 +274,7 @@ function createClassLegend(classInfo) {
     if (existingLegend) {
         existingLegend.remove();
     }
-    
+
     const legend = document.createElement("div");
     legend.id = "classLegend";
     legend.style = `
@@ -209,16 +288,16 @@ function createClassLegend(classInfo) {
         max-width: 200px;
         z-index: 1000;
     `;
-    
+
     const title = document.createElement("h4");
     title.textContent = "Classes";
     title.style = "margin-top: 0; margin-bottom: 8px;";
     legend.appendChild(title);
-    
+
     classInfo.filter(c => c.id > 0).forEach(classItem => {
         const item = document.createElement("div");
         item.style = "display: flex; align-items: center; margin-bottom: 4px;";
-        
+
         const colorBox = document.createElement("div");
         colorBox.style = `
             width: 15px;
@@ -226,14 +305,17 @@ function createClassLegend(classInfo) {
             background-color: rgb(${classItem.color[0]}, ${classItem.color[1]}, ${classItem.color[2]});
             margin-right: 8px;
         `;
-        
+
         const label = document.createElement("span");
         label.textContent = classItem.name;
-        
+
         item.appendChild(colorBox);
         item.appendChild(label);
         legend.appendChild(item);
     });
-    
-    document.getElementById("segmentationResult").appendChild(legend);
+
+    const resultContainer = document.getElementById("segmentationResult");
+    if (resultContainer) {
+        resultContainer.appendChild(legend);
+    }
 }
