@@ -1,3 +1,5 @@
+# website/frontend/views.py
+
 from django.shortcuts import render
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
@@ -26,6 +28,7 @@ def seg_tool(request):
     image_url = None
     image_name = None
     algorithm_name = None
+    algorithm = None
 
     if request.method == 'POST' and request.FILES.get('image'):
         image = request.FILES['image']
@@ -84,21 +87,15 @@ def segment_image(request):
                     "predicted_annotations": predicted_points,  # will be [] if no annotations
                 })
 
-            ## MedSAM
             elif algorithm == "medsam":
-                # Optional: move import here to avoid unnecessary loading
-                from data.medsam.MedSAM_Inference import run_medsam
-
-                output_path = os.path.join(settings.MEDIA_ROOT, "medsam_outputs")
-                os.makedirs(output_path, exist_ok=True)
-
-                # You can modify run_medsam_inference to return mask_path
-                mask_path = run_medsam(image_path, output_path)
-
+                # MedSAM uses its own API endpoint, redirect the frontend
                 return JsonResponse({
-                    "status": "success",
-                    "output_mask": mask_path
-                })
+                    "error": "MedSAM should use /api/medsam/segment endpoint",
+                    "redirect_to": "/api/medsam/segment"
+                }, status=400)
+
+            else:
+                return JsonResponse({"error": f"Unknown algorithm: {algorithm}"}, status=400)
 
         except Exception as e:
             import traceback

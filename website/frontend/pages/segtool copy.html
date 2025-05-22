@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="icon" type="image/x-icon" href="{% static 'img/favicon.ico' %}">
   <script type="module" src="{% static 'js/main.js' %}"></script>
+
 </head>
 
 <body class="seg-tool-page p-5">
@@ -23,6 +24,7 @@
 </div>
 <br>
 
+
 <div class="seg-tool-container container">
   <h3 class="mb-6">KITE - Semi Automated Segmentation Tool</h3>
   <h6 class="mb-4" style="letter-spacing: 0.5px">Upload an image</h6>
@@ -33,7 +35,7 @@
         <select name="algorithm" id="algorithm" class="form-select" style="height: 60px; border-radius: 30px; text-align: center; text-align-last: center; margin-top: -34px;">
           <option value="" disabled selected>Choose Algorithm</option>
           <option value="kite">KITE (Available)</option>
-          <option value="medsam">MedSAM (Available)</option>
+          <option value="medsam">MedSAM (Coming Soon)</option>
           <option value="unet">U-Net (Coming Soon)</option>
         </select>
       </div>
@@ -56,75 +58,48 @@
   {% endif %}
 
   {% if image_url %}
-  <div class="card p-3 mt-4 mb-4" id="segmentationWorkspace">
+  <div class="card p-3 mt-4 mb-4">
 
     <!-- Segmentation Workspace Main Container Box -->
-    <div class="segmentation-workspace">
+    <div class="d-flex flex-row align-items-start justify-content-between" style="gap: 20px;">
       <!-- TOOLS BOX -->
       <div class="tool-sidebar d-flex flex-column align-items-center gap-3" style="min-width: 220px;">
         <h6 class="mb-2" style="width: 100%; text-align: center;">Tools</h6>
-        
-        <!-- MedSAM specific instructions and controls -->
-        <div class="medsam-controls">
-          <div class="medsam-info">
-            <p><i class="fa-solid fa-info-circle me-2" style="color: #3498db;"></i><strong style="color: #ecf0f1;">MedSAM Instructions:</strong></p>
-            <p class="mb-2" style="color: #ecf0f1;">Draw bounding boxes around areas you want to segment. Each box will be processed automatically.</p>
-            <small style="color: #bdc3c7;">• Draw multiple boxes for different structures<br>• Each area gets segmented instantly<br>• Use undo to remove last box</small>
-          </div>
-          
-          <button type="button" class="btn btn-outline-primary rounded-pill px-3 w-100 mb-2" id="undoMedsamBtn" disabled>
-            <i class="fa-solid fa-undo"></i> Undo Last Box
-          </button>
-          <button type="button" class="btn btn-outline-danger rounded-pill px-3 w-100 mb-2" id="resetMedsamBtn" disabled>
-            <i class="fa-solid fa-trash"></i> Reset All Boxes
-          </button>
-          
-          <div class="medsam-stats" id="medsamStats" style="display: none;">
-            <strong>Current Session:</strong><br>
-            <span id="boxCount">0 boxes drawn</span><br>
-            <span id="segmentedAreas">0 areas segmented</span>
-          </div>
+        <div class="d-flex flex-column align-items-center" style="width: 100%;">
+          <label for="colorPicker" class="mb-2" style="width: 100%; text-align: center;">Annotation Color:</label>
+          <input type="color" id="colorPicker" value="#ff0000"
+                 style="width: 38px; height: 38px; border: none; border-radius: 8px; margin-bottom: 10px; display: block;">
         </div>
-        
-        <!-- Standard KITE tool controls -->
-        <div class="kite-controls">
-          <div class="d-flex flex-column align-items-center" style="width: 100%;">
-            <label for="colorPicker" class="mb-2" style="width: 100%; text-align: center;">Annotation Color:</label>
-            <input type="color" id="colorPicker" value="#ff0000"
-                   style="width: 38px; height: 38px; border: none; border-radius: 8px; margin-bottom: 10px; display: block;">
-          </div>
 
-          <!-- KITE Annotation Buttons -->
-          <div class="d-flex flex-column align-items-center gap-2" style="width: 100%;">
-            <button type="button" class="btn btn-outline-danger rounded-pill px-3"  id="scribbleMode">
-              <i class="fa-solid fa-minus"></i> Line
-            </button>
-            <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="dotMode">
-              ● Dot
-            </button>
-            <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="boxMode">
-              <i class="fa-sharp fa-regular fa-square"></i> Box
-            </button>
-            <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="eraserMode">
-              <i class="fa-solid fa-eraser"></i> Eraser
-            </button>
-            <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="eraseAllMode">
-              <i class="fa-solid fa-xmark"></i> Erase All
-            </button>
-            <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="fillToolBtn">
-              <i class="fa-solid fa-fill-drip"></i> Fill Tool
-            </button>
-          </div>
+        <!-- Annotation Buttons -->
+        <div class="d-flex flex-column align-items-center gap-2" style="width: 100%;">
+          <button type="button" class="btn btn-outline-danger rounded-pill px-3"  id="scribbleMode">
+            <i class="fa-solid fa-minus"></i> Line
+          </button>
+          <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="dotMode">
+            ● Dot
+          </button>
+          <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="boxMode">
+            <i class="fa-sharp fa-regular fa-square"></i> Box
+          </button>
+          <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="eraserMode">
+            <i class="fa-solid fa-eraser"></i> Eraser
+          </button>
+          <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="eraseAllMode">
+            <i class="fa-solid fa-xmark"></i> Erase All
+          </button>
+          <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="fillToolBtn">
+            <i class="fa-solid fa-fill-drip"></i> Fill Tool
+          </button>
         </div>
       </div>
 
       <!-- IMAGE CONTENT -->
-      <div class="image-content d-flex flex-column align-items-center">
+      <div class="flex-grow-1 d-flex flex-column align-items-center" style="min-width: 750px; max-width: 100%;">
         <div id="zoomContainer" style="display: inline-block; position: relative;">
           <img id="uploadedImage" src="{{ image_url }}" class="img-oct" style="max-width: 530px; width: 100%;"/>
           <canvas id="predictionCanvas"></canvas>
           <canvas id="annotationCanvas"></canvas>
-          <canvas id="medsamCanvas"></canvas>
           <div class="zoom-info" id="zoomInfo">Zoom: 100%</div>
         </div>
 
@@ -140,15 +115,13 @@
             <i class="fa-solid fa-arrows-to-circle"></i> Reset Zoom
           </button>
         </div>
-        
-        <!-- Keep original Ready to Segment button for KITE -->
         <button class="ready-segment-btn px-4 py-2 rounded-pill shadow-sm mt-3" onclick="handleAnnotations()">
           <i class="fa-solid fa-hurricane me-2"></i> Ready to Segment!
         </button>
       </div>
 
       <!-- LAYERS PANEL -->
-      <div class="layers-panel tool-sidebar d-flex flex-column align-items-center gap-3" style="min-width: 250px;">
+      <div class="tool-sidebar d-flex flex-column align-items-center gap-3" style="min-width: 250px;">
         <h6 class="mb-2" style="width: 100%; text-align: center;">Layers</h6>
         <div id="layersContainer" class="d-flex flex-column align-items-center gap-2" style="width: 100%;">
           <!-- Layers will be dynamically added here -->
@@ -173,6 +146,7 @@
           <i class="fa-solid fa-eye"></i> Show Preprocessed Image
         </button>
 
+
         <a id="downloadSegmentedImage"
            class="btn btn-outline-success px-4 py-2 rounded-pill shadow-sm"
            style="display: none;">
@@ -182,48 +156,19 @@
     </div>
   </div>
 </div>
-
-
 <script>
   window.imageName = "{{ image_name }}";
-  window.algorithm = "{{ algorithm_name }}";
   // Add CSRF token to window object
   window.csrfToken = "{{ csrf_token }}";
 </script>
-
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     // Log CSRF token availability
     console.log('CSRF Token available:', !!window.csrfToken);
-    console.log('Algorithm:', window.algorithm);
 
     const fileInput = document.getElementById('file-upload');
     const fileNameDisplay = document.getElementById('fileNameDisplay');
     const algorithmSelect = document.getElementById('algorithm');
-    const workspace = document.getElementById('segmentationWorkspace');
-
-    // Önce tüm classları temizle
-    workspace?.classList.remove('medsam-active', 'kite-active');
-
-    // Check if we're in MedSAM mode and initialize the interface accordingly
-    if (window.algorithm === 'MedSAM') {
-      workspace.classList.add('medsam-active');
-      
-      // Load MedSAM JavaScript module
-      const script = document.createElement('script');
-      script.src = "{% static 'js/medsam-tool.js' %}";
-      script.onload = function() {
-        console.log('MedSAM tool script loaded');
-        if (typeof initMedSAM === 'function') {
-          initMedSAM();
-        }
-      };
-      document.head.appendChild(script);
-    
-    } else if (window.algorithm === 'KITE') {
-    workspace.classList.add('kite-active');
-    }
-    
 
     if (fileInput && fileNameDisplay) {
       fileInput.addEventListener('change', function () {

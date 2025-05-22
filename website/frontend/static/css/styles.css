@@ -1647,7 +1647,9 @@ input[type="file"] {
 #boxMode,
 #eraserMode,
 #eraseAllMode,
-#fillToolBtn {
+#fillToolBtn,
+#undoMedsamBtn,
+#resetMedsamBtn {
   background: transparent !important;
   border: 2px solid #fff !important;
   color: #fff !important;
@@ -1666,7 +1668,9 @@ input[type="file"] {
 #boxMode.btn-danger,
 #eraserMode.btn-danger,
 #eraseAllMode.btn-danger,
-#fillToolBtn.btn-danger {
+#fillToolBtn.btn-danger,
+#undoMedsamBtn.btn-danger,
+#resetMedsamBtn.btn-danger {
   background: #946a90 !important;
   border-color: #634260 !important;
   color: #fff !important;
@@ -1685,7 +1689,9 @@ input[type="file"] {
 #boxMode:hover, #boxMode:active, #boxMode.active,
 #eraserMode:hover, #eraserMode:active, #eraserMode.active,
 #eraseAllMode:hover, #eraseAllMode:active, #eraseAllMode.active,
-#fillToolBtn:hover, #fillToolBtn:active, #fillToolBtn.active {
+#fillToolBtn:hover, #fillToolBtn:active, #fillToolBtn.active,
+#undoMedsamBtn:hover, #undoMedsamBtn:active, #undoMedsamBtn.active,
+#resetMedsamBtn:hover, #resetMedsamBtn:active, #resetMedsamBtn.active{
   background: #946a90 !important;
   border-color: #634260 !important;
   color: #fff !important;
@@ -1696,7 +1702,9 @@ input[type="file"] {
 #boxMode:focus,
 #eraserMode:focus,
 #eraseAllMode:focus,
-#fillToolBtn:focus {
+#fillToolBtn:focus,
+#undoMedsamBtn:focus,
+#resetMedsamBtn:focus {
   outline: none !important;
   box-shadow: none !important;
 }
@@ -1882,3 +1890,130 @@ input[type="file"] {
     color: #fff !important;
   }
 
+/* --------- MEDSAM ----------*/
+/* KITE aktifken */
+.kite-controls {
+  display: none;
+}
+
+.kite-active .kite-controls {
+  display: block;
+}
+
+.kite-active .medsam-controls {
+  display: none;
+}
+
+
+/* MedSAM aktifken */
+.medsam-controls {
+  display: none;
+}
+
+.medsam-active .medsam-controls {
+  display: block;
+}
+
+.medsam-active .kite-controls {
+  display: none;
+}
+
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  flex-direction: column;
+}
+
+.loading-spinner {
+  width: 60px;
+  height: 60px;
+  border: 6px solid #f3f3f3;
+  border-top: 6px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+  color: white;
+  margin-top: 20px;
+  font-size: 18px;
+  text-align: center;
+}
+
+#medsamCanvas {
+  cursor: crosshair;
+}
+
+.medsam-info {
+  background-color: #2c3e50; /* Dark background for better contrast */
+  border: 1px solid #34495e;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 15px;
+  color: #ecf0f1; /* Light text color */
+}
+
+.medsam-info p {
+  color: #ecf0f1; /* White text */
+  margin-bottom: 8px;
+}
+
+.medsam-info small {
+  color: #bdc3c7; /* Light gray for small text */
+}
+
+
+
+
+
+/* common tool button styling */
+#tool-btn {
+  background: transparent !important;
+  border: 2px solid #fff !important;
+  color: #fff !important;
+  border-radius: 2rem;
+  font-weight: normal;
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+  text-align: center;
+  transition: background 0.2s, color 0.2s, border 0.2s;
+}
+
+#tool-btn.btn-danger {
+  background: #946a90 !important;
+  border-color: #634260 !important;
+  color: #fff !important;
+  box-shadow: 0 0 0 3px #d38ece, 0 0 12px #af64aa;
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+  text-align: center;
+  transition: none !important;
+  outline: none !important;
+
+}
+
+#tool-btn:hover, #tool-btn:active, #tool-btn.active{
+  background: #946a90 !important;
+  border-color: #634260 !important;
+  color: #fff !important;
+}
+
+#tool-btn:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
