@@ -120,15 +120,13 @@
       <strong>Segmented Result</strong>
     </div>
     <div style="margin: 0; padding: 0; text-align: center;">
-      <div id="segmentationStageContainer" style="position: relative;">
+      <div id="segmentationStageContainer" style="position: relative; display: inline-block;">
         <img id="segmentedResultImage"
-             class="img-fluid mx-auto d-block"
+             class="img-fluid"
              style="max-width: 512px; display: block;"
              alt="Segmented Output" />
-        <div id="segmentationStage"
-             style="position: absolute; top: 0; left: 0;"></div>
+        <div id="segmentationStage" style="position: absolute; top: 0; left: 0;"></div>
       </div>
-      
       <div class="d-flex justify-content-center gap-3 mt-4">
         <button class="show-pre-btn" onclick="handlePreprocessedImg()">
           <i class="fa-solid fa-eye"></i> Show Preprocessed Image

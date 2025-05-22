@@ -42,7 +42,6 @@ export function handleAnnotations() {
 
         const resultImage = document.getElementById("segmentedResultImage");
         resultImage.src = `data:image/png;base64,${data.segmented_image}`;
-
         document.getElementById("segmentationResult").style.display = "block";
         const downloadBtn = document.getElementById("downloadSegmentedImage");
         downloadBtn.href = resultImage.src;
@@ -50,56 +49,56 @@ export function handleAnnotations() {
         downloadBtn.style.display = "inline-block";
 
 
-        
-        const stageContainer = document.getElementById("segmentationStage");
-        stageContainer.innerHTML = ""; // Clear previous content
-      
-
-        const width = resultImage.naturalWidth || resultImage.clientWidth;
-        const height = resultImage.naturalHeight || resultImage.clientHeight;
-        stageContainer.style.width = width + "px";
-        stageContainer.style.height = height + "px";
-            
-        const stage = new Konva.Stage({
-          container: "segmentationStage",
-          width: width,
-          height: height,
-        });
-
-        const layer = new Konva.Layer();
-        stage.add(layer);
 
       // Current problems noted so we wouldn't forget
       // 1. the deleted regions are not removed from the canvas since it takes from the backend, it needs to be refreshed every time 
       // 2. it works a bit slow when there are too many regions on the image, try other alternatives rather than grouping them all
-      // 3. canvas tools and events should be updated accordingly to support this function 
-        (data.final_mask || []).forEach(({ regionId, pixels, color }) => {
-            const group = new Konva.Group({
-              id: regionId,
-              draggable: true,
+      // 3. canvas tools and events should be updated accordingly to support this function
+
+        resultImage.onload = () => {
+            const stageContainer = document.getElementById("segmentationStage");
+
+            const existingStage = stageContainer.querySelector(".konvajs-content");
+            if (existingStage) existingStage.remove(); // clear existing Konva stage if any
+
+            const width = resultImage.naturalWidth || resultImage.clientWidth;
+            const height = resultImage.naturalHeight || resultImage.clientHeight;
+
+            const stage = new Konva.Stage({
+                container: "segmentationStage",
+                width,
+                height
             });
-          
-            pixels.forEach(([y, x]) => {
-              const rect = new Konva.Rect({
-                x: x,
-                y: y,
-                width: 1,
-                height: 1,
-                fill: color || "rgba(233, 37, 37, 0.98)",
-              });
-              group.add(rect);
+
+            const layer = new Konva.Layer();
+            stage.add(layer);
+
+            (data.final_mask || []).forEach(({regionId, pixels, color}) => {
+                const group = new Konva.Group({
+                    id: regionId,
+                    draggable: true
+                });
+
+                pixels.forEach(([y, x]) => {
+                    const rect = new Konva.Rect({
+                        x,
+                        y,
+                        width: 1,
+                        height: 1,
+                        fill: color || "rgba(250, 37, 37, 0.98)"
+                    });
+                    group.add(rect);
+                });
+
+                group.on("click", () => {
+                    console.log(`Clicked region: ${regionId}`);
+                });
+
+                layer.add(group);
             });
-          
-            group.on("click", () => {
-              console.log(`Clicked region: ${regionId}`);
-            });
-          
-            layer.add(group);
-          });
-          
-          layer.draw();
-          
-        
+
+            layer.draw();
+        }
           
 
         const predictedPoints = data.predicted_annotations || [];

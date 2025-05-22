@@ -1,3 +1,5 @@
+import hashlib
+
 import numpy as np
 import matplotlib.pyplot as plt
 from skimage import data, filters, morphology, restoration, transform, registration, exposure, feature, measure
@@ -30,6 +32,7 @@ class SegmentationModel():
         self.last_mask = None # Used to store the last output.
         self.last_predicted_points = []
         self.final_mask = []
+        self.mask_keys = set()
     
     def grow_region(self,image, seed_mask,fluid_mask=None, threshold=5, max_area=4000):
         height, width = image.shape
@@ -110,6 +113,24 @@ class SegmentationModel():
 
     #NOTE TO MİSLİNA: THE PREPROCESSED IMAGE CAN BE FOUND BY CHECKING "FLUID_MASK"
 
+    def _generate_mask_key(self, pixels, color):
+        """
+        Generate a hash key to uniquely identify a mask by its pixels and color.
+        """
+        flat = ''.join(f'{y},{x}' for y, x in pixels)
+        return hashlib.md5((flat + color).encode()).hexdigest()
+
+    def hex_to_rgb(self, hex_color):
+        """Convert hex color string to RGB list"""
+        hex_color = hex_color.lstrip('#')
+        if len(hex_color) == 6:
+            r = int(hex_color[0:2], 16)
+            g = int(hex_color[2:4], 16)
+            b = int(hex_color[4:6], 16)
+            return [r, g, b]
+        else:
+            # Default to blue if hex format is incorrect
+            return [0, 0, 255]
     #TODO: Currently, the image that is showing on the front end is the median filtered image. Maybe we can
     # change that.
     def run_segmentation_from_json_without_ground_truth(self, image, annotation_json):
@@ -182,16 +203,17 @@ class SegmentationModel():
             ys, xs = np.where(final_mask == 1)
             pixels = [[int(y), int(x)] for y, x in zip(ys, xs)]
 
-            
-            # Add to the mask collection
-            self.final_mask.append({
+            mask_key = self._generate_mask_key(pixels, color_hex)
+            if mask_key not in self.mask_keys:
+                self.mask_keys.add(mask_key)
+                self.final_mask.append({
                 "regionId": region_id,
                 "pixels": pixels,
                 "color": color_hex
-            })
+    })
             # Apply color to segmented region
             rgb_color = self.hex_to_rgb(color_hex)
-            image_rgb[final_mask == 1] = rgb_color
+            #image_rgb[final_mask == 1] = rgb_color
             
             # Extract contours for this color group
             contours = measure.find_contours(final_mask, 0.5)
@@ -213,17 +235,6 @@ class SegmentationModel():
         return self.final_mask 
 
 
-    def hex_to_rgb(self, hex_color):
-        """Convert hex color string to RGB list"""
-        hex_color = hex_color.lstrip('#')
-        if len(hex_color) == 6:
-            r = int(hex_color[0:2], 16)
-            g = int(hex_color[2:4], 16)
-            b = int(hex_color[4:6], 16)
-            return [r, g, b]
-        else:
-            # Default to blue if hex format is incorrect
-            return [0, 0, 255]
 # An example usage of the segmentation class.
 if __name__ == "__main__":
     import json
