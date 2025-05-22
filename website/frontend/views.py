@@ -31,7 +31,67 @@ class UnetPredictor:
     def __init__(self, model_path):
         self.model = torch.jit.load(model_path)
         self.model.eval()
-        self.fluid_class_ids = [0, 1, 9] #adjust accordingly
+        self.fluid_class_ids = [1] #adjust accordingly
+
+    def get_final_mask_for_interactivity(self, segmentation_map, fluid_only=True):
+
+        final_mask = []
+
+        if fluid_only:
+            combined_fluid_mask = np.zeros_like(segmentation_map, dtype=np.uint8)
+            for fluid_class in self.fluid_class_ids:
+                combined_fluid_mask = np.logical_or(combined_fluid_mask, segmentation_map == fluid_class).astype(np.uint8)
+
+            from skimage.measure import label
+            labeled_mask = label(combined_fluid_mask)
+
+            for region_id in range(1, labeled_mask.max() + 1):
+                region_pixels = np.where(labeled_mask == region_id)
+                if len(region_pixels[0]) > 10:  # Minimum pixel count
+                    pixels = [[int(y), int(x)] for y, x in zip(region_pixels[0], region_pixels[1])]
+                    final_mask.append({
+                        "regionId": f"fluid_region_{region_id}",
+                        "pixels": pixels,
+                        "color": "rgba(0, 255, 255, 0.6)",  # Cyan for fluid
+                        "class_id": "fluid"
+                    })
+        else:
+            # Process each class separately
+            colors = [
+                [0, 0, 0],      # Class 0: Black (background)
+                [255, 0, 0],    # Class 1: Red
+                [0, 255, 0],    # Class 2: Green
+                [0, 0, 255],    # Class 3: Blue
+                [255, 255, 0],  # Class 4: Yellow
+                [255, 0, 255],  # Class 5: Magenta
+                [0, 255, 255],  # Class 6: Cyan
+                [128, 0, 0],    # Class 7: Maroon
+                [0, 128, 0],    # Class 8: Dark green
+                [0, 0, 128]     # Class 9: Navy blue
+            ]
+
+            from skimage.measure import label
+
+            for class_idx in range(1, min(10, len(colors))):
+                binary_mask = (segmentation_map == class_idx).astype(np.uint8)
+                if np.sum(binary_mask) == 0:
+                    continue
+
+                labeled_mask = label(binary_mask)
+
+                for region_id in range(1, labeled_mask.max() + 1):
+                    region_pixels = np.where(labeled_mask == region_id)
+                    if len(region_pixels[0]) > 10:  # Minimum pixel count
+                        pixels = [[int(y), int(x)] for y, x in zip(region_pixels[0], region_pixels[1])]
+                        color = colors[class_idx]
+                        final_mask.append({
+                            "regionId": f"class_{class_idx}_region_{region_id}",
+                            "pixels": pixels,
+                            "color": f"rgba({color[0]}, {color[1]}, {color[2]}, 0.6)",
+                            "class_id": class_idx
+                        })
+
+        return final_mask
 
     def predict(self, img_path, fluid_only=True):
         img = Image.open(img_path)
@@ -43,19 +103,6 @@ class UnetPredictor:
 
         img_array = np.array(img).astype(np.float32) / 255.0
 
-        """ 
-        # Convert to numpy array and normalize
-        img_array = np.array(img).astype(np.float32)
-        
-        # Apply the same normalization used during training
-        # This is crucial for model performance!
-        if np.std(img_array) > 0:
-            # Normalize to 0-1 range using min-max scaling
-            img_array = (img_array - np.min(img_array)) / (np.max(img_array) - np.min(img_array))
-        else:
-            # Fallback if image has no variation
-            img_array = img_array / 255.0
-        """
         img_tensor = torch.from_numpy(img_array).unsqueeze(0).unsqueeze(0)
 
         with torch.no_grad():
@@ -68,21 +115,6 @@ class UnetPredictor:
 
         original_image = Image.open(img_path).convert('RGB')
         original_array = np.array(original_image.resize((512, 224)))
-
-        # Define colors for each class (RGB)
-        colors = [
-            [0, 0, 0],      # Class 0: Black (background)
-            [255, 0, 0],    # Class 1: Red
-            [0, 255, 0],    # Class 2: Green
-            [0, 0, 255],    # Class 3: Blue
-            [255, 255, 0],  # Class 4: Yellow
-            [255, 0, 255],  # Class 5: Magenta
-            [0, 255, 255],  # Class 6: Cyan
-            [128, 0, 0],    # Class 7: Maroon
-            [0, 128, 0],    # Class 8: Dark green
-            [0, 0, 128]     # Class 9: Navy blue
-        ]
-        prediced_points = None
 
         if fluid_only:
             combined_fluid_mask = np.zeros_like(segmentation_map, dtype=np.uint8)
@@ -110,49 +142,7 @@ class UnetPredictor:
             result_img = Image.fromarray(overlay)
             predicted_points = self.get_all_class_contours(segmentation_map)
 
-
-        """
-        overlay = original_array.copy()
-        
-        # Generate polygons for each class
-        predicted_points = []
-        
-        # Process each class except background (class 0)
-        for class_idx in range(1, min(10, len(colors))):
-            binary_mask = (segmentation_map == class_idx).astype(np.uint8)
-            
-            if np.sum(binary_mask) == 0:
-                continue
-                
-            class_mask = np.zeros_like(original_array)
-            class_mask[binary_mask > 0] = colors[class_idx]
-            overlay = cv.addWeighted(overlay, 1.0, class_mask, 0.5, 0)
-            
-            # Find contours for this class
-            contours, _ = cv.findContours(binary_mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-            
-            # Convert contours to points
-            for contour in contours:
-                area = cv.contourArea(contour)
-                if area < 10:
-                    continue
-                    
-                contour_points = []
-                for point in contour:
-                    x, y = point[0]
-                    contour_points.append([float(x), float(y)])
-                
-                if len(contour_points) > 2:  
-                    predicted_points.append({
-                        "shape_type": "polygon",
-                        "points": contour_points,
-                        "color": colors[class_idx],  
-                        "class_id": class_idx 
-                    })
-        
-        result_img = Image.fromarray(overlay)
-        """
-        return result_img, predicted_points
+        return result_img, predicted_points, segmentation_map
 
     def create_fluid_overlay(self, original_array, fluid_mask, alpha=0.6):
         overlay = original_array.copy()  # Start with original image
@@ -292,6 +282,28 @@ class UnetPredictor:
                     })
 
         return predicted_points
+
+    def get_segmentation_map_image(self, segmentation_map):
+        colors = [
+            [0, 0, 0],      # Class 0: Black (background)
+            [255, 0, 0],    # Class 1: Red
+            [0, 255, 0],    # Class 2: Green
+            [0, 0, 255],    # Class 3: Blue
+            [255, 255, 0],  # Class 4: Yellow
+            [255, 0, 255],  # Class 5: Magenta
+            [0, 255, 255],  # Class 6: Cyan
+            [128, 0, 0],    # Class 7: Maroon
+            [0, 128, 0],    # Class 8: Dark green
+            [0, 0, 128]     # Class 9: Navy blue
+        ]
+        height, width = segmentation_map.shape
+        rgb_image = np.zeros((height, width, 3), dtype=np.uint8)
+
+        for class_idx in range(min(10, len(colors))):
+            mask = segmentation_map == class_idx
+            rgb_image[mask] = colors[class_idx]
+
+        return Image.fromarray(rgb_image)
 
     def predict_fluid_with_confidence(self, img_path, confidence_threshold=0.7, min_area=50):
 
@@ -452,9 +464,16 @@ def segment_image(request):
                 return JsonResponse({"error": "Image file not found."}, status=404)
 
             if use_unet and unet_predictor is not None:
-                result_img, predicted_points = unet_predictor.predict(image_path, fluid_only = True)
+                result_img, predicted_points, segmentation_map = unet_predictor.predict(image_path, fluid_only = True)
 
-                # Ensures that the original image is returned when there are no annotations.
+                final_mask = unet_predictor.get_final_mask_for_interactivity(segmentation_map, fluid_only=True)
+
+                seg_map_img = unet_predictor.get_segmentation_map_image(segmentation_map)
+                seg_map_buf = io.BytesIO()
+                seg_map_img.save(seg_map_buf, format="PNG")
+                seg_map_buf.seek(0)
+                encoded_seg_map = b64encode(seg_map_buf.getvalue()).decode("utf-8")
+
                 buf = io.BytesIO()
                 result_img.save(buf, format="PNG")
                 buf.seek(0)
@@ -469,7 +488,9 @@ def segment_image(request):
                 return JsonResponse({
                     "segmented_image": encoded_image,
                     "predicted_annotations": predicted_points,
-                    "class_info": class_info
+                    "final_mask": final_mask,
+                    "segmentation_map": encoded_seg_map,
+                    "class_info": class_info,
                 })
 
 
@@ -551,7 +572,16 @@ def process_with_unet(request):
                 if not os.path.exists(image_path):
                     return JsonResponse({"error": "Image file not found."}, status=404)
 
-                result_img, predicted_points = unet_predictor.predict(image_path, fluid_only = True)
+                result_img, predicted_points, segmentation_map = unet_predictor.predict(image_path, fluid_only = True)
+
+                final_mask = unet_predictor.get_final_mask_for_interactivity(segmentation_map, fluid_only=True)
+
+                seg_map_img = unet_predictor.get_segmentation_map_image(segmentation_map)
+                seg_map_buf = io.BytesIO()
+                seg_map_img.save(seg_map_buf, format="PNG")
+                seg_map_buf.seek(0)
+                encoded_seg_map = b64encode(seg_map_buf.getvalue()).decode("utf-8")
+
 
                 buf = io.BytesIO()
                 result_img.save(buf, format="PNG")
@@ -561,6 +591,8 @@ def process_with_unet(request):
                 return JsonResponse({
                     "segmented_image": encoded_image,
                     "predicted_annotations": predicted_points,
+                    "final_mask": final_mask,
+                    "segmentation_map": encoded_seg_map,
                 })
 
             except Exception as e:
