@@ -8,7 +8,7 @@ export function getCSRFToken(name = "csrftoken") {
 }
 
 export function handleAnnotations() {
-     const existingPanel = document.getElementById('maskPreviewPanel');
+    const existingPanel = document.getElementById('maskPreviewPanel');
     if (existingPanel) {
         existingPanel.remove();
     }
@@ -20,7 +20,8 @@ export function handleAnnotations() {
         s.points.map(p => ({
             x: p.x,
             y: p.y,
-            color: s.color
+            color: s.color,
+            layerId: s.layerId  // Include layer ID.
         }))
     );
 
@@ -29,7 +30,8 @@ export function handleAnnotations() {
         shapes: [{
             label: "anomaly",
             points: allPoints.map(p => [p.x, p.y]),
-            color: allPoints.map(p => p.color)
+            color: allPoints.map(p => p.color),
+            layerId: allPoints.map(p => p.layerId)  // Send layer IDs.
         }]
     };
 
@@ -58,25 +60,81 @@ export function handleAnnotations() {
         downloadBtn.download = "segmented_result.png";
         downloadBtn.style.display = "inline-block";
 
-
-        
         const stageContainer = document.getElementById("segmentationStage");
         stageContainer.innerHTML = ""; // Clear previous content
-      
 
         const width = resultImage.naturalWidth || resultImage.clientWidth;
         const height = resultImage.naturalHeight || resultImage.clientHeight;
         stageContainer.style.width = width + "px";
         stageContainer.style.height = height + "px";
 
-  
         if (data.segmentation_masks && data.segmentation_masks.individual_masks && data.segmentation_masks.individual_masks.length > 0) {
-    createMaskPreviewPanel(data.segmentation_masks);
+            createMaskPreviewPanel(data.segmentation_masks);
+        }
+
+        const stage = new Konva.Stage({
+            container: "segmentationStage",
+            width: width,
+            height: height,
+        });
+
+        const layer = new Konva.Layer();
+        stage.add(layer);
+
+        // Current problems noted so we wouldn't forget
+        // 1. the deleted regions are not removed from the canvas since it takes from the backend, it needs to be refreshed every time 
+        // 2. it works a bit slow when there are too many regions on the image, try other alternatives rather than grouping them all
+        // 3. canvas tools and events should be updated accordingly to support this function 
+        (data.final_mask || []).forEach(({ regionId, pixels, color }) => {
+            const group = new Konva.Group({
+                id: regionId,
+                draggable: true,
+            });
+
+            pixels.forEach(([y, x]) => {
+                const rect = new Konva.Rect({
+                    x: x,
+                    y: y,
+                    width: 1,
+                    height: 1,
+                    fill: color || "rgba(233, 37, 37, 0.98)",
+                });
+                group.add(rect);
+            });
+
+            group.on("click", () => {
+                console.log(`Clicked region: ${regionId}`);
+            });
+
+            layer.add(group);
+        });
+
+        layer.draw();
+
+        const predictedPoints = data.predicted_annotations || [];
+        const strokes = predictedPoints.map(p => {
+            if (Array.isArray(p[0])) {
+                const [[x, y], color] = p;
+                return { x, y, color };
+            } else {
+                const [x, y] = p;
+                return { x, y, color: "blue" };
+            }
+        });
+
+        state.scribbles.push({
+            points: strokes,
+            isPrediction: true,
+            color: "blue"
+        });
+
+        redrawAnnotations();
+    });
 }
 
 // Function to create the "segmentation masks" preview panel.
 function createMaskPreviewPanel(maskData) {
-      const existingPanel = document.getElementById('maskPreviewPanel');
+    const existingPanel = document.getElementById('maskPreviewPanel');
     if (existingPanel) existingPanel.remove();
     
     if (!maskData.individual_masks || maskData.individual_masks.length === 0) {
@@ -168,69 +226,6 @@ function createMaskPreviewPanel(maskData) {
     });
     
     maskPanel.style.display = 'block';
-}
-                
-        const stage = new Konva.Stage({
-          container: "segmentationStage",
-          width: width,
-          height: height,
-        });
-
-        const layer = new Konva.Layer();
-        stage.add(layer);
-
-      // Current problems noted so we wouldn't forget
-      // 1. the deleted regions are not removed from the canvas since it takes from the backend, it needs to be refreshed every time 
-      // 2. it works a bit slow when there are too many regions on the image, try other alternatives rather than grouping them all
-      // 3. canvas tools and events should be updated accordingly to support this function 
-        (data.final_mask || []).forEach(({ regionId, pixels, color }) => {
-            const group = new Konva.Group({
-              id: regionId,
-              draggable: true,
-            });
-          
-            pixels.forEach(([y, x]) => {
-              const rect = new Konva.Rect({
-                x: x,
-                y: y,
-                width: 1,
-                height: 1,
-                fill: color || "rgba(233, 37, 37, 0.98)",
-              });
-              group.add(rect);
-            });
-          
-            group.on("click", () => {
-              console.log(`Clicked region: ${regionId}`);
-            });
-          
-            layer.add(group);
-          });
-          
-          layer.draw();
-          
-        
-          
-
-        const predictedPoints = data.predicted_annotations || [];
-        const strokes = predictedPoints.map(p => {
-            if (Array.isArray(p[0])) {
-                const [[x, y], color] = p;
-                return { x, y, color };
-            } else {
-                const [x, y] = p;
-                return { x, y, color: "blue" };
-            }
-        });
-
-        state.scribbles.push({
-            points: strokes,
-            isPrediction: true,
-            color: "blue"
-        });
-
-        redrawAnnotations();
-    });
 }
 
 export function handlePreprocessedImg() {

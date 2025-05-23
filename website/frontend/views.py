@@ -21,7 +21,6 @@ from io import BytesIO
 import numpy as np
 
 preprocessor = Preprocessor()
-segmentation_model = SegmentationModel(preprocessor)
 
 def home(request):
     return render(request, 'pages/home.html')
@@ -51,7 +50,6 @@ def segment_image(request):
 
             for shape in data["shapes"]:
                 points = shape.get("points", [])
-            #print("Data", data) // for debugging
            
             filename = data.get("image_name")
             if not filename:
@@ -60,13 +58,14 @@ def segment_image(request):
             if not os.path.exists(image_path):
                 return JsonResponse({"error": "Image file not found."}, status=404)
             image = imread(image_path, as_gray= True)
-            result_img = segmentation_model.run_segmentation_from_json_without_ground_truth(image, data)
-            predicted_points = segmentation_model.get_predicted_points()
-            final_mask = segmentation_model.get_final_mask()
+            # Create a new segmentation model for each request (is this too much? i'm not sure.)
+            fresh_segmentation_model = SegmentationModel(preprocessor)
+            result_img = fresh_segmentation_model.run_segmentation_from_json_without_ground_truth(image, data)
+            predicted_points = fresh_segmentation_model.get_predicted_points()
+            final_mask = fresh_segmentation_model.get_final_mask()
 
             filename_base = os.path.splitext(os.path.basename(image_path))[0]
-            npy_filename = f"{filename_base}_mask.npy"
-            segmentation_masks = segmentation_model.get_segmentation_masks(filename)
+            segmentation_masks = fresh_segmentation_model.get_segmentation_masks(filename)
 
             # Ensures that the original image is returned when there are no annotations.
             buf = io.BytesIO()
