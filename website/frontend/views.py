@@ -75,12 +75,12 @@ def segment_image(request):
             encoded_image = b64encode(buf.getvalue()).decode("utf-8")
 
             return JsonResponse({
-                "segmented_image": encoded_image, # will be the original image if there are no annotations
-                "predicted_annotations": predicted_points,  # will be [] if no annotations
+                "segmented_image": encoded_image,
+                "predicted_annotations": predicted_points,
                 "final_mask": final_mask,
-                "segmentation_mask_npy": segmentation_masks
+                "segmentation_masks": segmentation_masks
             })
-
+        
         except Exception as e:
             import traceback
             traceback.print_exc()  # Shows full error in terminal

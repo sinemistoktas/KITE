@@ -117,6 +117,7 @@ class SegmentationModel():
     # change that.
     def run_segmentation_from_json_without_ground_truth(self, image, annotation_json):
     # Preprocess the image with median filtering
+        self.reset_masks()
         print(annotation_json)
         image, fluid_mask = self.preprocessor.preprocess_image(image)
         # Convert to grayscale
@@ -221,15 +222,111 @@ class SegmentationModel():
         
         # File naming
         filename_base = os.path.splitext(filename)[0]
-        npy_filename = f"{filename_base}_mask.npy"
-        npy_path = os.path.join(segmentation_dir, npy_filename)
         
-        # Save the file
-        np.save(npy_path, np.array(self.final_mask, dtype=object))
+        mask_urls = []
         
-        # Construct download URL using your MEDIA_URL
-        mask_url = f"{settings.MEDIA_URL}segmentations/{npy_filename}"
-        return mask_url
+        if self.final_mask:
+            all_pixels = []
+            for mask_data in self.final_mask:
+                all_pixels.extend(mask_data["pixels"])
+            
+            if all_pixels:
+                max_y = max(pixel[0] for pixel in all_pixels) + 1
+                max_x = max(pixel[1] for pixel in all_pixels) + 1
+            else:
+                max_y, max_x = 512, 512 
+        else:
+            max_y, max_x = 512, 512
+        
+        # Create individual mask files for each region.
+        for i, mask_data in enumerate(self.final_mask):
+            region_id = mask_data["regionId"]
+            color = mask_data["color"]
+            pixels = mask_data["pixels"]
+            
+            # Create individual mask filename, both .png and .npy.
+            npy_filename = f"{filename_base}_{region_id}_mask.npy"
+            png_filename = f"{filename_base}_{region_id}_mask.png"
+            
+            npy_path = os.path.join(segmentation_dir, npy_filename)
+            png_path = os.path.join(segmentation_dir, png_filename)
+            
+            individual_mask_data = {
+                "regionId": region_id,
+                "pixels": pixels,
+                "color": color
+            }
+            np.save(npy_path, individual_mask_data)
+            
+            # Create visual mask image (RGBA with transparency for .png)
+            mask_image = np.zeros((max_y, max_x, 4), dtype=np.uint8)  # RGBA
+            rgb_color = self.hex_to_rgb(color)
+            
+            for pixel in pixels:
+                y, x = pixel[0], pixel[1]
+                if 0 <= y < max_y and 0 <= x < max_x:
+                    mask_image[y, x] = [rgb_color[0], rgb_color[1], rgb_color[2], 180]  # Semi-transparent
+            
+            # Save PNG with transparency
+            Image.fromarray(mask_image, 'RGBA').save(png_path)
+            
+            npy_url = f"{settings.MEDIA_URL}segmentations/{npy_filename}"
+            png_url = f"{settings.MEDIA_URL}segmentations/{png_filename}"
+            
+            mask_urls.append({
+                "regionId": region_id,
+                "color": color,
+                "npyUrl": npy_url,
+                "pngUrl": png_url,
+                "npyFilename": npy_filename,
+                "pngFilename": png_filename
+            })
+        
+        combined_mask_url = self.create_combined_mask_preview(filename)
+    
+        return {
+            "individual_masks": mask_urls,
+            "combined_mask_url": combined_mask_url
+        }
+    
+    # This function is to display the combined masks right next to the segmented result.
+    def create_combined_mask_preview(self, filename):
+        segmentation_dir = os.path.join(settings.MEDIA_ROOT, "segmentations")
+        os.makedirs(segmentation_dir, exist_ok=True)
+        
+        if not self.final_mask:
+            return None
+        
+        all_pixels = []
+        for mask_data in self.final_mask:
+            all_pixels.extend(mask_data["pixels"])
+        
+        if all_pixels:
+            max_y = max(pixel[0] for pixel in all_pixels) + 1
+            max_x = max(pixel[1] for pixel in all_pixels) + 1
+        else:
+            return None
+        
+        combined_mask = np.zeros((max_y, max_x, 4), dtype=np.uint8)
+        
+        for mask_data in self.final_mask:
+            color = mask_data["color"]
+            pixels = mask_data["pixels"]
+            rgb_color = self.hex_to_rgb(color)
+            
+            for pixel in pixels:
+                y, x = pixel[0], pixel[1]
+                if 0 <= y < max_y and 0 <= x < max_x:
+                    combined_mask[y, x] = [rgb_color[0], rgb_color[1], rgb_color[2], 120]  # Semi-transparent
+        
+        filename_base = os.path.splitext(filename)[0]
+        combined_filename = f"{filename_base}_combined_masks.png"
+        combined_path = os.path.join(segmentation_dir, combined_filename)
+        
+        Image.fromarray(combined_mask, 'RGBA').save(combined_path)
+        
+        combined_url = f"{settings.MEDIA_URL}segmentations/{combined_filename}"
+        return combined_url
 
     def hex_to_rgb(self, hex_color):
         """Convert hex color string to RGB list"""
@@ -242,6 +339,15 @@ class SegmentationModel():
         else:
             # Default to blue if hex format is incorrect
             return [0, 0, 255]
+        
+    # To ensure that the masks are reset every time "ready to segment" is called.
+    # QUESTION: Should we delete ALL the masks from the media folders too??
+    def reset_masks(self):
+        """Reset all stored masks for new segmentation"""
+        self.final_mask = []
+        self.last_predicted_points = []
+        self.last_mask = None
+
 # An example usage of the segmentation class.
 if __name__ == "__main__":
     import json

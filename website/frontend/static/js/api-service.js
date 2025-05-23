@@ -8,6 +8,11 @@ export function getCSRFToken(name = "csrftoken") {
 }
 
 export function handleAnnotations() {
+     const existingPanel = document.getElementById('maskPreviewPanel');
+    if (existingPanel) {
+        existingPanel.remove();
+    }
+    
     state.scribbles = state.scribbles.filter(s => !s.isPrediction);
     redrawAnnotations();
 
@@ -65,13 +70,106 @@ export function handleAnnotations() {
         stageContainer.style.height = height + "px";
 
   
-        if (data.segmentation_mask_npy) {
-            const npyLink = document.getElementById("downloadMaskArray");
-            npyLink.href = data.segmentation_mask_npy;
-            npyLink.download = "segmentation_metadata.npy";  // optional
-            npyLink.style.display = "inline-block"; //   the button visible
-        }
+        if (data.segmentation_masks && data.segmentation_masks.individual_masks && data.segmentation_masks.individual_masks.length > 0) {
+    createMaskPreviewPanel(data.segmentation_masks);
+}
+
+// Function to create the "segmentation masks" preview panel.
+function createMaskPreviewPanel(maskData) {
+      const existingPanel = document.getElementById('maskPreviewPanel');
+    if (existingPanel) existingPanel.remove();
+    
+    if (!maskData.individual_masks || maskData.individual_masks.length === 0) {
+        return;
+    }
+    const maskPanel = document.createElement('div');
+    maskPanel.id = 'maskPreviewPanel';
+    maskPanel.className = 'mask-preview-panel';
+    
+    // Insert next to segmentation result.
+    const flexContainer = document.querySelector('#segmentationResult .d-flex.flex-row');
+    flexContainer.appendChild(maskPanel);
+    
+    maskPanel.innerHTML = `
+        <div class="mask-panel-header">
+            <h5 class="mask-panel-title">
+                <i class="fa-solid fa-layer-group me-2"></i>
+                Segmentation Masks
+            </h5>
+            <span class="mask-count">${maskData.individual_masks.length} masks detected</span>
+        </div>
+        
+        <div class="combined-mask-preview">
+            <div class="combined-mask-container">
+                <img src="${maskData.combined_mask_url}" alt="Combined Masks" class="combined-mask-image" id="combinedMaskImage">
+                <div class="mask-selection-overlay" id="maskSelectionOverlay"></div>
+            </div>
+            <p class="mask-instruction">Click on colored regions to select and download individual masks</p>
+        </div>
+        
+        <div class="mask-list" id="maskList"></div>
+    `;
+    
+    // Create individual mask items.
+    const maskList = document.getElementById('maskList');
+    maskData.individual_masks.forEach((mask, index) => {
+        const maskItem = document.createElement('div');
+        maskItem.className = 'mask-list-item';
+        maskItem.dataset.maskIndex = index;
+        
+        maskItem.innerHTML = `
+            <div class="mask-item-info">
+                <div class="mask-color-indicator" style="background-color: ${mask.color}"></div>
+                <div class="mask-details">
+                    <span class="mask-name">Region ${index + 1}</span>
+                    <span class="mask-id">${mask.regionId}</span>
+                </div>
+            </div>
+            <div class="mask-download-buttons">
+                <button class="btn btn-sm btn-outline-primary download-btn" data-url="${mask.npyUrl}" data-filename="${mask.npyFilename}" data-type="npy">
+                    <i class="fa-solid fa-database"></i> NPY
+                </button>
+                <button class="btn btn-sm btn-outline-success download-btn" data-url="${mask.pngUrl}" data-filename="${mask.pngFilename}" data-type="png">
+                    <i class="fa-solid fa-image"></i> PNG
+                </button>
+            </div>
+        `;
+        
+        maskList.appendChild(maskItem);
+    });
+    
+    maskPanel.addEventListener('click', (e) => {
+        if (e.target.closest('.download-btn')) {
+            const button = e.target.closest('.download-btn');
+            const url = button.dataset.url;
+            const filename = button.dataset.filename;
             
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            link.click();
+            
+            // Visual feedback
+            button.style.background = '#28a745';
+            button.style.color = 'white';
+            setTimeout(() => {
+                button.style.background = '';
+                button.style.color = '';
+            }, 1000);
+        }
+        
+        if (e.target.closest('.mask-list-item')) {
+            const item = e.target.closest('.mask-list-item');
+            const allItems = maskPanel.querySelectorAll('.mask-list-item');
+            
+            allItems.forEach(i => i.classList.remove('selected'));
+            item.classList.add('selected');
+        }
+    });
+    
+    maskPanel.style.display = 'block';
+}
+                
         const stage = new Konva.Stage({
           container: "segmentationStage",
           width: width,
