@@ -66,7 +66,7 @@ def segment_image(request):
 
             filename_base = os.path.splitext(os.path.basename(image_path))[0]
             npy_filename = f"{filename_base}_mask.npy"
-            segmentation_masks = segmentation_model.get_segmentation_masks(npy_filename)
+            segmentation_masks = segmentation_model.get_segmentation_masks(filename)
 
             # Ensures that the original image is returned when there are no annotations.
             buf = io.BytesIO()
