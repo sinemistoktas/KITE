@@ -8,6 +8,7 @@ urlpatterns = [
     path('segtool/', views.seg_tool, name='seg_tool'),
     path('segment/', views.segment_image, name='segment'),
     path("preprocessed-image/", views.preprocessed_image_view, name="preprocessed_image"),
+    path('bulk-download-masks/', views.bulk_download_masks, name='bulk_download_masks'),
 
 ]
 

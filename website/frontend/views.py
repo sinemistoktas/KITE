@@ -117,3 +117,63 @@ def preprocessed_image_view(request):
             print("Preprocessing error:\n", traceback_str)
             return JsonResponse({"error": str(e)}, status=500)
     return JsonResponse({'error': 'Only a POST request is allowed'}, status=405)
+
+# Combines the selected masks into a single mask, preparing it in a .npy file.
+def bulk_download_masks(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            selected_masks = data.get("selected_masks", [])
+            filename = data.get("image_name", "")
+            
+            if not selected_masks:
+                return JsonResponse({"error": "No masks selected"}, status=400)
+            
+            combined_mask_data = create_combined_mask_array(selected_masks)
+            
+            segmentation_dir = os.path.join(settings.MEDIA_ROOT, "segmentations")
+            os.makedirs(segmentation_dir, exist_ok=True)
+            
+            filename_base = os.path.splitext(filename)[0] if filename else "combined"
+            combined_filename = f"{filename_base}_combined_selected_masks.npy"
+            combined_path = os.path.join(segmentation_dir, combined_filename)
+            
+            np.save(combined_path, combined_mask_data)
+            
+            download_url = f"{settings.MEDIA_URL}segmentations/{combined_filename}"
+            return JsonResponse({
+                "download_url": download_url,
+                "filename": combined_filename
+            })
+            
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({"error": str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Only POST requests allowed'}, status=405)
+
+# This function is a helper function to create a combined mask array, using incremental numbering!! Basically, we tag the background as "0", then each region is marked with a unique number starting from 1.
+def create_combined_mask_array(selected_masks):
+    """Create a combined mask array with incrementally numbered regions"""
+    all_pixels = []
+    for mask_data in selected_masks:
+        all_pixels.extend(mask_data["pixels"])
+    
+    if not all_pixels:
+        return np.array([])
+    
+    max_y = max(pixel[0] for pixel in all_pixels) + 1
+    max_x = max(pixel[1] for pixel in all_pixels) + 1
+    
+    combined_mask = np.zeros((max_y, max_x), dtype=np.uint8)
+    
+    # Fill with incrementally numbered regions.
+    for region_number, mask_data in enumerate(selected_masks, start=1):
+        pixels = mask_data["pixels"]
+        for pixel in pixels:
+            y, x = pixel[0], pixel[1]
+            if 0 <= y < max_y and 0 <= x < max_x:
+                combined_mask[y, x] = region_number
+    
+    return combined_mask

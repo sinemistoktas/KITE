@@ -47,6 +47,9 @@ export function handleAnnotations() {
     .then(data => {
         resetZoom();
 
+        // Store segmentation data globally for bulk download.
+        window.lastSegmentationData = data;
+
         // Added for downloading the general segmentation mask 
         console.log(data.segmentation_mask_npy);
         console.log("Segment response:", data);
@@ -162,7 +165,22 @@ function createMaskPreviewPanel(maskData) {
                 <img src="${maskData.combined_mask_url}" alt="Combined Masks" class="combined-mask-image" id="combinedMaskImage">
                 <div class="mask-selection-overlay" id="maskSelectionOverlay"></div>
             </div>
-            <p class="mask-instruction">Click on colored regions to select and download individual masks</p>
+            <p class="mask-instruction">Select multiple masks for bulk download</p>
+        </div>
+        
+        <!-- Selection Controls -->
+        <div class="selection-controls">
+            <div class="select-all-container">
+                <label class="select-toggle">
+                    <input type="checkbox" id="selectAllMasks">
+                    <span class="toggle-slider"></span>
+                    <span class="toggle-label">Select All</span>
+                </label>
+            </div>
+            <button class="bulk-download-btn" id="bulkDownloadBtn" disabled>
+                <i class="fa-solid fa-download"></i>
+                Download Selected (<span id="selectedCount">0</span>)
+            </button>
         </div>
         
         <div class="mask-list" id="maskList"></div>
@@ -176,11 +194,17 @@ function createMaskPreviewPanel(maskData) {
         maskItem.dataset.maskIndex = index;
         
         maskItem.innerHTML = `
-            <div class="mask-item-info">
-                <div class="mask-color-indicator" style="background-color: ${mask.color}"></div>
-                <div class="mask-details">
-                    <span class="mask-name">Region ${index + 1}</span>
-                    <span class="mask-id">${mask.regionId}</span>
+            <div class="mask-item-left">
+                <label class="select-toggle">
+                    <input type="checkbox" class="mask-select-checkbox" data-npy-url="${mask.npyUrl}" data-filename="${mask.npyFilename}">
+                    <span class="toggle-slider"></span>
+                </label>
+                <div class="mask-item-info">
+                    <div class="mask-color-indicator" style="background-color: ${mask.color}"></div>
+                    <div class="mask-details">
+                        <span class="mask-name">Region ${index + 1}</span>
+                        <span class="mask-id">${mask.regionId}</span>
+                    </div>
                 </div>
             </div>
             <div class="mask-download-buttons">
@@ -194,6 +218,109 @@ function createMaskPreviewPanel(maskData) {
         `;
         
         maskList.appendChild(maskItem);
+    });
+    
+    setupMaskSelectionEvents(maskPanel, maskData);
+    
+    maskPanel.style.display = 'block';
+}
+
+// Function for handling selection events and bulk download
+function setupMaskSelectionEvents(maskPanel, maskData) {
+    const selectAllCheckbox = maskPanel.querySelector('#selectAllMasks');
+    const bulkDownloadBtn = maskPanel.querySelector('#bulkDownloadBtn');
+    const selectedCountSpan = maskPanel.querySelector('#selectedCount');
+    const maskCheckboxes = maskPanel.querySelectorAll('.mask-select-checkbox');
+    
+    function updateSelectionState() {
+        const selectedMasks = maskPanel.querySelectorAll('.mask-select-checkbox:checked');
+        const selectedCount = selectedMasks.length;
+        
+        selectedCountSpan.textContent = selectedCount;
+        bulkDownloadBtn.disabled = selectedCount === 0;
+        
+        if (selectedCount === 0) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = false;
+        } else if (selectedCount === maskCheckboxes.length) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = true;
+        } else {
+            selectAllCheckbox.indeterminate = true;
+        }
+    }
+    
+    selectAllCheckbox.addEventListener('change', () => {
+        const shouldSelect = selectAllCheckbox.checked;
+        maskCheckboxes.forEach(checkbox => {
+            checkbox.checked = shouldSelect;
+        });
+        updateSelectionState();
+    });
+    
+    maskCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectionState);
+    });
+    
+    bulkDownloadBtn.addEventListener('click', async () => {
+        const selectedCheckboxes = maskPanel.querySelectorAll('.mask-select-checkbox:checked');
+        
+        if (selectedCheckboxes.length === 0) return;
+        
+        const originalText = bulkDownloadBtn.innerHTML;
+        bulkDownloadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating Combined Mask...';
+        bulkDownloadBtn.disabled = true;
+        
+        try {
+            const selectedMasks = [];
+            selectedCheckboxes.forEach((checkbox) => {
+                const maskIndex = parseInt(checkbox.closest('.mask-list-item').dataset.maskIndex);
+                const maskInfo = maskData.individual_masks[maskIndex];
+                
+                const finalMaskData = window.lastSegmentationData?.final_mask?.find(m => m.regionId === maskInfo.regionId);
+                
+                if (finalMaskData) {
+                    selectedMasks.push({
+                        regionId: maskInfo.regionId,
+                        pixels: finalMaskData.pixels,
+                        color: maskInfo.color
+                    });
+                }
+            });
+            
+            const response = await fetch("/bulk-download-masks/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCSRFToken()
+                },
+                body: JSON.stringify({
+                    selected_masks: selectedMasks,
+                    image_name: state.imageName
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.download_url) {
+                // Download the combined file.
+                const link = document.createElement('a');
+                link.href = result.download_url;
+                link.download = result.filename;
+                link.click();
+            } else {
+                alert('Error creating combined mask: ' + (result.error || 'Unknown error'));
+            }
+            
+        } catch (error) {
+            console.error('Bulk download error:', error);
+            alert('Error downloading masks. Please try again.');
+        }
+        
+        setTimeout(() => {
+            bulkDownloadBtn.innerHTML = originalText;
+            updateSelectionState();
+        }, 1000);
     });
     
     maskPanel.addEventListener('click', (e) => {
@@ -215,17 +342,9 @@ function createMaskPreviewPanel(maskData) {
                 button.style.color = '';
             }, 1000);
         }
-        
-        if (e.target.closest('.mask-list-item')) {
-            const item = e.target.closest('.mask-list-item');
-            const allItems = maskPanel.querySelectorAll('.mask-list-item');
-            
-            allItems.forEach(i => i.classList.remove('selected'));
-            item.classList.add('selected');
-        }
     });
     
-    maskPanel.style.display = 'block';
+    updateSelectionState();
 }
 
 export function handlePreprocessedImg() {
