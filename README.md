@@ -41,7 +41,7 @@ pip install -r requirements.txt
 To use the MedSAM segmentation model, you need to manually download the model weights.
 
 **Instructions are provided in:**
-[`data/medsam/model/README.md`](data/medsam/model/README.md)
+[`models/README.md`](models/README.md)
 
 ---
 
