@@ -11640,3 +11640,427 @@ input[type="file"] {
     color: #fff !important;
   }
 
+  .mask-preview-panel {
+    display: none;
+    background: linear-gradient(145deg, #2c3e50, #34495e);
+    border-radius: 16px;
+    padding: 24px;
+    margin: 20px 0;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    max-width: 500px;
+    width: 100%;
+}
+
+.mask-panel-header {
+    text-align: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 15px;
+}
+
+.mask-panel-title {
+    color: #ecf0f1;
+    margin: 0;
+    font-weight: 600;
+    font-size: 1.2rem;
+}
+
+.mask-count {
+    color: #bdc3c7;
+    font-size: 0.9rem;
+    display: block;
+    margin-top: 5px;
+}
+
+.combined-mask-preview {
+    margin-bottom: 20px;
+}
+
+.combined-mask-container {
+    position: relative;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 10px;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.combined-mask-image {
+    width: 100%;
+    max-height: 200px;
+    object-fit: contain;
+    border-radius: 8px;
+    display: block;
+    margin: 0 auto;
+}
+
+.mask-instruction {
+    color: #bdc3c7;
+    font-size: 0.85rem;
+    text-align: center;
+    margin: 10px 0 0 0;
+    font-style: italic;
+}
+
+.selection-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 20px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.select-all-container {
+    display: flex;
+    align-items: center;
+}
+
+/* Professional Toggle Switches */
+.select-toggle {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    gap: 12px;
+    transition: all 0.2s ease;
+}
+
+.select-toggle:hover {
+    transform: translateY(-1px);
+}
+
+.select-toggle input[type="checkbox"] {
+    display: none;
+}
+
+.toggle-slider {
+    position: relative;
+    width: 50px;
+    height: 26px;
+    background: linear-gradient(145deg, #34495e, #2c3e50);
+    border-radius: 26px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 
+        inset 0 2px 4px rgba(0, 0, 0, 0.2),
+        0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.toggle-slider::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    background: linear-gradient(145deg, #ecf0f1, #bdc3c7);
+    border-radius: 50%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 
+        0 2px 6px rgba(0, 0, 0, 0.2),
+        0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.select-toggle input[type="checkbox"]:checked + .toggle-slider {
+    background: linear-gradient(145deg, #667eea, #764ba2);
+    border-color: rgba(102, 126, 234, 0.3);
+    box-shadow: 
+        inset 0 2px 4px rgba(0, 0, 0, 0.1),
+        0 0 15px rgba(102, 126, 234, 0.3);
+}
+
+.select-toggle input[type="checkbox"]:checked + .toggle-slider::before {
+    transform: translateX(24px);
+    background: linear-gradient(145deg, #ffffff, #f8f9fa);
+}
+
+.select-toggle input[type="checkbox"]:indeterminate + .toggle-slider {
+    background: linear-gradient(145deg, #f39c12, #e67e22);
+    border-color: rgba(243, 156, 18, 0.3);
+    box-shadow: 
+        inset 0 2px 4px rgba(0, 0, 0, 0.1),
+        0 0 15px rgba(243, 156, 18, 0.3);
+}
+
+.select-toggle input[type="checkbox"]:indeterminate + .toggle-slider::before {
+    transform: translateX(12px);
+    background: linear-gradient(145deg, #ffffff, #f8f9fa);
+}
+
+.toggle-label {
+    color: #ecf0f1;
+    font-size: 0.95rem;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+
+/* Bulk Download Button */
+.bulk-download-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 
+        0 4px 15px rgba(102, 126, 234, 0.3),
+        0 2px 8px rgba(0, 0, 0, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+.bulk-download-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.6s;
+}
+
+.bulk-download-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 
+        0 8px 25px rgba(102, 126, 234, 0.4),
+        0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.bulk-download-btn:hover:not(:disabled)::before {
+    left: 100%;
+}
+
+.bulk-download-btn:active:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+.bulk-download-btn:disabled {
+    background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.bulk-download-btn:disabled::before {
+    display: none;
+}
+
+/* Mask List Items */
+.mask-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 350px;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+.mask-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.mask-list::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.mask-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+
+.mask-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.mask-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 16px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.mask-list-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+    transition: left 0.6s;
+}
+
+.mask-list-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(102, 126, 234, 0.5);
+    transform: translateX(4px);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+}
+
+.mask-list-item:hover::before {
+    left: 100%;
+}
+
+.mask-item-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.mask-item-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.mask-color-indicator {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 
+        0 2px 8px rgba(0, 0, 0, 0.3),
+        inset 0 1px 3px rgba(255, 255, 255, 0.2);
+}
+
+.mask-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.mask-name {
+    color: #ecf0f1;
+    font-weight: 500;
+    font-size: 0.9rem;
+    margin-bottom: 2px;
+}
+
+.mask-id {
+    color: #95a5a6;
+    font-size: 0.75rem;
+    opacity: 0.8;
+}
+
+.mask-download-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.download-btn {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    border-radius: 8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border-width: 1px;
+    font-weight: 500;
+    position: relative;
+    overflow: hidden;
+}
+
+.download-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.4s;
+}
+
+.download-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.download-btn:hover::before {
+    left: 100%;
+}
+
+.download-btn:active {
+    transform: translateY(-1px);
+}
+
+/* Selected Count Styling */
+#selectedCount {
+    font-weight: 700;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+    .mask-preview-panel {
+        max-width: 100%;
+        margin: 10px 0;
+        padding: 16px;
+    }
+    
+    .selection-controls {
+        flex-direction: column;
+        gap: 15px;
+        align-items: stretch;
+    }
+    
+    .bulk-download-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .mask-download-buttons {
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .mask-item-left {
+        gap: 12px;
+    }
+    
+    .toggle-slider {
+        width: 44px;
+        height: 24px;
+    }
+    
+    .toggle-slider::before {
+        width: 16px;
+        height: 16px;
+    }
+    
+    .select-toggle input[type="checkbox"]:checked + .toggle-slider::before {
+        transform: translateX(20px);
+    }
+    
+    .select-toggle input[type="checkbox"]:indeterminate + .toggle-slider::before {
+        transform: translateX(10px);
+    }
+}
+
+/* Animation for loading state */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.bulk-download-btn:disabled .fa-spinner {
+    animation: pulse 1.5s ease-in-out infinite;
+}
