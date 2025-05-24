@@ -25,7 +25,6 @@ import cv2 as cv
 preprocessor = Preprocessor()
 segmentation_model = SegmentationModel(preprocessor)
 
-
 #UNet
 class UnetPredictor:
     def __init__(self, model_path):
@@ -34,7 +33,6 @@ class UnetPredictor:
         self.fluid_class_ids = [1] #adjust accordingly
 
     def get_final_mask_for_interactivity(self, segmentation_map, fluid_only=True):
-
         final_mask = []
 
         if fluid_only:
@@ -182,7 +180,6 @@ class UnetPredictor:
         return overlay
 
     def create_multiclass_overlay(self, original_array, segmentation_map):
-
         colors = [
             [0, 0, 0],      # Class 0: Black (background)
             [255, 0, 0],    # Class 1: Red
@@ -212,7 +209,6 @@ class UnetPredictor:
         return overlay
 
     def get_fluid_contours(self, fluid_mask, min_area=20):
-
         contours, _ = cv.findContours(fluid_mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
 
         points = []
@@ -239,7 +235,6 @@ class UnetPredictor:
         return points
 
     def get_all_class_contours(self, segmentation_map):
-
         colors = [
             [0, 0, 0],      # Class 0: Black (background)
             [255, 0, 0],    # Class 1: Red
@@ -306,7 +301,6 @@ class UnetPredictor:
         return Image.fromarray(rgb_image)
 
     def predict_fluid_with_confidence(self, img_path, confidence_threshold=0.7, min_area=50):
-
         img = Image.open(img_path)
         img = img.resize((512, 224))
         if img.mode != 'L':
@@ -326,11 +320,9 @@ class UnetPredictor:
 
         probabilities = torch.softmax(output, dim=1)
 
-
         combined_fluid_prob = torch.zeros_like(probabilities[0, 0, :, :])
         for fluid_class in self.fluid_class_ids:
             combined_fluid_prob += probabilities[0, fluid_class, :, :]
-
 
         fluid_mask = (combined_fluid_prob.cpu().numpy() > confidence_threshold).astype(np.uint8)
 
@@ -352,9 +344,7 @@ class UnetPredictor:
 
         return result_img, predicted_points, combined_fluid_prob.cpu().numpy()
 
-
     def segmentation_to_points(self, segmentation_map, class_index = 1):
-
         binary_mask = (segmentation_map == class_index).astype(np.uint8)
 
         contours, _ = cv.findContours(binary_mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
@@ -375,7 +365,6 @@ class UnetPredictor:
 
         return points
 
-
 #initialize UNet
 unet_model_path = '/Users/durutandogan/KITE/unet/notebooks/unet_traced.pt'
 
@@ -391,6 +380,7 @@ try:
         print("UNet model path not found ")
 except Exception as e:
     print(f"UNet model loading failed: {e}")
+
 def home(request):
     return render(request, 'pages/home.html')
 
@@ -398,7 +388,7 @@ def seg_tool(request):
     image_url = None
     image_name = None
     segmentation_tool = None
-    segmentation_method = request.POST.get('segmentation_method', 'traditional')  if request.method == 'POST' else 'traditional'
+    segmentation_method = request.POST.get('segmentation_method', 'traditional') if request.method == 'POST' else 'traditional'
 
     context = {
         'image_url': image_url,
@@ -447,7 +437,6 @@ def seg_tool(request):
 
 # Takes an HTTP request, which must include the name of the image uploaded, and the json formatted annotated file.
 # The function then applies segmentation on the image, and returns the segmented image in a PNG format.
-#TODO: Decide if this should be moved to the back-end or not.
 def segment_image(request):
     if request.method == "POST":
         try:
@@ -464,7 +453,7 @@ def segment_image(request):
                 return JsonResponse({"error": "Image file not found."}, status=404)
 
             if use_unet and unet_predictor is not None:
-                result_img, predicted_points, segmentation_map = unet_predictor.predict(image_path, fluid_only = True)
+                result_img, predicted_points, segmentation_map = unet_predictor.predict(image_path, fluid_only=True)
 
                 final_mask = unet_predictor.get_final_mask_for_interactivity(segmentation_map, fluid_only=True)
 
@@ -478,7 +467,7 @@ def segment_image(request):
                 result_img.save(buf, format="PNG")
                 buf.seek(0)
                 encoded_image = b64encode(buf.getvalue()).decode("utf-8")
-                
+
                 # Add class information
                 class_info = [
                     {"id": 0, "name": "Background", "color": [0, 0, 0]},
@@ -493,28 +482,31 @@ def segment_image(request):
                     "class_info": class_info,
                 })
 
-
-            #Traditional Method
-
+            # Traditional Method
             for shape in data["shapes"]:
                 points = shape.get("points", [])
-            #print("Data", data) // for debugging
 
+            image = imread(image_path, as_gray=True)
+            # Create a fresh segmentation model for each request to avoid state conflicts
+            fresh_segmentation_model = SegmentationModel(preprocessor)
+            result_img = fresh_segmentation_model.run_segmentation_from_json_without_ground_truth(image, data)
+            predicted_points = fresh_segmentation_model.get_predicted_points()
+            final_mask = fresh_segmentation_model.get_final_mask()
 
-            image = imread(image_path, as_gray= True)
-            result_img = segmentation_model.run_segmentation_from_json_without_ground_truth(image, data)
-            predicted_points = segmentation_model.get_predicted_points()
-            final_mask = segmentation_model.get_final_mask()
+            filename_base = os.path.splitext(os.path.basename(image_path))[0]
+            segmentation_masks = fresh_segmentation_model.get_segmentation_masks(filename)
 
+            # Ensures that the original image is returned when there are no annotations.
             buf = io.BytesIO()
             result_img.save(buf, format="PNG")
             buf.seek(0)
             encoded_image = b64encode(buf.getvalue()).decode("utf-8")
 
             return JsonResponse({
-                "segmented_image": encoded_image, # will be the original image if there are no annotations
-                "predicted_annotations": predicted_points,  # will be [] if no annotations
-                "final_mask": final_mask
+                "segmented_image": encoded_image,
+                "predicted_annotations": predicted_points,
+                "final_mask": final_mask,
+                "segmentation_masks": segmentation_masks
             })
 
         except Exception as e:
@@ -557,47 +549,107 @@ def preprocessed_image_view(request):
     return JsonResponse({'error': 'Only a POST request is allowed'}, status=405)
 
 def process_with_unet(request):
-        if request.method == "POST":
-            try:
-                data = json.loads(request.body)
-                filename = data.get("image_name")
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            filename = data.get("image_name")
 
-                if not unet_predictor:
-                    return JsonResponse({"error": "UNet model is not available."}, status=503)
+            if not unet_predictor:
+                return JsonResponse({"error": "UNet model is not available."}, status=503)
 
-                if not filename:
-                    return JsonResponse({"error": "No image name provided."}, status=400)
+            if not filename:
+                return JsonResponse({"error": "No image name provided."}, status=400)
 
-                image_path = os.path.join(settings.MEDIA_ROOT, filename)
-                if not os.path.exists(image_path):
-                    return JsonResponse({"error": "Image file not found."}, status=404)
+            image_path = os.path.join(settings.MEDIA_ROOT, filename)
+            if not os.path.exists(image_path):
+                return JsonResponse({"error": "Image file not found."}, status=404)
 
-                result_img, predicted_points, segmentation_map = unet_predictor.predict(image_path, fluid_only = True)
+            result_img, predicted_points, segmentation_map = unet_predictor.predict(image_path, fluid_only=True)
 
-                final_mask = unet_predictor.get_final_mask_for_interactivity(segmentation_map, fluid_only=True)
+            final_mask = unet_predictor.get_final_mask_for_interactivity(segmentation_map, fluid_only=True)
 
-                seg_map_img = unet_predictor.get_segmentation_map_image(segmentation_map)
-                seg_map_buf = io.BytesIO()
-                seg_map_img.save(seg_map_buf, format="PNG")
-                seg_map_buf.seek(0)
-                encoded_seg_map = b64encode(seg_map_buf.getvalue()).decode("utf-8")
+            seg_map_img = unet_predictor.get_segmentation_map_image(segmentation_map)
+            seg_map_buf = io.BytesIO()
+            seg_map_img.save(seg_map_buf, format="PNG")
+            seg_map_buf.seek(0)
+            encoded_seg_map = b64encode(seg_map_buf.getvalue()).decode("utf-8")
 
+            buf = io.BytesIO()
+            result_img.save(buf, format="PNG")
+            buf.seek(0)
+            encoded_image = b64encode(buf.getvalue()).decode("utf-8")
 
-                buf = io.BytesIO()
-                result_img.save(buf, format="PNG")
-                buf.seek(0)
-                encoded_image = b64encode(buf.getvalue()).decode("utf-8")
+            return JsonResponse({
+                "segmented_image": encoded_image,
+                "predicted_annotations": predicted_points,
+                "final_mask": final_mask,
+                "segmentation_map": encoded_seg_map,
+            })
 
-                return JsonResponse({
-                    "segmented_image": encoded_image,
-                    "predicted_annotations": predicted_points,
-                    "final_mask": final_mask,
-                    "segmentation_map": encoded_seg_map,
-                })
+        except Exception as e:
+            traceback_str = traceback.format_exc()
+            print(f"UNet processing error:\n{traceback_str}")
+            return JsonResponse({"error": str(e)}, status=500)
 
-            except Exception as e:
-                traceback_str = traceback.format_exc()
-                print(f"UNet processing error:\n{traceback_str}")
-                return JsonResponse({"error": str(e)}, status=500)
+    return JsonResponse({'error': 'Only a POST request is allowed'}, status=405)
 
-        return JsonResponse({'error': 'Only a POST request is allowed'}, status=405)
+# Combines the selected masks into a single mask, preparing it in a .npy file.
+def bulk_download_masks(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            selected_masks = data.get("selected_masks", [])
+            filename = data.get("image_name", "")
+
+            if not selected_masks:
+                return JsonResponse({"error": "No masks selected"}, status=400)
+
+            combined_mask_data = create_combined_mask_array(selected_masks)
+
+            segmentation_dir = os.path.join(settings.MEDIA_ROOT, "segmentations")
+            os.makedirs(segmentation_dir, exist_ok=True)
+
+            filename_base = os.path.splitext(filename)[0] if filename else "combined"
+            combined_filename = f"{filename_base}_combined_selected_masks.npy"
+            combined_path = os.path.join(segmentation_dir, combined_filename)
+
+            np.save(combined_path, combined_mask_data)
+
+            download_url = f"{settings.MEDIA_URL}segmentations/{combined_filename}"
+            return JsonResponse({
+                "download_url": download_url,
+                "filename": combined_filename
+            })
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({'error': 'Only POST requests allowed'}, status=405)
+
+# This function is a helper function to create a combined mask array, using incremental numbering!!
+# Basically, we tag the background as "0", then each region is marked with a unique number starting from 1.
+def create_combined_mask_array(selected_masks):
+    """Create a combined mask array with incrementally numbered regions"""
+    all_pixels = []
+    for mask_data in selected_masks:
+        all_pixels.extend(mask_data["pixels"])
+
+    if not all_pixels:
+        return np.array([])
+
+    max_y = max(pixel[0] for pixel in all_pixels) + 1
+    max_x = max(pixel[1] for pixel in all_pixels) + 1
+
+    combined_mask = np.zeros((max_y, max_x), dtype=np.uint8)
+
+    # Fill with incrementally numbered regions.
+    for region_number, mask_data in enumerate(selected_masks, start=1):
+        pixels = mask_data["pixels"]
+        for pixel in pixels:
+            y, x = pixel[0], pixel[1]
+            if 0 <= y < max_y and 0 <= x < max_x:
+                combined_mask[y, x] = region_number
+
+    return combined_mask

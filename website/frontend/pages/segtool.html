@@ -35,10 +35,9 @@
     </label>
     <input id="file-upload" type="file" name="image" class="form-control mb-3" required style="display:none;" accept="image/*">
     <span id="fileNameDisplay" class="file-name-display"></span>
+
     <!--Segmentation Method Selector-->
-
     {% if True %}
-
     <div class="segmentation-method mt-3 mb-3">
       <label class="me-3">Segmentation Method:</label>
 
@@ -102,29 +101,31 @@
       </div>
 
       <!-- IMAGE CONTENT -->
-      <div class="flex-grow-1 d-flex flex-column align-items-center" style="min-width: 750px; max-width: 100%;">
-        <div id="zoomContainer" style="display: inline-block; position: relative;">
-          <img id="uploadedImage" src="{{ image_url }}" class="img-oct" style="max-width: 530px; width: 100%;"/>
-          <canvas id="predictionCanvas"></canvas>
-          <canvas id="annotationCanvas"></canvas>
-          <div class="zoom-info" id="zoomInfo">Zoom: 100%</div>
-        </div>
+      <div class="flex-grow-1 d-flex flex-row align-items-start justify-content-center" style="min-width: 750px; max-width: 100%; gap: 20px;">
+        <div class="d-flex flex-column align-items-center">
+          <div id="zoomContainer" style="display: inline-block; position: relative;">
+            <img id="uploadedImage" src="{{ image_url }}" class="img-oct" style="max-width: 530px; width: 100%;"/>
+            <canvas id="predictionCanvas"></canvas>
+            <canvas id="annotationCanvas"></canvas>
+            <div class="zoom-info" id="zoomInfo">Zoom: 100%</div>
+          </div>
 
-        <!-- Zoom controls -->
-        <div class="zoom-controls mt-3">
-          <button type="button" class="btn btn-outline-primary rounded-pill px-3" id="zoomInBtn">
-            <i class="fa-solid fa-magnifying-glass-plus"></i> Zoom In
-          </button>
-          <button type="button" class="btn btn-outline-primary rounded-pill px-3" id="zoomOutBtn">
-            <i class="fa-solid fa-magnifying-glass-minus"></i> Zoom Out
-          </button>
-          <button type="button" class="btn btn-outline-primary rounded-pill px-3" id="resetZoomBtn">
-            <i class="fa-solid fa-arrows-to-circle"></i> Reset Zoom
+          <!-- Zoom controls -->
+          <div class="zoom-controls mt-3">
+            <button type="button" class="btn btn-outline-primary rounded-pill px-3" id="zoomInBtn">
+              <i class="fa-solid fa-magnifying-glass-plus"></i> Zoom In
+            </button>
+            <button type="button" class="btn btn-outline-primary rounded-pill px-3" id="zoomOutBtn">
+              <i class="fa-solid fa-magnifying-glass-minus"></i> Zoom Out
+            </button>
+            <button type="button" class="btn btn-outline-primary rounded-pill px-3" id="resetZoomBtn">
+              <i class="fa-solid fa-arrows-to-circle"></i> Reset Zoom
+            </button>
+          </div>
+          <button class="ready-segment-btn px-4 py-2 rounded-pill shadow-sm mt-3" onclick="handleAnnotations()">
+            <i class="fa-solid fa-hurricane me-2"></i> Ready to Segment!
           </button>
         </div>
-        <button class="ready-segment-btn px-4 py-2 rounded-pill shadow-sm mt-3" onclick="handleAnnotations()">
-          <i class="fa-solid fa-hurricane me-2"></i> Ready to Segment!
-        </button>
       </div>
 
       <!-- LAYERS PANEL -->
@@ -137,38 +138,45 @@
     </div>
   </div>
 
-{% endif %}
+  {% endif %}
   <div id="segmentationResult" class="text-center mt-4" style="display: none;">
-    <div class="text-white p-2 mb-2 rounded bg-primary">
-      <strong>Segmented Result</strong>
-    </div>
-    <div style="margin: 0; padding: 0; text-align: center;">
-      <div id="segmentationStageContainer" style="position: relative; display: inline-block;">
-        <img id="segmentedResultImage"
-             class="img-fluid"
-             style="max-width: 512px; display: block;"
-             alt="Segmented Output" />
-        <div id="segmentationStage" style="position: absolute; top: 0; left: 0;"></div>
-      </div>
-      <div class="d-flex justify-content-center gap-3 mt-4">
-        <!--
-        <button class="show-pre-btn" onclick="handlePreprocessedImg()">
-          <i class="fa-solid fa-eye"></i> Show Preprocessed Image
-        </button>
-        -->
-        <button id="showSegMapBtn" class="show-pre-btn" onclick="handleSegmentationMap()" style="display: none;">
-          <i class="fa-solid fa-map"></i> Show Segmentation Map
-        </button>
+    <div class="d-flex flex-row align-items-start justify-content-center gap-4 flex-wrap">
+      <div class="segmentation-main">
+        <div class="text-white p-2 mb-2 rounded bg-primary">
+          <strong>Segmented Result</strong>
+        </div>
+        <div style="margin: 0; padding: 0; text-align: center;">
+          <div id="segmentationStageContainer" style="position: relative;">
+            <img id="segmentedResultImage"
+                 class="img-fluid mx-auto d-block"
+                 style="max-width: 512px; display: block;"
+                 alt="Segmented Output" />
+            <div id="segmentationStage"
+                 style="position: absolute; top: 0; left: 0;"></div>
+          </div>
 
-        <a id="downloadSegmentedImage"
-           class="btn btn-outline-success px-4 py-2 rounded-pill shadow-sm"
-           style="display: none;">
-          <i class="fa-solid fa-download"></i> Download Segmented Image
-        </a>
+          <div class="d-flex justify-content-center gap-3 mt-4">
+            <!--
+            <button class="show-pre-btn" onclick="handlePreprocessedImg()">
+                <i class="fa-solid fa-eye"></i> Show Preprocessed Image
+            </button>
+            -->
+            <button id="showSegMapBtn" class="show-pre-btn" onclick="handleSegmentationMap()" style="display: none;">
+              <i class="fa-solid fa-map"></i> Show Segmentation Map
+            </button>
+
+            <a id="downloadSegmentedImage"
+               class="btn btn-outline-success px-4 py-2 rounded-pill shadow-sm"
+               style="display: none;">
+              <i class="fa-solid fa-download"></i> Download Segmented Image
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </div>
+
 <script>
   window.segmentationMethod = "{{ segmentation_method|default:'traditional' }}";
 </script>
@@ -176,6 +184,7 @@
 <script>
   window.imageName = "{{ image_name }}";
 </script>
+
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     const fileInput = document.getElementById('file-upload');

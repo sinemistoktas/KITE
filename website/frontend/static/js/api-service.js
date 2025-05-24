@@ -27,6 +27,12 @@ export function processWithUNet(imageName) {
 let segmentationMapData = null;
 
 export function handleAnnotations() {
+    // Remove existing mask preview panel
+    const existingPanel = document.getElementById('maskPreviewPanel');
+    if (existingPanel) {
+        existingPanel.remove();
+    }
+
     state.scribbles = state.scribbles.filter(s => !s.isPrediction);
     redrawAnnotations();
 
@@ -34,7 +40,8 @@ export function handleAnnotations() {
         s.points.map(p => ({
             x: p.x,
             y: p.y,
-            color: s.color
+            color: s.color,
+            layerId: s.layerId  // Include layer ID from paste.txt
         }))
     );
 
@@ -43,9 +50,10 @@ export function handleAnnotations() {
         shapes: [{
             label: "anomaly",
             points: allPoints.map(p => [p.x, p.y]),
-            color: allPoints.map(p => p.color)
+            color: allPoints.map(p => p.color),
+            layerId: allPoints.map(p => p.layerId)  // Send layer IDs from paste.txt
         }],
-        use_unet: state.unetMode || false  // Include UNet mode if available
+        use_unet: state.unetMode || false  // Include UNet mode from api-service.js
     };
 
     fetch("/segment/", {
@@ -61,6 +69,13 @@ export function handleAnnotations() {
             console.log("Segmentation response:", data);
 
             resetZoom();
+
+            // Store segmentation data globally for bulk download (from paste.txt)
+            window.lastSegmentationData = data;
+
+            // Added for downloading the general segmentation mask (from paste.txt)
+            console.log(data.segmentation_mask_npy);
+            console.log("Segment response:", data);
 
             const resultImage = document.getElementById("segmentedResultImage");
             console.log("resultImage element:", resultImage);
@@ -78,6 +93,7 @@ export function handleAnnotations() {
             downloadBtn.download = "segmented_result.png";
             downloadBtn.style.display = "inline-block";
 
+            // Handle segmentation map display (from api-service.js)
             if (data.segmentation_map) {
                 segmentationMapData = data.segmentation_map;
                 const showSegMapBtn = document.getElementById("showSegMapBtn");
@@ -92,12 +108,26 @@ export function handleAnnotations() {
                 }
             }
 
-            // Handle Konva stage rendering for interactive regions (from paste-2.txt)
-            if (data.final_mask && data.final_mask.length > 0) {
-                renderInteractiveRegions(resultImage, data.final_mask);
+            // Setup stage container (from paste.txt)
+            const stageContainer = document.getElementById("segmentationStage");
+            stageContainer.innerHTML = ""; // Clear previous content
+
+            const width = resultImage.naturalWidth || resultImage.clientWidth;
+            const height = resultImage.naturalHeight || resultImage.clientHeight;
+            stageContainer.style.width = width + "px";
+            stageContainer.style.height = height + "px";
+
+            // Create mask preview panel if individual masks are available (from paste.txt)
+            if (data.segmentation_masks && data.segmentation_masks.individual_masks && data.segmentation_masks.individual_masks.length > 0) {
+                createMaskPreviewPanel(data.segmentation_masks);
             }
 
-            // Handle predicted annotations (enhanced from paste.txt)
+            // Handle Konva stage rendering for interactive regions
+            if (data.final_mask && data.final_mask.length > 0) {
+                renderInteractiveRegions(resultImage, data.final_mask, width, height, stageContainer);
+            }
+
+            // Handle predicted annotations (enhanced from both versions)
             console.log("Predicted annotations full data:", JSON.stringify(data.predicted_annotations));
 
             if (!data.predicted_annotations || data.predicted_annotations.length === 0) {
@@ -114,11 +144,14 @@ export function handleAnnotations() {
                 if (Array.isArray(predictedAnnotations)) {
                     console.log("Annotation is an array with length:", predictedAnnotations.length);
 
+                    // Handle different annotation formats
+                    const processedPoints = [];
+
                     predictedAnnotations.forEach((annotation, index) => {
                         console.log(`Annotation ${index} type:`, typeof annotation);
                         console.log(`Annotation ${index} value:`, annotation);
 
-                        // Handle polygon annotations (from paste.txt)
+                        // Handle polygon annotations (from api-service.js)
                         if (annotation && annotation.shape_type === "polygon" && Array.isArray(annotation.points)) {
                             const points = annotation.points.map(point => ({
                                 x: point[0],
@@ -135,20 +168,30 @@ export function handleAnnotations() {
 
                             console.log("Added fluid polygon with", points.length, "points");
                         }
-                        // Handle point annotations (from paste-2.txt)
+                        // Handle point annotations (from both versions)
                         else if (Array.isArray(annotation)) {
-                            const [x, y] = Array.isArray(annotation[0]) ? annotation[0] : annotation;
-                            const color = annotation[1] || "blue";
-
-                            state.scribbles.push({
-                                points: [{ x, y, color }],
-                                isPrediction: true,
-                                color: color
-                            });
+                            if (Array.isArray(annotation[0])) {
+                                // Format: [[x, y], color] (from paste.txt)
+                                const [[x, y], color] = annotation;
+                                processedPoints.push({ x, y, color: color || "blue" });
+                            } else {
+                                // Format: [x, y] (from api-service.js)
+                                const [x, y] = annotation;
+                                processedPoints.push({ x, y, color: "blue" });
+                            }
                         }
                     });
 
-                    // Create class legend if available (from paste.txt)
+                    // Add processed points as a single scribble if any exist
+                    if (processedPoints.length > 0) {
+                        state.scribbles.push({
+                            points: processedPoints,
+                            isPrediction: true,
+                            color: "blue"
+                        });
+                    }
+
+                    // Create class legend if available (from api-service.js)
                     if (data.class_info) {
                         createClassLegend(data.class_info);
                     }
@@ -162,6 +205,59 @@ export function handleAnnotations() {
         .catch(error => {
             console.error("Error in handleAnnotations:", error);
         });
+}
+
+function renderInteractiveRegions(resultImage, finalMask, width, height, stageContainer) {
+    // Enhanced version combining both approaches
+    resultImage.onload = () => {
+        if (!stageContainer) {
+            console.warn("segmentationStage container not found");
+            return;
+        }
+
+        const existingStage = stageContainer.querySelector(".konvajs-content");
+        if (existingStage) existingStage.remove(); // clear existing Konva stage if any
+
+        const stage = new Konva.Stage({
+            container: "segmentationStage",
+            width: width,
+            height: height
+        });
+
+        const layer = new Konva.Layer();
+        stage.add(layer);
+
+        // Current problems noted (from paste.txt):
+        // 1. the deleted regions are not removed from the canvas since it takes from the backend, it needs to be refreshed every time
+        // 2. it works a bit slow when there are too many regions on the image, try other alternatives rather than grouping them all
+        // 3. canvas tools and events should be updated accordingly to support this function
+        finalMask.forEach(({regionId, pixels, color}) => {
+            const group = new Konva.Group({
+                id: regionId,
+                draggable: true
+            });
+
+            pixels.forEach(([y, x]) => {
+                const rect = new Konva.Rect({
+                    x: x,
+                    y: y,
+                    width: 1,
+                    height: 1,
+                    fill: color || "rgba(233, 37, 37, 0.98)"
+                });
+                group.add(rect);
+            });
+
+            group.on("click", () => {
+                console.log(`Clicked region: ${regionId}`);
+                // TODO: Add region deletion or modification functionality here
+            });
+
+            layer.add(group);
+        });
+
+        layer.draw();
+    };
 }
 
 export function handleSegmentationMap() {
@@ -231,58 +327,216 @@ export function handleSegmentationMap() {
 }
 window.handleSegmentationMap = handleSegmentationMap;
 
-function renderInteractiveRegions(resultImage, finalMask) {
-    // Enhanced version of the Konva rendering from paste-2.txt
-    resultImage.onload = () => {
-        const stageContainer = document.getElementById("segmentationStage");
+// Function to create the "segmentation masks" preview panel (from paste.txt)
+function createMaskPreviewPanel(maskData) {
+    const existingPanel = document.getElementById('maskPreviewPanel');
+    if (existingPanel) existingPanel.remove();
 
-        if (!stageContainer) {
-            console.warn("segmentationStage container not found");
-            return;
+    if (!maskData.individual_masks || maskData.individual_masks.length === 0) {
+        return;
+    }
+    const maskPanel = document.createElement('div');
+    maskPanel.id = 'maskPreviewPanel';
+    maskPanel.className = 'mask-preview-panel';
+
+    // Insert next to segmentation result.
+    const flexContainer = document.querySelector('#segmentationResult .d-flex.flex-row');
+    flexContainer.appendChild(maskPanel);
+
+    maskPanel.innerHTML = `
+        <div class="mask-panel-header">
+            <h5 class="mask-panel-title">
+                <i class="fa-solid fa-layer-group me-2"></i>
+                Segmentation Masks
+            </h5>
+            <span class="mask-count">${maskData.individual_masks.length} masks detected</span>
+        </div>
+        
+        <div class="combined-mask-preview">
+            <div class="combined-mask-container">
+                <img src="${maskData.combined_mask_url}" alt="Combined Masks" class="combined-mask-image" id="combinedMaskImage">
+                <div class="mask-selection-overlay" id="maskSelectionOverlay"></div>
+            </div>
+            <p class="mask-instruction">Select multiple masks for bulk download</p>
+        </div>
+        
+        <!-- Selection Controls -->
+        <div class="selection-controls">
+            <div class="select-all-container">
+                <label class="select-toggle">
+                    <input type="checkbox" id="selectAllMasks">
+                    <span class="toggle-slider"></span>
+                    <span class="toggle-label">Select All</span>
+                </label>
+            </div>
+            <button class="bulk-download-btn" id="bulkDownloadBtn" disabled>
+                <i class="fa-solid fa-download"></i>
+                Download Selected (<span id="selectedCount">0</span>)
+            </button>
+        </div>
+        
+        <div class="mask-list" id="maskList"></div>
+    `;
+
+    // Create individual mask items.
+    const maskList = document.getElementById('maskList');
+    maskData.individual_masks.forEach((mask, index) => {
+        const maskItem = document.createElement('div');
+        maskItem.className = 'mask-list-item';
+        maskItem.dataset.maskIndex = index;
+
+        maskItem.innerHTML = `
+            <div class="mask-item-left">
+                <label class="select-toggle">
+                    <input type="checkbox" class="mask-select-checkbox" data-npy-url="${mask.npyUrl}" data-filename="${mask.npyFilename}">
+                    <span class="toggle-slider"></span>
+                </label>
+                <div class="mask-item-info">
+                    <div class="mask-color-indicator" style="background-color: ${mask.color}"></div>
+                    <div class="mask-details">
+                        <span class="mask-name">Region ${index + 1}</span>
+                        <span class="mask-id">${mask.regionId}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="mask-download-buttons">
+                <button class="btn btn-sm btn-outline-primary download-btn" data-url="${mask.npyUrl}" data-filename="${mask.npyFilename}" data-type="npy">
+                    <i class="fa-solid fa-database"></i> NPY
+                </button>
+                <button class="btn btn-sm btn-outline-success download-btn" data-url="${mask.pngUrl}" data-filename="${mask.pngFilename}" data-type="png">
+                    <i class="fa-solid fa-image"></i> PNG
+                </button>
+            </div>
+        `;
+
+        maskList.appendChild(maskItem);
+    });
+
+    setupMaskSelectionEvents(maskPanel, maskData);
+
+    maskPanel.style.display = 'block';
+}
+
+// Function for handling selection events and bulk download (from paste.txt)
+function setupMaskSelectionEvents(maskPanel, maskData) {
+    const selectAllCheckbox = maskPanel.querySelector('#selectAllMasks');
+    const bulkDownloadBtn = maskPanel.querySelector('#bulkDownloadBtn');
+    const selectedCountSpan = maskPanel.querySelector('#selectedCount');
+    const maskCheckboxes = maskPanel.querySelectorAll('.mask-select-checkbox');
+
+    function updateSelectionState() {
+        const selectedMasks = maskPanel.querySelectorAll('.mask-select-checkbox:checked');
+        const selectedCount = selectedMasks.length;
+
+        selectedCountSpan.textContent = selectedCount;
+        bulkDownloadBtn.disabled = selectedCount === 0;
+
+        if (selectedCount === 0) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = false;
+        } else if (selectedCount === maskCheckboxes.length) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = true;
+        } else {
+            selectAllCheckbox.indeterminate = true;
+        }
+    }
+
+    selectAllCheckbox.addEventListener('change', () => {
+        const shouldSelect = selectAllCheckbox.checked;
+        maskCheckboxes.forEach(checkbox => {
+            checkbox.checked = shouldSelect;
+        });
+        updateSelectionState();
+    });
+
+    maskCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectionState);
+    });
+
+    bulkDownloadBtn.addEventListener('click', async () => {
+        const selectedCheckboxes = maskPanel.querySelectorAll('.mask-select-checkbox:checked');
+
+        if (selectedCheckboxes.length === 0) return;
+
+        const originalText = bulkDownloadBtn.innerHTML;
+        bulkDownloadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating Combined Mask...';
+        bulkDownloadBtn.disabled = true;
+
+        try {
+            const selectedMasks = [];
+            selectedCheckboxes.forEach((checkbox) => {
+                const maskIndex = parseInt(checkbox.closest('.mask-list-item').dataset.maskIndex);
+                const maskInfo = maskData.individual_masks[maskIndex];
+
+                const finalMaskData = window.lastSegmentationData?.final_mask?.find(m => m.regionId === maskInfo.regionId);
+
+                if (finalMaskData) {
+                    selectedMasks.push({
+                        regionId: maskInfo.regionId,
+                        pixels: finalMaskData.pixels,
+                        color: maskInfo.color
+                    });
+                }
+            });
+
+            const response = await fetch("/bulk-download-masks/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCSRFToken()
+                },
+                body: JSON.stringify({
+                    selected_masks: selectedMasks,
+                    image_name: state.imageName
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.download_url) {
+                // Download the combined file.
+                const link = document.createElement('a');
+                link.href = result.download_url;
+                link.download = result.filename;
+                link.click();
+            } else {
+                alert('Error creating combined mask: ' + (result.error || 'Unknown error'));
+            }
+
+        } catch (error) {
+            console.error('Bulk download error:', error);
+            alert('Error downloading masks. Please try again.');
         }
 
-        const existingStage = stageContainer.querySelector(".konvajs-content");
-        if (existingStage) existingStage.remove(); // clear existing Konva stage if any
+        setTimeout(() => {
+            bulkDownloadBtn.innerHTML = originalText;
+            updateSelectionState();
+        }, 1000);
+    });
 
-        const width = resultImage.naturalWidth || resultImage.clientWidth;
-        const height = resultImage.naturalHeight || resultImage.clientHeight;
+    maskPanel.addEventListener('click', (e) => {
+        if (e.target.closest('.download-btn')) {
+            const button = e.target.closest('.download-btn');
+            const url = button.dataset.url;
+            const filename = button.dataset.filename;
 
-        const stage = new Konva.Stage({
-            container: "segmentationStage",
-            width,
-            height
-        });
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            link.click();
 
-        const layer = new Konva.Layer();
-        stage.add(layer);
+            // Visual feedback
+            button.style.background = '#28a745';
+            button.style.color = 'white';
+            setTimeout(() => {
+                button.style.background = '';
+                button.style.color = '';
+            }, 1000);
+        }
+    });
 
-        finalMask.forEach(({regionId, pixels, color}) => {
-            const group = new Konva.Group({
-                id: regionId,
-                draggable: true
-            });
-
-            pixels.forEach(([y, x]) => {
-                const rect = new Konva.Rect({
-                    x,
-                    y,
-                    width: 1,
-                    height: 1,
-                    fill: color || "rgba(250, 37, 37, 0.98)"
-                });
-                group.add(rect);
-            });
-
-            group.on("click", () => {
-                console.log(`Clicked region: ${regionId}`);
-                // TODO: Add region deletion or modification functionality here
-            });
-
-            layer.add(group);
-        });
-
-        layer.draw();
-    };
+    updateSelectionState();
 }
 
 export function initializeUNetPredictions(imageName) {
