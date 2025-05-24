@@ -1,4 +1,3 @@
-// Updated box-tool.js for persistent box annotations
 
 import { state } from './state.js';
 import { redrawAnnotations } from './canvas-tools.js';

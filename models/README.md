@@ -8,8 +8,8 @@ Due to GitHub’s file size limit, the model weight file `medsam_vit_b.pth` (357
 
 ### How to Set It Up
 
-1. Download the MedSAM model weights manually from this link:  
-   [Download from Google Drive](https://drive.google.com/drive/folders/1mZpTaCjz7Vq77XAVeQzgISPXVfnLAOAK?usp=sharing)
+1. Download the MedSAM model (medsam_vit_b.pth) weights manually from this link:  
+   Download the [model checkpoint](https://drive.google.com/drive/folders/1ETWmi4AiniJeWOt6HAsYgTjYv_fkgzoN?usp=drive_link)
 
 2. Place the downloaded file in the following directory:
 

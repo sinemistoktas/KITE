@@ -90,7 +90,7 @@ STATICFILES_DIRS = [
 ]
 
 # MedSAM model path settings
-MEDSAM_MODEL_PATH = os.path.join(BASE_DIR, 'models', 'medsam_vit_b.pth')
+MEDSAM_MODEL_PATH = os.path.join(BASE_DIR.parent, 'models', 'medsam_vit_b.pth')
 
 STATIC_ROOT = BASE_DIR / "staticfiles" # for Render
 

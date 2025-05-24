@@ -38,9 +38,19 @@ def load_model():
             if not os.path.exists(model_path):
                 raise FileNotFoundError(f"MedSAM model not found at {model_path}")
             
-            _medsam_model = sam_model_registry["vit_b"](checkpoint=model_path).to(device)
+            # Load the checkpoint manually and map it to CPU
+            state_dict = torch.load(model_path, map_location='cpu')
+            
+            # Init model as empty
+            _medsam_model = sam_model_registry["vit_b"]()
+            
+            # Load state dict
+            _medsam_model.load_state_dict(state_dict)
+            
+            # Send to device
+            _medsam_model = _medsam_model.to(device)
             _medsam_model.eval()
-            logger.info("MedSAM model loaded successfully")
+            logger.info(f"MedSAM model loaded successfully on {device}")
         except Exception as e:
             logger.error(f"Error loading MedSAM model: {str(e)}")
             raise
