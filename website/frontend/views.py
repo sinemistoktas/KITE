@@ -441,7 +441,6 @@ def segment_image(request):
     if request.method == "POST":
         try:
             data = json.loads(request.body)
-
             use_unet = data.get("use_unet", False)
 
             filename = data.get("image_name")
