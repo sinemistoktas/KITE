@@ -1,4 +1,4 @@
-# website/backend/medsam/urls.py
+# website/backend/segmentation/medsam/urls.py
 """
 MedSAM URL Configuration
 Simplified URL patterns with batch support as default.

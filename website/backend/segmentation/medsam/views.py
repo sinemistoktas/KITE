@@ -1,4 +1,4 @@
-# website/backend/medsam/views.py
+# website/backend/segmentation/medsam/views.py
 """
 MedSAM API Views - Safe version with fallbacks
 Django views for handling MedSAM segmentation requests.
