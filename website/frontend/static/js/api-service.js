@@ -602,12 +602,12 @@ export function handlePreprocessedImg() {
         method: "POST",
         body: JSON.stringify({ image_name: state.imageName })
     })
-    .then(res => res.json())
-    .then(data => {
-        if (!data?.preprocessed_image) return alert("No preprocessed image returned.");
+        .then(res => res.json())
+        .then(data => {
+            if (!data?.preprocessed_image) return alert("No preprocessed image returned.");
 
-        const popup = document.createElement("div");
-        popup.style = `
+            const popup = document.createElement("div");
+            popup.style = `
             position: fixed; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             background-color: #fff; padding: 10px;
@@ -616,84 +616,17 @@ export function handlePreprocessedImg() {
             border-radius: 10px;
         `;
 
-        const img = document.createElement("img");
-        img.src = `data:image/png;base64,${data.preprocessed_image}`;
-        img.style.maxWidth = "100%";
-        img.style.maxHeight = "80vh";
+            const img = document.createElement("img");
+            img.src = `data:image/png;base64,${data.preprocessed_image}`;
+            img.style.maxWidth = "100%";
+            img.style.maxHeight = "80vh";
 
-        const close = document.createElement("button");
-        close.className = "btn btn-danger mt-3";
-        close.innerText = "Close";
-        close.onclick = () => popup.remove();
+            const close = document.createElement("button");
+            close.className = "btn btn-danger mt-3";
+            close.innerText = "Close";
+            close.onclick = () => popup.remove();
 
         popup.append(img, close);
         document.body.appendChild(popup);
-    })
-    .catch(error => {
-        console.error("Error fetching preprocessed image:", error);
-        alert("Error fetching preprocessed image. Please try again.");
     });
-}
-
-export function handleUNetFormSubmission(event, formData) {
-    const segmentationMethod = formData.get('segmentation_method');
-
-    if (segmentationMethod === 'unet') {
-        state.unetMode = true;
-        return false;
-    }
-
-    state.unetMode = false;
-    return false;
-}
-
-function createClassLegend(classInfo) {
-    const existingLegend = document.getElementById("classLegend");
-    if (existingLegend) {
-        existingLegend.remove();
-    }
-
-    const legend = document.createElement("div");
-    legend.id = "classLegend";
-    legend.style = `
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        background-color: rgba(255, 255, 255, 0.8);
-        padding: 10px;
-        border-radius: 5px;
-        border: 1px solid #ccc;
-        max-width: 200px;
-        z-index: 1000;
-    `;
-
-    const title = document.createElement("h4");
-    title.textContent = "Classes";
-    title.style = "margin-top: 0; margin-bottom: 8px;";
-    legend.appendChild(title);
-
-    classInfo.filter(c => c.id > 0).forEach(classItem => {
-        const item = document.createElement("div");
-        item.style = "display: flex; align-items: center; margin-bottom: 4px;";
-
-        const colorBox = document.createElement("div");
-        colorBox.style = `
-            width: 15px;
-            height: 15px;
-            background-color: rgb(${classItem.color[0]}, ${classItem.color[1]}, ${classItem.color[2]});
-            margin-right: 8px;
-        `;
-
-        const label = document.createElement("span");
-        label.textContent = classItem.name;
-
-        item.appendChild(colorBox);
-        item.appendChild(label);
-        legend.appendChild(item);
-    });
-
-    const resultContainer = document.getElementById("segmentationResult");
-    if (resultContainer) {
-        resultContainer.appendChild(legend);
-    }
 }

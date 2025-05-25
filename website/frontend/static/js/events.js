@@ -5,7 +5,6 @@ import { createLayer } from './layers.js';
 import { toggleFillTool, handleFillToolClick, resetFillTool, updateFillToolStatus } from './fill-tool.js';
 import { zoomToPoint, zoomOut, resetZoom } from './canvas-tools.js';
 import { handleBoxMouseDown, handleBoxMouseMove, handleBoxMouseUp, handleBoxMouseLeave } from './box-tool.js';
-import { processUNetPredictions, initializeAnnotationsFromPredictions } from './canvas-utils.js';
 import { initializeUNetPredictions } from './api-service.js';
 
 export function bindUIEvents() {
@@ -453,4 +452,88 @@ function updateButtonStyles() {
             btn.classList.toggle("btn-outline-primary", !isActive);
         }
     }
+}
+
+export function initializeAnnotationsFromPredictions(predictions) {
+    
+    if (!predictions || !predictions.length) return;
+
+    import('./layers.js').then(module => {
+        const { createLayer } = module;
+
+        const predictionsByClass = {};
+        
+        predictions.forEach(shape => {
+            if (shape.points && shape.points.length > 0) {
+                const classId = shape.class_id || 1;
+                if (!predictionsByClass[classId]) {
+                    predictionsByClass[classId] = [];
+                }
+                predictionsByClass[classId].push(shape);
+            }
+        });
+        
+        // Create a layer for each class
+        Object.entries(predictionsByClass).forEach(([classId, shapes]) => {
+            const layerName = `Layer ${classId}`;
+            const color = shapes[0].color ? 
+                `rgb(${shapes[0].color[0]}, ${shapes[0].color[1]}, ${shapes[0].color[2]})` : 
+                "#ff0000";
+                
+            const layerId = createLayer(layerName, color);
+            
+            shapes.forEach(shape => {
+                const points = shape.points.map(point => ({
+                    x: point[0],
+                    y: point[1]
+                }));
+                
+                state.scribbles.push({
+                    points: points,
+                    isPrediction: false, // Treat as a normal annotation that can be edited
+                    color: color,
+                    layerId: layerId,
+                    class_id: parseInt(classId)
+                });
+            });
+        });
+
+        import('./canvas-tools.js').then(module => {
+            const { redrawAnnotations } = module;
+            redrawAnnotations();
+        });
+    });
+}
+
+
+export function processUNetPredictions(predictedPoints) {
+    if (!predictedPoints || predictedPoints.length === 0) return [];
+
+    return predictedPoints.flatMap(shape => {
+        if (shape.shape_type === "polygon" && shape.points && shape.points.length > 0) {
+            // For polygon shapes with points array
+            return shape.points.map(point => ({
+                x: point[0],
+                y: point[1],
+                color: shape.color ? shape.color[0] : "#ff0000"
+            }));
+        } else if (Array.isArray(shape)) {
+            // For simple point arrays
+            if (Array.isArray(shape[0])) {
+                const [coords, color] = shape;
+                return {
+                    x: coords[0], 
+                    y: coords[1],
+                    color: color || "#ff0000"
+                };
+            } else {
+                return {
+                    x: shape[0],
+                    y: shape[1],
+                    color: "#ff0000"
+                };
+            }
+        }
+        return null;
+    }).filter(Boolean);
 }

@@ -368,7 +368,19 @@ class UnetPredictor:
         return points
 
 #initialize UNet
-unet_model_path = '/Users/durutandogan/KITE/unet/notebooks/unet_traced.pt'
+def get_unet_model_path():
+    """
+    Dynamically determine the UNet model path based on the current file location
+    """
+    # Get the current file's directory (views.py location)
+    current_file_dir = os.path.dirname(os.path.abspath(__file__))
+    # Navigate from website/frontend/ to the project root, then to unet/notebooks/
+    project_root = os.path.dirname(os.path.dirname(current_file_dir))
+    model_path = os.path.join(project_root, 'unet', 'notebooks', 'unet_traced.pt')
+    return model_path
+
+unet_model_path = get_unet_model_path()
+#unet_model_path = '/Users/durutandogan/KITE/unet/notebooks/unet_traced.pt'
 
 print("UNet model path:", unet_model_path)
 print("Exists:", os.path.exists(unet_model_path))
@@ -379,7 +391,8 @@ try:
         unet_predictor = UnetPredictor(unet_model_path)
         print("UNet model loaded successfully")
     else:
-        print("UNet model path not found ")
+        print("UNet model path not found. Expected location:", unet_model_path)
+        print("Please ensure the model file exists at the expected location.")
 except Exception as e:
     print(f"UNet model loading failed: {e}")
 

@@ -1,10 +1,9 @@
 // main.js
 import { state, initializeFromServer } from './state.js';
-import { bindUIEvents, updateMethodDescription } from './events.js';
+import { bindUIEvents, updateMethodDescription, initializeAnnotationsFromPredictions } from './events.js';
 import { redrawAnnotations } from './canvas-tools.js';
 import { initColorPicker } from './color-picker.js';
 import { handleAnnotations, handlePreprocessedImg } from './api-service.js';
-import { initializeAnnotationsFromPredictions } from './canvas-utils.js';
 import { initBoxTool } from './box-tool.js';
 
 document.addEventListener('DOMContentLoaded', () => {
