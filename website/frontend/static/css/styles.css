@@ -1743,7 +1743,7 @@ input[type="file"] {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 8px 24px rgba(0, 0, 0, 0.15) !important;
   padding: 20px 16px 20px 18px;
   margin-top: 8px;
-  
+  flex-shrink: 0;
 }
 
 .tool-sidebar label, .tool-sidebar p {
@@ -2016,4 +2016,31 @@ input[type="file"] {
 #tool-btn:focus {
   outline: none !important;
   box-shadow: none !important;
+}
+
+/* Segmentation Workspace Layout */
+.segmentation-workspace {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  width: 100%;
+}
+
+.image-content {
+  flex-grow: 1;
+  min-width: 530px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.layers-panel {
+  flex-shrink: 0;
+}
+
+#segmentationWorkspace {
+  overflow-x: auto;
+  min-width: 100%;
 }
