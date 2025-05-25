@@ -6,9 +6,15 @@ export const state = {
     showEraserCursor: false,
     isDrawing: false,
     isErasing: false,
+
+    // fill tool state variables
     isFillToolActive: false,
     isDrawingBoundary: false,
     boundaryComplete: false,
+
+    // box state variables
+    isBoxDrawing: false,
+    boxStartPoint: null,
 
     // Drawing and annotation
     currentStroke: [],
@@ -32,7 +38,30 @@ export const state = {
     annotationCanvas: null,
     annotationCtx: null,
     predictionCanvas: null,
-    predictionCtx: null
+    predictionCtx: null,
+
+    //UNet integration
+    unetMode: false,
+    imageName: null,
+    predictedPoints: [],
+    segmentationMethod: null,
 };
 
 export const ERASE_RADIUS = 10;
+
+export function isUNetMode() {
+    return state.unetMode;
+}
+
+export function initializeFromServer(serverData) {
+    if (serverData.imageName) {
+        state.imageName = serverData.imageName;
+    }
+    if (serverData.segmentationMethod) {
+        state.segmentationMethod = serverData.segmentationMethod;
+        state.unetMode = serverData.segmentationMethod === 'unet';
+    }
+    if (serverData.predictedPoints) {
+        state.predictedPoints = serverData.predictedPoints;
+    }
+}

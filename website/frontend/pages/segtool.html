@@ -5,11 +5,11 @@
   <meta charset="UTF-8">
   <title>KITE</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'styles.css' %}">
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="icon" type="image/x-icon" href="{% static 'img/favicon.ico' %}">
   <script type="module" src="{% static 'js/main.js' %}"></script>
-
+  <script src="https://unpkg.com/konva@9.2.0/konva.min.js"></script>
 </head>
 
 <body class="seg-tool-page p-5">
@@ -26,63 +26,130 @@
 
 <div class="seg-tool-container container">
   <h3 class="mb-6">KITE - Semi Automated Segmentation Tool</h3>
-  <h6 class="mb-4">Upload an Image</h6>
+  <h6 class="mb-4" style="letter-spacing: 0.5px">Upload an image</h6>
   <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
-    <label for="file-upload" class="custom-file-upload">
-      <i class="fa fa-cloud-upload"></i> Choose File
-    </label>
-    <input id="file-upload" type="file" name="image" class="form-control mb-3" required style="display:none;" accept="image/*">
-    <span id="fileNameDisplay" class="file-name-display"></span>
-    <button type="submit" class="custom-upload-btn">Upload</button>
+    <div class="d-flex align-items-center gap-5">
+      <div class="algorithm-selection">
+        <select name="algorithm" id="algorithm" class="form-select" style="height: 60px; border-radius: 30px; text-align: center; text-align-last: center; margin-top: -34px;">
+          <option value="" disabled selected>Choose Algorithm</option>
+          <option value="kite">KITE (Available)</option>
+          <option value="medsam">MedSAM (Available)</option>
+          <option value="unet">U-Net (Coming Soon)</option>
+        </select>
+      </div>
+
+      <div>
+        <input id="file-upload" type="file" name="image" class="form-control" required style="display:none;" accept="image/*">
+        <button type="button" class="custom-upload-btn" style="height: 60px; text-align: center; display: flex; align-items: center; justify-content: center;" onclick="document.getElementById('file-upload').click()">
+          <i class="fa fa-cloud-upload me-2"></i> Upload Image
+        </button>
+        <span id="fileNameDisplay" class="file-name-display"></span>
+      </div>
+    </div>
+
+    <!--Segmentation Method Selector for Traditional/UNet (Legacy support)-->
+    {% if segmentation_method %}
+    <div class="segmentation-method mt-3 mb-3">
+      <label class="me-3">Segmentation Method:</label>
+
+      <div class="form-check form-check-inline">
+        <input class="form-check-input" type="radio" name="segmentation_method" id="traditionalMethod" value="traditional"
+               {% if segmentation_method == "traditional" %}checked{% endif %}>
+        <label class="form-check-label" for="traditionalMethod">Traditional</label>
+      </div>
+      <div class="form-check form-check-inline">
+        <input class="form-check-input" type="radio" name="segmentation_method" id="unetMethod" value="unet"
+               {% if segmentation_method == "unet" %}checked{% endif %}>
+        <label class="form-check-label" for="unetMethod">UNet Assisted</label>
+      </div>
+
+    </div>
+
+    <div id="methodDescription" class="mt-2"></div>
+    {% endif %}
   </form>
 
   {% if image_url %}
   <div class="mt-2 mb-3">
-    <span class="uploaded-filename"><strong>Filename:</strong> {{ image_name }}</span>
+    {% if algorithm_name %}
+      <span class="uploaded-filename"><strong>Algorithm:</strong> {{ algorithm_name }}</span>
+      <span class="uploaded-filename ms-4"><strong>Filename:</strong> {{ image_name }}</span>
+    {% else %}
+      <span class="uploaded-filename"><strong>Filename:</strong> {{ image_name }}</span>
+    {% endif %}
   </div>
   {% endif %}
 
   {% if image_url %}
-  <div class="card p-3 mt-4 mb-4">
-
+  <div class="card p-3 mt-4 mb-4" id="segmentationWorkspace">
     <!-- Segmentation Workspace Main Container Box -->
-    <div class="d-flex flex-row align-items-start justify-content-between" style="gap: 20px;">
+    <div class="segmentation-workspace d-flex flex-row align-items-start justify-content-between" style="gap: 20px;">
       <!-- TOOLS BOX -->
       <div class="tool-sidebar d-flex flex-column align-items-center gap-3" style="min-width: 220px;">
         <h6 class="mb-2" style="width: 100%; text-align: center;">Tools</h6>
-        <div class="d-flex flex-column align-items-center" style="width: 100%;">
-          <label for="colorPicker" class="mb-2" style="width: 100%; text-align: center;">Annotation Color:</label>
-          <input type="color" id="colorPicker" value="#ff0000"
-                 style="width: 38px; height: 38px; border: none; border-radius: 8px; margin-bottom: 10px; display: block;">
+        
+        <!-- MedSAM specific instructions and controls -->
+        <div class="medsam-controls" style="display: none;">
+          <div class="medsam-info">
+            <p><i class="fa-solid fa-info-circle me-2" style="color: #3498db;"></i><strong style="color: #ecf0f1;">MedSAM Instructions:</strong></p>
+            <p class="mb-2" style="color: #ecf0f1;">Draw bounding boxes around areas you want to segment. Each box will be processed automatically.</p>
+            <small style="color: #bdc3c7;">• Draw multiple boxes for different structures<br>• Each area gets segmented instantly<br>• Use undo to remove last box</small>
+          </div>
+          
+          <button type="button" class="btn btn-outline-primary rounded-pill px-3 w-100 mb-2" id="undoMedsamBtn" disabled>
+            <i class="fa-solid fa-undo"></i> Undo Last Box
+          </button>
+          <button type="button" class="btn btn-outline-danger rounded-pill px-3 w-100 mb-2" id="resetMedsamBtn" disabled>
+            <i class="fa-solid fa-trash"></i> Reset All Boxes
+          </button>
+          
+          <div class="medsam-stats" id="medsamStats" style="display: none;">
+            <strong>Current Session:</strong><br>
+            <span id="boxCount">0 boxes drawn</span><br>
+            <span id="segmentedAreas">0 areas segmented</span>
+          </div>
         </div>
+        
+        <!-- Standard KITE tool controls -->
+        <div class="kite-controls">
+          <div class="d-flex flex-column align-items-center" style="width: 100%;">
+            <label for="colorPicker" class="mb-2" style="width: 100%; text-align: center;">Annotation Color:</label>
+            <input type="color" id="colorPicker" value="#ff0000"
+                   style="width: 38px; height: 38px; border: none; border-radius: 8px; margin-bottom: 10px; display: block;">
+          </div>
 
-        <!-- Annotation Buttons -->
-        <div class="d-flex flex-column align-items-center gap-2" style="width: 100%;">
-          <button type="button" class="btn btn-outline-danger rounded-pill px-3"  id="scribbleMode">
-            <i class="fa-solid fa-minus"></i> Line
-          </button>
-          <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="dotMode">
-            <i class="fa-solid fa-pencil"></i> Dot
-          </button>
-          <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="eraserMode">
-            <i class="fa-solid fa-eraser"></i> Eraser
-          </button>
-          <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="eraseAllMode">
-            <i class="fa-solid fa-xmark"></i> Erase All
-          </button>
-          <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="fillToolBtn">
-            <i class="fa-solid fa-fill-drip"></i> Fill Tool
-          </button>
+          <!-- KITE Annotation Buttons -->
+          <div class="d-flex flex-column align-items-center gap-2" style="width: 100%;">
+            <button type="button" class="btn btn-outline-danger rounded-pill px-3"  id="scribbleMode">
+              <i class="fa-solid fa-minus"></i> Line
+            </button>
+            <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="dotMode">
+              ● Dot
+            </button>
+            <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="boxMode">
+              <i class="fa-sharp fa-regular fa-square"></i> Box
+            </button>
+            <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="eraserMode">
+              <i class="fa-solid fa-eraser"></i> Eraser
+            </button>
+            <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="eraseAllMode">
+              <i class="fa-solid fa-xmark"></i> Erase All
+            </button>
+            <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="fillToolBtn">
+              <i class="fa-solid fa-fill-drip"></i> Fill Tool
+            </button>
+          </div>
         </div>
       </div>
 
       <!-- IMAGE CONTENT -->
-      <div class="flex-grow-1 d-flex flex-column align-items-center" style="min-width: 750px; max-width: 100%;">
+      <div class="image-content d-flex flex-column align-items-center" style="flex-grow: 1; min-width: 530px;">
         <div id="zoomContainer" style="display: inline-block; position: relative;">
           <img id="uploadedImage" src="{{ image_url }}" class="img-oct" style="max-width: 530px; width: 100%;"/>
           <canvas id="predictionCanvas"></canvas>
           <canvas id="annotationCanvas"></canvas>
+          <canvas id="medsamCanvas"></canvas>
           <div class="zoom-info" id="zoomInfo">Zoom: 100%</div>
         </div>
 
@@ -98,13 +165,15 @@
             <i class="fa-solid fa-arrows-to-circle"></i> Reset Zoom
           </button>
         </div>
+        
+        <!-- Segment button for all modes -->
         <button class="ready-segment-btn px-4 py-2 rounded-pill shadow-sm mt-3" onclick="handleAnnotations()">
           <i class="fa-solid fa-hurricane me-2"></i> Ready to Segment!
         </button>
       </div>
 
       <!-- LAYERS PANEL -->
-      <div class="tool-sidebar d-flex flex-column align-items-center gap-3" style="min-width: 250px;">
+      <div class="layers-panel tool-sidebar d-flex flex-column align-items-center gap-3" style="min-width: 250px;">
         <h6 class="mb-2" style="width: 100%; text-align: center;">Layers</h6>
         <div id="layersContainer" class="d-flex flex-column align-items-center gap-2" style="width: 100%;">
           <!-- Layers will be dynamically added here -->
@@ -113,47 +182,153 @@
     </div>
   </div>
 
-{% endif %}
+  {% endif %}
   <div id="segmentationResult" class="text-center mt-4" style="display: none;">
-    <div class="text-white p-2 mb-2 rounded bg-primary">
-      <strong>Segmented Result</strong>
-    </div>
-    <div style="margin: 0; padding: 0; text-align: center;">
-      <img id="segmentedResultImage"
-           class="img-fluid mx-auto d-block"
-           style="max-width: 100%; display: block; margin: 0 auto; box-shadow: none; border: none;"
-           alt="Segmented Output" />
-    
-      <div class="d-flex justify-content-center gap-3 mt-4">
-        <button class="show-pre-btn" onclick="handlePreprocessedImg()">
-          <i class="fa-solid fa-eye"></i> Show Preprocessed Image
-        </button>
+    <div class="d-flex flex-row align-items-start justify-content-center gap-4 flex-wrap">
+      <div class="segmentation-main">
+        <div class="text-white p-2 mb-2 rounded bg-primary">
+          <strong>Segmented Result</strong>
+        </div>
+        <div style="margin: 0; padding: 0; text-align: center;">
+          <div id="segmentationStageContainer" style="position: relative;">
+            <img id="segmentedResultImage"
+                 class="img-fluid mx-auto d-block"
+                 style="max-width: 512px; display: block;"
+                 alt="Segmented Output" />
+            <div id="segmentationStage"
+                 style="position: absolute; top: 0; left: 0;"></div>
+          </div>
 
+          <div class="d-flex justify-content-center gap-3 mt-4">
+            <button class="show-pre-btn" onclick="handlePreprocessedImg()">
+              <i class="fa-solid fa-eye"></i> Show Preprocessed Image
+            </button>
+            
+            <button id="showSegMapBtn" class="show-pre-btn" onclick="handleSegmentationMap()" style="display: none;">
+              <i class="fa-solid fa-map"></i> Show Segmentation Map
+            </button>
 
-        <a id="downloadSegmentedImage"
-           class="btn btn-outline-success px-4 py-2 rounded-pill shadow-sm"
-           style="display: none;">
-          <i class="fa-solid fa-download"></i> Download Segmented Image
-        </a>
+            <a id="downloadSegmentedImage"
+               class="btn btn-outline-success px-4 py-2 rounded-pill shadow-sm"
+               style="display: none;">
+              <i class="fa-solid fa-download"></i> Download Segmented Image
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </div>
+
 <script>
+  // Global variables for both systems
   window.imageName = "{{ image_name }}";
+  window.algorithm = "{{ algorithm_name }}";
+  window.segmentationMethod = "{{ segmentation_method|default:'traditional' }}";
+  window.csrfToken = "{{ csrf_token }}";
 </script>
+
 <script>
   document.addEventListener('DOMContentLoaded', function () {
+    // Log available data
+    console.log('CSRF Token available:', !!window.csrfToken);
+    console.log('Algorithm:', window.algorithm);
+    console.log('Segmentation Method:', window.segmentationMethod);
+
     const fileInput = document.getElementById('file-upload');
     const fileNameDisplay = document.getElementById('fileNameDisplay');
+    const algorithmSelect = document.getElementById('algorithm');
+    const workspace = document.getElementById('segmentationWorkspace');
+    const medsamControls = document.querySelector('.medsam-controls');
+    const kiteControls = document.querySelector('.kite-controls');
 
+    // Initialize interface based on current algorithm/method
+    if (workspace) {
+      // Clear all classes first
+      workspace.classList.remove('medsam-active', 'kite-active');
+
+      // Check if we're in MedSAM mode
+      if (window.algorithm === 'MedSAM') {
+        workspace.classList.add('medsam-active');
+        if (medsamControls) medsamControls.style.display = 'block';
+        if (kiteControls) kiteControls.style.display = 'none';
+        
+        // Load MedSAM JavaScript module
+        const script = document.createElement('script');
+        script.src = "{% static 'js/medsam-tool.js' %}";
+        script.onload = function() {
+          console.log('MedSAM tool script loaded');
+          if (typeof initMedSAM === 'function') {
+            initMedSAM();
+          }
+        };
+        document.head.appendChild(script);
+      
+      } else if (window.algorithm === 'KITE' || window.segmentationMethod) {
+        // KITE mode or legacy segmentation method mode
+        workspace.classList.add('kite-active');
+        if (medsamControls) medsamControls.style.display = 'none';
+        if (kiteControls) kiteControls.style.display = 'block';
+      }
+    }
+
+    // File upload handler
     if (fileInput && fileNameDisplay) {
       fileInput.addEventListener('change', function () {
         if (fileInput.files && fileInput.files.length > 0) {
           fileNameDisplay.textContent = fileInput.files[0].name;
+          
+          // Check if algorithm is selected (for new system)
+          if (algorithmSelect && !algorithmSelect.value) {
+            alert('Please select an algorithm first');
+            fileNameDisplay.textContent = '';
+            fileInput.value = '';
+            return;
+          }
+          
+          // Handle algorithm selection and mapping
+          if (algorithmSelect && algorithmSelect.value) {
+            const selectedAlgorithmValue = algorithmSelect.value;
+            let selectedAlgorithmDisplayName;
+            switch (selectedAlgorithmValue) {
+              case 'kite':
+                selectedAlgorithmDisplayName = 'KITE';
+                break;
+              case 'medsam':
+                selectedAlgorithmDisplayName = 'MedSAM';
+                break;
+              case 'unet':
+                selectedAlgorithmDisplayName = 'U-Net';
+                break;
+              default:
+                selectedAlgorithmDisplayName = selectedAlgorithmValue;
+            }
+            
+            // Create hidden input for algorithm name
+            let algorithmNameInput = document.createElement('input');
+            algorithmNameInput.type = 'hidden';
+            algorithmNameInput.name = 'algorithm_name';
+            algorithmNameInput.value = selectedAlgorithmDisplayName;
+            fileInput.form.appendChild(algorithmNameInput);
+          }
+          
+          // Automatically submit the form
+          fileInput.form.submit();
         } else {
           fileNameDisplay.textContent = '';
         }
+      });
+    }
+
+    // Algorithm selection change handler
+    if (algorithmSelect) {
+      algorithmSelect.addEventListener('change', function() {
+        // Update interface preview based on selection
+        const selectedValue = this.value;
+        console.log('Algorithm selected:', selectedValue);
+        
+        // You can add preview logic here if needed
+        // For example, show/hide different UI elements based on selection
       });
     }
   });

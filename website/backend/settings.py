@@ -1,3 +1,5 @@
+# website/backend/settings.py
+
 from pathlib import Path
 import os
 
@@ -84,13 +86,16 @@ USE_TZ = True
 # Static & Media
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [
-    BASE_DIR / "css",
     BASE_DIR / "frontend/static"
 ]
+
+# MedSAM model path settings
+MEDSAM_MODEL_PATH = os.path.join(BASE_DIR.parent, 'models', 'medsam_vit_b.pth')
 
 STATIC_ROOT = BASE_DIR / "staticfiles" # for Render
 
 MEDIA_URL = 'backend/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'backend/media')
+os.makedirs(os.path.join(MEDIA_ROOT, 'medsam_results'), exist_ok=True)
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

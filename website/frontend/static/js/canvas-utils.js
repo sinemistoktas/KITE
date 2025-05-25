@@ -1,5 +1,13 @@
 import { state, ERASE_RADIUS } from './state.js';
 
+let createLayer;
+let redrawAnnotations;
+
+export function setDependencies(deps) {
+    if (deps.createLayer) createLayer = deps.createLayer;
+    if (deps.redrawAnnotations) redrawAnnotations = deps.redrawAnnotations;
+}
+
 export function distance(p, x, y) {
     const dx = p.x - x;
     const dy = p.y - y;
@@ -22,3 +30,6 @@ export function screenToImageCoords(screenX, screenY) {
         y: Math.max(0, Math.min(state.originalImageDimensions.height, imageY))
     };
 }
+
+
+

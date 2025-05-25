@@ -1,5 +1,6 @@
 import { state } from './state.js';
 import { distance } from './canvas-utils.js';
+import { drawBoxPreview } from './box-tool.js';
 
 export function redrawAnnotations() {
     const aCtx = state.annotationCtx;
@@ -23,11 +24,29 @@ export function redrawAnnotations() {
         .filter(s => !s.isPrediction && (!s.layerId || state.visibleLayerIds.includes(s.layerId)))
         .forEach(stroke => {
             adjustForZoom(aCtx);
-            if (stroke.points.length === 1) {
+
+            // Special handling for box annotations
+            if (stroke.isBox) {
+                aCtx.strokeStyle = stroke.color || "red";
+                aCtx.lineWidth = 2 / state.zoomLevel;
+                aCtx.beginPath();
+                aCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+                for (let i = 1; i < stroke.points.length; i++) {
+                    aCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+                }
+                aCtx.stroke();
+                
+                // Log that we've drawn a box
+                console.log('Redraw: Drawing box annotation');
+
+            // dot
+            } else if (stroke.points.length === 1) {
                 aCtx.fillStyle = stroke.color || "red";
                 aCtx.beginPath();
                 aCtx.arc(stroke.points[0].x, stroke.points[0].y, 2, 0, 2 * Math.PI);
                 aCtx.fill();
+            
+            // line
             } else {
                 aCtx.strokeStyle = stroke.color || "red";
                 aCtx.lineWidth = 2 / state.zoomLevel;
@@ -74,6 +93,9 @@ export function redrawAnnotations() {
         aCtx.stroke();
         restoreZoom(aCtx);
     }
+
+    // Draw box preview
+    drawBoxPreview(aCtx, adjustForZoom, restoreZoom);
 
     // Draw eraser cursor
     if (state.showEraserCursor && state.mode === "eraser") {

@@ -1,9 +1,10 @@
 // main.js
-import { state } from './state.js';
-import { bindUIEvents } from './events.js';
+import { state, initializeFromServer } from './state.js';
+import { bindUIEvents, updateMethodDescription, initializeAnnotationsFromPredictions } from './events.js';
 import { redrawAnnotations } from './canvas-tools.js';
 import { initColorPicker } from './color-picker.js';
 import { handleAnnotations, handlePreprocessedImg } from './api-service.js';
+import { initBoxTool } from './box-tool.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const annotationCanvas = document.getElementById("annotationCanvas");
@@ -15,6 +16,39 @@ document.addEventListener('DOMContentLoaded', () => {
     state.annotationCtx = annotationCanvas.getContext("2d");
     state.predictionCtx = predictionCanvas.getContext("2d");
     state.imageName = window.imageName;
+
+    // Handle both new algorithm system and legacy segmentation method system
+    if (window.algorithm) {
+        state.algorithm = window.algorithm;
+        state.unetMode = window.algorithm === 'U-Net';
+        state.medsamMode = window.algorithm === 'MedSAM';
+        state.kiteMode = window.algorithm === 'KITE';
+    }
+
+    if (window.segmentationMethod) {
+        state.segmentationMethod = window.segmentationMethod;
+        state.unetMode = window.segmentationMethod === 'unet';
+    }
+
+    // Initialize from server data if available
+    if (typeof initializeFromServer === 'function') {
+        initializeFromServer({
+            imageName: window.imageName,
+            algorithm: window.algorithm,
+            segmentationMethod: window.segmentationMethod,
+            predictedPoints: window.predictedPoints
+        });
+    }
+
+    // Handle predicted points for UNet auto-processing
+    if (window.predictedPoints && window.predictedPoints.length > 0) {
+        try {
+            const predictions = [{ points: window.predictedPoints }];
+            initializeAnnotationsFromPredictions(predictions);
+        } catch (error) {
+            console.error('Error initializing UNet predictions:', error);
+        }
+    }
 
     const resizeCanvasToImage = () => {
         const rect = img.getBoundingClientRect();
@@ -57,4 +91,39 @@ document.addEventListener('DOMContentLoaded', () => {
     // Hook up all button + canvas events
     bindUIEvents();
     initColorPicker();
+    initBoxTool();
+
+    // Update method description (for legacy radio button system)
+    if (typeof updateMethodDescription === 'function') {
+        updateMethodDescription();
+    }
+
+    // Update UI based on selected algorithm/method
+    if (state.unetMode) {
+        const segmentBtn = document.querySelector('.ready-segment-btn');
+        if (segmentBtn) {
+            segmentBtn.innerHTML = '<i class="fa-solid fa-hurricane me-2"></i> Ready to Segment with UNet!';
+        }
+    }
+
+    // Handle algorithm-specific UI updates
+    if (state.medsamMode) {
+        const segmentBtn = document.querySelector('.ready-segment-btn');
+        if (segmentBtn) {
+            segmentBtn.innerHTML = '<i class="fa-solid fa-hurricane me-2"></i> Ready to Segment with MedSAM!';
+        }
+    }
+
+    if (state.kiteMode || (!state.algorithm && !state.segmentationMethod)) {
+        // Default KITE mode or no specific algorithm selected
+        const segmentBtn = document.querySelector('.ready-segment-btn');
+        if (segmentBtn) {
+            segmentBtn.innerHTML = '<i class="fa-solid fa-hurricane me-2"></i> Ready to Segment!';
+        }
+    }
 });
+
+// Debug function
+window.testFunction = function() {
+    alert('JavaScript is working!');
+};

@@ -1,5 +1,14 @@
+# ignore media files (images uploaded to the website)
+website/backend/media/
+
 # macOS files
-.DS_Store
+*.DS_Store
+
+# Ignore large model weights (need to be downloaded from Google Drive, it was too large for Git)
+models/medsam_vit_b.pth
+
+# Ignore IDE files
+.idea/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
