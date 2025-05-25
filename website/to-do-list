@@ -13,3 +13,10 @@
     Browser DevTools: Chrome DevTools has a "Coverage" tab (in the Sources panel) that shows which CSS rules are unused on a given page.
 - make changes in visibility toggle reflect to segmentation
 - dynamic layer numbering
+
+
+
+- unet freeze tools
+- traditional -> unet geçince 
+    - aynı annotation için yeniden layer ekliyor
+    - ilk geçişte unet annotation silinebilir oluyor 
