@@ -2,7 +2,7 @@ import { state } from './state.js';
 import { redrawAnnotations, resetZoom } from './canvas-tools.js';
 
 export function getCSRFToken(name = "csrftoken") {
-    // First try to get token from window object
+    // First try to get token from window object (improved from dev branch)
     if (window.csrfToken) {
         console.log('Using CSRF token from window object');
         return window.csrfToken;
@@ -16,7 +16,7 @@ export function getCSRFToken(name = "csrftoken") {
         console.log('Using CSRF token from cookie');
         return token;
     }
-    // else, no CSRF token found
+    
     console.warn('No CSRF token found in window object or cookies');
     return '';
 }
@@ -33,16 +33,40 @@ function fetchWithCSRF(url, options = {}) {
             'Content-Type': 'application/json',
             'X-CSRFToken': csrfToken
         },
-        credentials: 'same-origin'  // Added this to ensure cookies are sent
+        credentials: 'same-origin'
     };
 
     return fetch(url, { ...defaultOptions, ...options });
 }
 
+export function processWithUNet(imageName) {
+    return fetchWithCSRF("/process-with-unet/", {
+        method: "POST",
+        body: JSON.stringify({ image_name: imageName })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error("Failed to process with UNet. Status: " + response.status);
+        }
+        return response.json();
+    });
+}
+
+let segmentationMapData = null;
+
 export function handleAnnotations() {
-    // Get the selected algorithm or default to 'kite'
-    const algorithm = document.getElementById('algorithm')?.value || 'kite'; // might need to change this later
+    // Remove existing mask preview panel
+    const existingPanel = document.getElementById('maskPreviewPanel');
+    if (existingPanel) {
+        existingPanel.remove();
+    }
+
+    // Get the selected algorithm or method
+    const algorithm = document.getElementById('algorithm')?.value || window.algorithm || 'kite';
+    const segmentationMethod = state.segmentationMethod || 'traditional';
+    
     console.log('Using algorithm:', algorithm);
+    console.log('Using segmentation method:', segmentationMethod);
 
     state.scribbles = state.scribbles.filter(s => !s.isPrediction);
     redrawAnnotations();
@@ -51,17 +75,21 @@ export function handleAnnotations() {
         s.points.map(p => ({
             x: p.x,
             y: p.y,
-            color: s.color
+            color: s.color,
+            layerId: s.layerId  // Include layer ID
         }))
     );
 
     const payload = {
         image_name: state.imageName,
         algorithm: algorithm, // Add the selected algorithm
+        segmentation_method: segmentationMethod, // Add segmentation method for legacy support
+        use_unet: state.unetMode || false, // Include UNet mode
         shapes: [{
             label: "anomaly",
             points: allPoints.map(p => [p.x, p.y]),
-            color: allPoints.map(p => p.color)
+            color: allPoints.map(p => p.color),
+            layerId: allPoints.map(p => p.layerId)  // Send layer IDs
         }]
     };
 
@@ -79,41 +107,494 @@ export function handleAnnotations() {
         return res.json();
     })
     .then(data => {
-        console.log('Received data:', data);
+        console.log("Segmentation response:", data);
+
         resetZoom();
 
-        const resultImage = document.getElementById("segmentedResultImage");
-        resultImage.src = `data:image/png;base64,${data.segmented_image}`;
+        // Store segmentation data globally for bulk download
+        window.lastSegmentationData = data;
 
+        console.log(data.segmentation_mask_npy);
+        console.log("Segment response:", data);
+
+        const resultImage = document.getElementById("segmentedResultImage");
+        console.log("resultImage element:", resultImage);
+
+        if (!data.segmented_image) {
+            console.error("No segmented_image returned!");
+            return;
+        }
+
+        resultImage.src = `data:image/png;base64,${data.segmented_image}`;
         document.getElementById("segmentationResult").style.display = "block";
+
         const downloadBtn = document.getElementById("downloadSegmentedImage");
         downloadBtn.href = resultImage.src;
         downloadBtn.download = "segmented_result.png";
         downloadBtn.style.display = "inline-block";
 
-        const predictedPoints = data.predicted_annotations || [];
-        const strokes = predictedPoints.map(p => {
-            if (Array.isArray(p[0])) {
-                const [[x, y], color] = p;
-                return { x, y, color };
-            } else {
-                const [x, y] = p;
-                return { x, y, color: "blue" };
+        // Handle segmentation map display (for UNet)
+        if (data.segmentation_map) {
+            segmentationMapData = data.segmentation_map;
+            const showSegMapBtn = document.getElementById("showSegMapBtn");
+            if (showSegMapBtn) {
+                showSegMapBtn.style.display = "inline-block";
             }
-        });
+        } else {
+            // Hide button if no segmentation map available
+            const showSegMapBtn = document.getElementById("showSegMapBtn");
+            if (showSegMapBtn) {
+                showSegMapBtn.style.display = "none";
+            }
+        }
 
-        state.scribbles.push({
-            points: strokes,
-            isPrediction: true,
-            color: "blue"
-        });
+        // Setup stage container
+        const stageContainer = document.getElementById("segmentationStage");
+        if (stageContainer) {
+            stageContainer.innerHTML = ""; // Clear previous content
 
-        redrawAnnotations();
+            const width = resultImage.naturalWidth || resultImage.clientWidth;
+            const height = resultImage.naturalHeight || resultImage.clientHeight;
+            stageContainer.style.width = width + "px";
+            stageContainer.style.height = height + "px";
+        }
+
+        // Create mask preview panel if individual masks are available
+        if (data.segmentation_masks && data.segmentation_masks.individual_masks && data.segmentation_masks.individual_masks.length > 0) {
+            createMaskPreviewPanel(data.segmentation_masks);
+        }
+
+        // Handle Konva stage rendering for interactive regions
+        if (data.final_mask && data.final_mask.length > 0 && stageContainer) {
+            renderInteractiveRegions(resultImage, data.final_mask, 
+                resultImage.naturalWidth || resultImage.clientWidth,
+                resultImage.naturalHeight || resultImage.clientHeight, 
+                stageContainer);
+        }
+
+        // Handle predicted annotations (enhanced from both versions)
+        console.log("Predicted annotations full data:", JSON.stringify(data.predicted_annotations));
+
+        if (!data.predicted_annotations || data.predicted_annotations.length === 0) {
+            console.log("No predicted annotations found");
+            return;
+        }
+
+        try {
+            // Clear previous predictions
+            state.scribbles = state.scribbles.filter(s => !s.isPrediction);
+
+            const predictedAnnotations = data.predicted_annotations;
+
+            if (Array.isArray(predictedAnnotations)) {
+                console.log("Annotation is an array with length:", predictedAnnotations.length);
+
+                // Handle different annotation formats
+                const processedPoints = [];
+
+                predictedAnnotations.forEach((annotation, index) => {
+                    console.log(`Annotation ${index} type:`, typeof annotation);
+                    console.log(`Annotation ${index} value:`, annotation);
+
+                    // Handle polygon annotations (from UNet/advanced algorithms)
+                    if (annotation && annotation.shape_type === "polygon" && Array.isArray(annotation.points)) {
+                        const points = annotation.points.map(point => ({
+                            x: point[0],
+                            y: point[1],
+                            color: annotation.color ? `rgb(${annotation.color[0]}, ${annotation.color[1]}, ${annotation.color[2]})` : "cyan"
+                        }));
+
+                        state.scribbles.push({
+                            points: points,
+                            isPrediction: true,
+                            color: annotation.color ? `rgb(${annotation.color[0]}, ${annotation.color[1]}, ${annotation.color[2]})` : "cyan",
+                            class_id: annotation.class_id || "fluid"
+                        });
+
+                        console.log("Added fluid polygon with", points.length, "points");
+                    }
+                    // Handle point annotations (from KITE/traditional algorithms)
+                    else if (Array.isArray(annotation)) {
+                        if (Array.isArray(annotation[0])) {
+                            // Format: [[x, y], color]
+                            const [[x, y], color] = annotation;
+                            processedPoints.push({ x, y, color: color || "blue" });
+                        } else {
+                            // Format: [x, y]
+                            const [x, y] = annotation;
+                            processedPoints.push({ x, y, color: "blue" });
+                        }
+                    }
+                });
+
+                // Add processed points as a single scribble if any exist
+                if (processedPoints.length > 0) {
+                    state.scribbles.push({
+                        points: processedPoints,
+                        isPrediction: true,
+                        color: "blue"
+                    });
+                }
+
+                // Create class legend if available
+                if (data.class_info) {
+                    createClassLegend(data.class_info);
+                }
+            }
+
+            redrawAnnotations();
+        } catch (err) {
+            console.error("Error processing annotations:", err);
+        }
     })
     .catch(error => {
-        console.error('Error:', error);
+        console.error("Error in handleAnnotations:", error);
         alert('Error processing segmentation: ' + error.message);
     });
+}
+
+function renderInteractiveRegions(resultImage, finalMask, width, height, stageContainer) {
+    // Enhanced version combining both approaches
+    resultImage.onload = () => {
+        if (!stageContainer) {
+            console.warn("segmentationStage container not found");
+            return;
+        }
+
+        const existingStage = stageContainer.querySelector(".konvajs-content");
+        if (existingStage) existingStage.remove(); // clear existing Konva stage if any
+
+        const stage = new Konva.Stage({
+            container: "segmentationStage",
+            width: width,
+            height: height
+        });
+
+        const layer = new Konva.Layer();
+        stage.add(layer);
+
+        // Current problems noted:
+        // 1. the deleted regions are not removed from the canvas since it takes from the backend, it needs to be refreshed every time
+        // 2. it works a bit slow when there are too many regions on the image, try other alternatives rather than grouping them all
+        // 3. canvas tools and events should be updated accordingly to support this function
+        finalMask.forEach(({regionId, pixels, color}) => {
+            const group = new Konva.Group({
+                id: regionId,
+                draggable: true
+            });
+
+            pixels.forEach(([y, x]) => {
+                const rect = new Konva.Rect({
+                    x: x,
+                    y: y,
+                    width: 1,
+                    height: 1,
+                    fill: color || "rgba(233, 37, 37, 0.98)"
+                });
+                group.add(rect);
+            });
+
+            group.on("click", () => {
+                console.log(`Clicked region: ${regionId}`);
+                // TODO: Add region deletion or modification functionality here
+            });
+
+            layer.add(group);
+        });
+
+        layer.draw();
+    };
+}
+
+export function handleSegmentationMap() {
+    if (!segmentationMapData) {
+        alert("No segmentation map data available.");
+        return;
+    }
+
+    const popup = document.createElement("div");
+    popup.style = `
+        position: fixed; top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: #fff; padding: 20px;
+        border: 2px solid #444; z-index: 9999;
+        box-shadow: 0 0 20px rgba(0,0,0,0.7);
+        border-radius: 10px;
+        max-width: 90vw;
+        max-height: 90vh;
+        overflow: auto;
+    `;
+
+    const title = document.createElement("h4");
+    title.textContent = "Raw Segmentation Map";
+    title.style = "margin-top: 0; margin-bottom: 15px; text-align: center;";
+
+    const description = document.createElement("p");
+    description.textContent = "This shows the raw pixel-level class predictions from the UNet model:";
+    description.style = "margin-bottom: 15px; color: #666; text-align: center;";
+
+    const legend = document.createElement("div");
+    legend.style = "margin-bottom: 15px; font-size: 12px;";
+    legend.innerHTML = `
+        <strong>Color Legend:</strong><br>
+        <span style="color: #000;">■ Black: Background</span><br>
+        <span style="color: #ff0000;">■ Red: Class 1</span><br>
+        <span style="color: #00ff00;">■ Green: Class 2</span><br>
+        <span style="color: #0000ff;">■ Blue: Class 3</span><br>
+        <span style="color: #ffff00;">■ Yellow: Class 4</span><br>
+        <span style="color: #ff00ff;">■ Magenta: Class 5</span><br>
+        <span style="color: #00ffff;">■ Cyan: Class 6</span><br>
+        <span style="color: #800000;">■ Maroon: Class 7</span><br>
+        <span style="color: #008000;">■ Dark Green: Class 8</span><br>
+        <span style="color: #000080;">■ Navy: Class 9</span>
+    `;
+
+    const img = document.createElement("img");
+    img.src = `data:image/png;base64,${segmentationMapData}`;
+    img.style = "max-width: 100%; max-height: 70vh; display: block; margin: 0 auto;";
+
+    const buttonContainer = document.createElement("div");
+    buttonContainer.style = "text-align: center; margin-top: 15px;";
+
+    const downloadBtn = document.createElement("a");
+    downloadBtn.href = img.src;
+    downloadBtn.download = "segmentation_map.png";
+    downloadBtn.className = "btn btn-outline-primary me-2";
+    downloadBtn.innerHTML = '<i class="fa-solid fa-download"></i> Download';
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "btn btn-danger";
+    closeBtn.innerHTML = '<i class="fa-solid fa-times"></i> Close';
+    closeBtn.onclick = () => popup.remove();
+
+    buttonContainer.append(downloadBtn, closeBtn);
+    popup.append(title, description, legend, img, buttonContainer);
+    document.body.appendChild(popup);
+}
+window.handleSegmentationMap = handleSegmentationMap;
+
+// Function to create the "segmentation masks" preview panel
+function createMaskPreviewPanel(maskData) {
+    const existingPanel = document.getElementById('maskPreviewPanel');
+    if (existingPanel) existingPanel.remove();
+
+    if (!maskData.individual_masks || maskData.individual_masks.length === 0) {
+        return;
+    }
+    
+    const maskPanel = document.createElement('div');
+    maskPanel.id = 'maskPreviewPanel';
+    maskPanel.className = 'mask-preview-panel';
+
+    // Insert next to segmentation result.
+    const flexContainer = document.querySelector('#segmentationResult .d-flex.flex-row');
+    if (flexContainer) {
+        flexContainer.appendChild(maskPanel);
+    }
+
+    maskPanel.innerHTML = `
+        <div class="mask-panel-header">
+            <h5 class="mask-panel-title">
+                <i class="fa-solid fa-layer-group me-2"></i>
+                Segmentation Masks
+            </h5>
+            <span class="mask-count">${maskData.individual_masks.length} masks detected</span>
+        </div>
+        
+        <div class="combined-mask-preview">
+            <div class="combined-mask-container">
+                <img src="${maskData.combined_mask_url}" alt="Combined Masks" class="combined-mask-image" id="combinedMaskImage">
+                <div class="mask-selection-overlay" id="maskSelectionOverlay"></div>
+            </div>
+            <p class="mask-instruction">Select multiple masks for bulk download</p>
+        </div>
+        
+        <!-- Selection Controls -->
+        <div class="selection-controls">
+            <div class="select-all-container">
+                <label class="select-toggle">
+                    <input type="checkbox" id="selectAllMasks">
+                    <span class="toggle-slider"></span>
+                    <span class="toggle-label">Select All</span>
+                </label>
+            </div>
+            <button class="bulk-download-btn" id="bulkDownloadBtn" disabled>
+                <i class="fa-solid fa-download"></i>
+                Download Selected (<span id="selectedCount">0</span>)
+            </button>
+        </div>
+        
+        <div class="mask-list" id="maskList"></div>
+    `;
+
+    // Create individual mask items.
+    const maskList = document.getElementById('maskList');
+    maskData.individual_masks.forEach((mask, index) => {
+        const maskItem = document.createElement('div');
+        maskItem.className = 'mask-list-item';
+        maskItem.dataset.maskIndex = index;
+
+        maskItem.innerHTML = `
+            <div class="mask-item-left">
+                <label class="select-toggle">
+                    <input type="checkbox" class="mask-select-checkbox" data-npy-url="${mask.npyUrl}" data-filename="${mask.npyFilename}">
+                    <span class="toggle-slider"></span>
+                </label>
+                <div class="mask-item-info">
+                    <div class="mask-color-indicator" style="background-color: ${mask.color}"></div>
+                    <div class="mask-details">
+                        <span class="mask-name">Region ${index + 1}</span>
+                        <span class="mask-id">${mask.regionId}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="mask-download-buttons">
+                <button class="btn btn-sm btn-outline-primary download-btn" data-url="${mask.npyUrl}" data-filename="${mask.npyFilename}" data-type="npy">
+                    <i class="fa-solid fa-database"></i> NPY
+                </button>
+                <button class="btn btn-sm btn-outline-success download-btn" data-url="${mask.pngUrl}" data-filename="${mask.pngFilename}" data-type="png">
+                    <i class="fa-solid fa-image"></i> PNG
+                </button>
+            </div>
+        `;
+
+        maskList.appendChild(maskItem);
+    });
+
+    setupMaskSelectionEvents(maskPanel, maskData);
+    maskPanel.style.display = 'block';
+}
+
+// Function for handling selection events and bulk download
+function setupMaskSelectionEvents(maskPanel, maskData) {
+    const selectAllCheckbox = maskPanel.querySelector('#selectAllMasks');
+    const bulkDownloadBtn = maskPanel.querySelector('#bulkDownloadBtn');
+    const selectedCountSpan = maskPanel.querySelector('#selectedCount');
+    const maskCheckboxes = maskPanel.querySelectorAll('.mask-select-checkbox');
+
+    function updateSelectionState() {
+        const selectedMasks = maskPanel.querySelectorAll('.mask-select-checkbox:checked');
+        const selectedCount = selectedMasks.length;
+
+        selectedCountSpan.textContent = selectedCount;
+        bulkDownloadBtn.disabled = selectedCount === 0;
+
+        if (selectedCount === 0) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = false;
+        } else if (selectedCount === maskCheckboxes.length) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = true;
+        } else {
+            selectAllCheckbox.indeterminate = true;
+        }
+    }
+
+    selectAllCheckbox.addEventListener('change', () => {
+        const shouldSelect = selectAllCheckbox.checked;
+        maskCheckboxes.forEach(checkbox => {
+            checkbox.checked = shouldSelect;
+        });
+        updateSelectionState();
+    });
+
+    maskCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectionState);
+    });
+
+    bulkDownloadBtn.addEventListener('click', async () => {
+        const selectedCheckboxes = maskPanel.querySelectorAll('.mask-select-checkbox:checked');
+
+        if (selectedCheckboxes.length === 0) return;
+
+        const originalText = bulkDownloadBtn.innerHTML;
+        bulkDownloadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating Combined Mask...';
+        bulkDownloadBtn.disabled = true;
+
+        try {
+            const selectedMasks = [];
+            selectedCheckboxes.forEach((checkbox) => {
+                const maskIndex = parseInt(checkbox.closest('.mask-list-item').dataset.maskIndex);
+                const maskInfo = maskData.individual_masks[maskIndex];
+
+                const finalMaskData = window.lastSegmentationData?.final_mask?.find(m => m.regionId === maskInfo.regionId);
+
+                if (finalMaskData) {
+                    selectedMasks.push({
+                        regionId: maskInfo.regionId,
+                        pixels: finalMaskData.pixels,
+                        color: maskInfo.color
+                    });
+                }
+            });
+
+            const response = await fetchWithCSRF("/bulk-download-masks/", {
+                method: "POST",
+                body: JSON.stringify({
+                    selected_masks: selectedMasks,
+                    image_name: state.imageName
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.download_url) {
+                // Download the combined file.
+                const link = document.createElement('a');
+                link.href = result.download_url;
+                link.download = result.filename;
+                link.click();
+            } else {
+                alert('Error creating combined mask: ' + (result.error || 'Unknown error'));
+            }
+
+        } catch (error) {
+            console.error('Bulk download error:', error);
+            alert('Error downloading masks. Please try again.');
+        }
+
+        setTimeout(() => {
+            bulkDownloadBtn.innerHTML = originalText;
+            updateSelectionState();
+        }, 1000);
+    });
+
+    maskPanel.addEventListener('click', (e) => {
+        if (e.target.closest('.download-btn')) {
+            const button = e.target.closest('.download-btn');
+            const url = button.dataset.url;
+            const filename = button.dataset.filename;
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            link.click();
+
+            // Visual feedback
+            button.style.background = '#28a745';
+            button.style.color = 'white';
+            setTimeout(() => {
+                button.style.background = '';
+                button.style.color = '';
+            }, 1000);
+        }
+    });
+
+    updateSelectionState();
+}
+
+export function initializeUNetPredictions(imageName) {
+    return processWithUNet(imageName)
+        .then(data => {
+            if (data.predicted_annotations && data.predicted_annotations.length > 0) {
+                return data.predicted_annotations;
+            }
+            return [];
+        })
+        .catch(error => {
+            console.error("Error initializing UNet predictions:", error);
+            return [];
+        });
 }
 
 export function handlePreprocessedImg() {
@@ -131,7 +612,8 @@ export function handlePreprocessedImg() {
             transform: translate(-50%, -50%);
             background-color: #fff; padding: 10px;
             border: 2px solid #444; z-index: 9999;
-            box-shadow: 0 0 10px rgba(0,0,0,0.5)
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            border-radius: 10px;
         `;
 
         const img = document.createElement("img");
@@ -148,7 +630,70 @@ export function handlePreprocessedImg() {
         document.body.appendChild(popup);
     })
     .catch(error => {
-        console.error('Error:', error);
-        alert('Error processing preprocessed image: ' + error.message);
+        console.error("Error fetching preprocessed image:", error);
+        alert("Error fetching preprocessed image. Please try again.");
     });
+}
+
+export function handleUNetFormSubmission(event, formData) {
+    const segmentationMethod = formData.get('segmentation_method');
+
+    if (segmentationMethod === 'unet') {
+        state.unetMode = true;
+        return false;
+    }
+
+    state.unetMode = false;
+    return false;
+}
+
+function createClassLegend(classInfo) {
+    const existingLegend = document.getElementById("classLegend");
+    if (existingLegend) {
+        existingLegend.remove();
+    }
+
+    const legend = document.createElement("div");
+    legend.id = "classLegend";
+    legend.style = `
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background-color: rgba(255, 255, 255, 0.8);
+        padding: 10px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        max-width: 200px;
+        z-index: 1000;
+    `;
+
+    const title = document.createElement("h4");
+    title.textContent = "Classes";
+    title.style = "margin-top: 0; margin-bottom: 8px;";
+    legend.appendChild(title);
+
+    classInfo.filter(c => c.id > 0).forEach(classItem => {
+        const item = document.createElement("div");
+        item.style = "display: flex; align-items: center; margin-bottom: 4px;";
+
+        const colorBox = document.createElement("div");
+        colorBox.style = `
+            width: 15px;
+            height: 15px;
+            background-color: rgb(${classItem.color[0]}, ${classItem.color[1]}, ${classItem.color[2]});
+            margin-right: 8px;
+        `;
+
+        const label = document.createElement("span");
+        label.textContent = classItem.name;
+
+        item.appendChild(colorBox);
+        item.appendChild(label);
+        legend.appendChild(item);
+    });
+
+    const resultContainer = document.getElementById("segmentationResult");
+    if (resultContainer) {
+        resultContainer.appendChild(legend);
+    }
 }

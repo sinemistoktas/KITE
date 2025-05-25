@@ -5,7 +5,8 @@ import { createLayer } from './layers.js';
 import { toggleFillTool, handleFillToolClick, resetFillTool, updateFillToolStatus } from './fill-tool.js';
 import { zoomToPoint, zoomOut, resetZoom } from './canvas-tools.js';
 import { handleBoxMouseDown, handleBoxMouseMove, handleBoxMouseUp, handleBoxMouseLeave } from './box-tool.js';
-
+import { processUNetPredictions, initializeAnnotationsFromPredictions } from './canvas-utils.js';
+import { initializeUNetPredictions } from './api-service.js';
 
 export function bindUIEvents() {
     const { annotationCanvas } = state;
@@ -18,7 +19,8 @@ export function bindUIEvents() {
     document.getElementById('fillToolBtn')?.addEventListener('click', () => {
         setMode(state.mode === "fill" ? null : "fill");
     });
-    // Add box mode button handler - let the box-tool.js handle this directly
+    
+    // Box mode button - let the box-tool.js handle this directly
     // document.getElementById('boxMode')?.addEventListener('click', () => setMode('box'));
 
     document.getElementById('zoomInBtn')?.addEventListener('click', () => {
@@ -33,12 +35,49 @@ export function bindUIEvents() {
     document.getElementById('zoomOutBtn')?.addEventListener('click', zoomOut);
     document.getElementById('resetZoomBtn')?.addEventListener('click', resetZoom);
 
+    // Method selector (for legacy segmentation method system)
+    const traditionalMethod = document.getElementById('traditionalMethod');
+    const unetMethod = document.getElementById('unetMethod');
+
+    if (traditionalMethod && unetMethod) {
+        traditionalMethod.addEventListener('change', () => {
+            state.unetMode = false;
+            updateMethodDescription();
+        });
+
+        unetMethod.addEventListener('change', () => {
+            state.unetMode = true;
+            updateMethodDescription();
+
+            if (state.imageName) {
+                initializeUNetPredictions(state.imageName)
+                    .then(predictions => {
+                        if (predictions.length > 0) {
+                            // Use the full predictions data with class info
+                            initializeAnnotationsFromPredictions(predictions);
+                        }
+                    });
+            }
+        });
+
+        if (state.segmentationMethod === "unet") {
+            state.unetMode = true;
+            unetMethod.checked = true;
+        } else {
+            state.unetMode = false;
+            traditionalMethod.checked = true;
+        }
+
+        updateMethodDescription();
+    }
+
     // Mouse events
     annotationCanvas.addEventListener('mousedown', (e) => {
         const coords = screenToImageCoords(e.clientX, e.clientY);
         state.mouseX = coords.x;
         state.mouseY = coords.y;
 
+        // Handle box tool events first (for MedSAM bounding boxes)
         if (handleBoxMouseDown(e)) return;
 
         if (state.zoomMode) {
@@ -73,6 +112,7 @@ export function bindUIEvents() {
     });
 
     annotationCanvas.addEventListener('mousemove', (e) => {
+        // Handle box tool events first
         if (handleBoxMouseMove(e)) return;
 
         const coords = screenToImageCoords(e.clientX, e.clientY);
@@ -105,7 +145,7 @@ export function bindUIEvents() {
             return; // Box tool handled it, stop processing
         }
 
-        // line
+        // Handle line drawing
         if (state.isDrawing && state.currentStroke.length > 0) {
             state.scribbles.push({
                 points: state.currentStroke,
@@ -117,7 +157,7 @@ export function bindUIEvents() {
             redrawAnnotations();
         }
 
-        // fill tool
+        // Handle fill tool
         if (state.isFillToolActive && state.isDrawingBoundary) {
             state.isDrawingBoundary = false;
             if (state.currentBoundary.length >= 3) {
@@ -142,7 +182,7 @@ export function bindUIEvents() {
             return; // Box tool handled it, stop processing
         }
 
-        // line
+        // Handle line drawing
         if (state.isDrawing && state.currentStroke.length > 0) {
             state.scribbles.push({
                 points: state.currentStroke,
@@ -171,6 +211,43 @@ export function bindUIEvents() {
         else if (key === "F") toggleFillTool();
         // Note: Box keyboard shortcut "B" is handled in box-tool.js
     });
+
+    // Segmentation mode form handling (for legacy system)
+    const uploadForm = document.querySelector('form[enctype="multipart/form-data"]');
+
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', function (event) {
+            const formData = new FormData(this);
+            const method = formData.get('segmentation_method');
+            if (method) {
+                state.segmentationMethod = method;
+                state.unetMode = method === 'unet';
+            }
+        });
+    }
+}
+
+export function updateMethodDescription() {
+    const descriptionElement = document.getElementById('methodDescription');
+    if (!descriptionElement) return;
+
+    const unetMethod = document.getElementById('unetMethod');
+
+    if (unetMethod && unetMethod.checked) {
+        descriptionElement.innerHTML =
+            '<div class="alert alert-info">' +
+            '<i class="fa-solid fa-robot me-2"></i> ' +
+            '<strong>UNet Assisted Mode:</strong> Initial segmentation is generated automatically by the UNet model. ' +
+            'You can then refine the results using the annotation tools.' +
+            '</div>';
+    } else {
+        descriptionElement.innerHTML =
+            '<div class="alert alert-info">' +
+            '<i class="fa-solid fa-pencil me-2"></i> ' +
+            '<strong>Traditional Mode:</strong> Semi-automated segmentation using manual annotations. ' +
+            'Draw annotations to indicate regions of interest.' +
+            '</div>';
+    }
 }
 
 function setMode(newMode) {
@@ -357,7 +434,8 @@ function updateButtonStyles() {
         eraser: document.getElementById("eraserMode"),
         eraseAll: document.getElementById("eraseAllMode"),
         fill: document.getElementById("fillToolBtn"),
-        zoom: document.getElementById("zoomInBtn")
+        zoom: document.getElementById("zoomInBtn"),
+        box: document.getElementById("boxMode") // Add box mode button
     };
     
     for (const [tool, btn] of Object.entries(buttons)) {

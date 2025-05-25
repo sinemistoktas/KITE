@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="icon" type="image/x-icon" href="{% static 'img/favicon.ico' %}">
   <script type="module" src="{% static 'js/main.js' %}"></script>
+  <script src="https://unpkg.com/konva@9.2.0/konva.min.js"></script>
 </head>
 
 <body class="seg-tool-page p-5">
@@ -46,12 +47,37 @@
         <span id="fileNameDisplay" class="file-name-display"></span>
       </div>
     </div>
+
+    <!--Segmentation Method Selector for Traditional/UNet (Legacy support)-->
+    {% if segmentation_method %}
+    <div class="segmentation-method mt-3 mb-3">
+      <label class="me-3">Segmentation Method:</label>
+
+      <div class="form-check form-check-inline">
+        <input class="form-check-input" type="radio" name="segmentation_method" id="traditionalMethod" value="traditional"
+               {% if segmentation_method == "traditional" %}checked{% endif %}>
+        <label class="form-check-label" for="traditionalMethod">Traditional</label>
+      </div>
+      <div class="form-check form-check-inline">
+        <input class="form-check-input" type="radio" name="segmentation_method" id="unetMethod" value="unet"
+               {% if segmentation_method == "unet" %}checked{% endif %}>
+        <label class="form-check-label" for="unetMethod">UNet Assisted</label>
+      </div>
+
+    </div>
+
+    <div id="methodDescription" class="mt-2"></div>
+    {% endif %}
   </form>
 
   {% if image_url %}
   <div class="mt-2 mb-3">
-    <span class="uploaded-filename"><strong>Algorithm:</strong> {{ algorithm_name }}</span>
-    <span class="uploaded-filename ms-4"><strong>Filename:</strong> {{ image_name }}</span>
+    {% if algorithm_name %}
+      <span class="uploaded-filename"><strong>Algorithm:</strong> {{ algorithm_name }}</span>
+      <span class="uploaded-filename ms-4"><strong>Filename:</strong> {{ image_name }}</span>
+    {% else %}
+      <span class="uploaded-filename"><strong>Filename:</strong> {{ image_name }}</span>
+    {% endif %}
   </div>
   {% endif %}
 
@@ -64,7 +90,7 @@
         <h6 class="mb-2" style="width: 100%; text-align: center;">Tools</h6>
         
         <!-- MedSAM specific instructions and controls -->
-        <div class="medsam-controls">
+        <div class="medsam-controls" style="display: none;">
           <div class="medsam-info">
             <p><i class="fa-solid fa-info-circle me-2" style="color: #3498db;"></i><strong style="color: #ecf0f1;">MedSAM Instructions:</strong></p>
             <p class="mb-2" style="color: #ecf0f1;">Draw bounding boxes around areas you want to segment. Each box will be processed automatically.</p>
@@ -140,7 +166,7 @@
           </button>
         </div>
         
-        <!-- Keep original Ready to Segment button for KITE -->
+        <!-- Segment button for all modes -->
         <button class="ready-segment-btn px-4 py-2 rounded-pill shadow-sm mt-3" onclick="handleAnnotations()">
           <i class="fa-solid fa-hurricane me-2"></i> Ready to Segment!
         </button>
@@ -156,118 +182,153 @@
     </div>
   </div>
 
-{% endif %}
+  {% endif %}
   <div id="segmentationResult" class="text-center mt-4" style="display: none;">
-    <div class="text-white p-2 mb-2 rounded bg-primary">
-      <strong>Segmented Result</strong>
-    </div>
-    <div style="margin: 0; padding: 0; text-align: center;">
-      <img id="segmentedResultImage"
-           class="img-fluid mx-auto d-block"
-           style="max-width: 100%; display: block; margin: 0 auto; box-shadow: none; border: none;"
-           alt="Segmented Output" />
-    
-      <div class="d-flex justify-content-center gap-3 mt-4">
-        <button class="show-pre-btn" onclick="handlePreprocessedImg()">
-          <i class="fa-solid fa-eye"></i> Show Preprocessed Image
-        </button>
+    <div class="d-flex flex-row align-items-start justify-content-center gap-4 flex-wrap">
+      <div class="segmentation-main">
+        <div class="text-white p-2 mb-2 rounded bg-primary">
+          <strong>Segmented Result</strong>
+        </div>
+        <div style="margin: 0; padding: 0; text-align: center;">
+          <div id="segmentationStageContainer" style="position: relative;">
+            <img id="segmentedResultImage"
+                 class="img-fluid mx-auto d-block"
+                 style="max-width: 512px; display: block;"
+                 alt="Segmented Output" />
+            <div id="segmentationStage"
+                 style="position: absolute; top: 0; left: 0;"></div>
+          </div>
 
-        <a id="downloadSegmentedImage"
-           class="btn btn-outline-success px-4 py-2 rounded-pill shadow-sm"
-           style="display: none;">
-          <i class="fa-solid fa-download"></i> Download Segmented Image
-        </a>
+          <div class="d-flex justify-content-center gap-3 mt-4">
+            <button class="show-pre-btn" onclick="handlePreprocessedImg()">
+              <i class="fa-solid fa-eye"></i> Show Preprocessed Image
+            </button>
+            
+            <button id="showSegMapBtn" class="show-pre-btn" onclick="handleSegmentationMap()" style="display: none;">
+              <i class="fa-solid fa-map"></i> Show Segmentation Map
+            </button>
+
+            <a id="downloadSegmentedImage"
+               class="btn btn-outline-success px-4 py-2 rounded-pill shadow-sm"
+               style="display: none;">
+              <i class="fa-solid fa-download"></i> Download Segmented Image
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-
 <script>
+  // Global variables for both systems
   window.imageName = "{{ image_name }}";
   window.algorithm = "{{ algorithm_name }}";
-  // Add CSRF token to window object
+  window.segmentationMethod = "{{ segmentation_method|default:'traditional' }}";
   window.csrfToken = "{{ csrf_token }}";
 </script>
 
 <script>
   document.addEventListener('DOMContentLoaded', function () {
-    // Log CSRF token availability
+    // Log available data
     console.log('CSRF Token available:', !!window.csrfToken);
     console.log('Algorithm:', window.algorithm);
+    console.log('Segmentation Method:', window.segmentationMethod);
 
     const fileInput = document.getElementById('file-upload');
     const fileNameDisplay = document.getElementById('fileNameDisplay');
     const algorithmSelect = document.getElementById('algorithm');
     const workspace = document.getElementById('segmentationWorkspace');
+    const medsamControls = document.querySelector('.medsam-controls');
+    const kiteControls = document.querySelector('.kite-controls');
 
-    // Önce tüm classları temizle
-    workspace?.classList.remove('medsam-active', 'kite-active');
+    // Initialize interface based on current algorithm/method
+    if (workspace) {
+      // Clear all classes first
+      workspace.classList.remove('medsam-active', 'kite-active');
 
-    // Check if we're in MedSAM mode and initialize the interface accordingly
-    if (window.algorithm === 'MedSAM') {
-      workspace.classList.add('medsam-active');
+      // Check if we're in MedSAM mode
+      if (window.algorithm === 'MedSAM') {
+        workspace.classList.add('medsam-active');
+        if (medsamControls) medsamControls.style.display = 'block';
+        if (kiteControls) kiteControls.style.display = 'none';
+        
+        // Load MedSAM JavaScript module
+        const script = document.createElement('script');
+        script.src = "{% static 'js/medsam-tool.js' %}";
+        script.onload = function() {
+          console.log('MedSAM tool script loaded');
+          if (typeof initMedSAM === 'function') {
+            initMedSAM();
+          }
+        };
+        document.head.appendChild(script);
       
-      // Load MedSAM JavaScript module
-      const script = document.createElement('script');
-      script.src = "{% static 'js/medsam-tool.js' %}";
-      script.onload = function() {
-        console.log('MedSAM tool script loaded');
-        if (typeof initMedSAM === 'function') {
-          initMedSAM();
-        }
-      };
-      document.head.appendChild(script);
-    
-    } else if (window.algorithm === 'KITE') {
-    workspace.classList.add('kite-active');
+      } else if (window.algorithm === 'KITE' || window.segmentationMethod) {
+        // KITE mode or legacy segmentation method mode
+        workspace.classList.add('kite-active');
+        if (medsamControls) medsamControls.style.display = 'none';
+        if (kiteControls) kiteControls.style.display = 'block';
+      }
     }
-    
 
+    // File upload handler
     if (fileInput && fileNameDisplay) {
       fileInput.addEventListener('change', function () {
         if (fileInput.files && fileInput.files.length > 0) {
           fileNameDisplay.textContent = fileInput.files[0].name;
           
-          // Check if algorithm is selected
-          if (!algorithmSelect.value) {
+          // Check if algorithm is selected (for new system)
+          if (algorithmSelect && !algorithmSelect.value) {
             alert('Please select an algorithm first');
             fileNameDisplay.textContent = '';
-            fileInput.value = ''; // Clear the file input
+            fileInput.value = '';
             return;
           }
           
-          // Get the selected algorithm value and map it to a display name
-          const selectedAlgorithmValue = algorithmSelect.value;
-          let selectedAlgorithmDisplayName;
-          switch (selectedAlgorithmValue) {
-            case 'kite':
-              selectedAlgorithmDisplayName = 'KITE';
-              break;
-            case 'medsam':
-              selectedAlgorithmDisplayName = 'MedSAM';
-              break;
-            case 'unet':
-              selectedAlgorithmDisplayName = 'U-Net';
-              break;
-            default:
-              selectedAlgorithmDisplayName = selectedAlgorithmValue; // Fallback to value if not mapped
+          // Handle algorithm selection and mapping
+          if (algorithmSelect && algorithmSelect.value) {
+            const selectedAlgorithmValue = algorithmSelect.value;
+            let selectedAlgorithmDisplayName;
+            switch (selectedAlgorithmValue) {
+              case 'kite':
+                selectedAlgorithmDisplayName = 'KITE';
+                break;
+              case 'medsam':
+                selectedAlgorithmDisplayName = 'MedSAM';
+                break;
+              case 'unet':
+                selectedAlgorithmDisplayName = 'U-Net';
+                break;
+              default:
+                selectedAlgorithmDisplayName = selectedAlgorithmValue;
+            }
+            
+            // Create hidden input for algorithm name
+            let algorithmNameInput = document.createElement('input');
+            algorithmNameInput.type = 'hidden';
+            algorithmNameInput.name = 'algorithm_name';
+            algorithmNameInput.value = selectedAlgorithmDisplayName;
+            fileInput.form.appendChild(algorithmNameInput);
           }
           
-          // Create a hidden input for the algorithm name
-          let algorithmNameInput = document.createElement('input');
-          algorithmNameInput.type = 'hidden';
-          algorithmNameInput.name = 'algorithm_name';
-          algorithmNameInput.value = selectedAlgorithmDisplayName;
-          
-          // Add it to the form
-          fileInput.form.appendChild(algorithmNameInput);
-          
-          // Automatically submit the form when a file is selected
+          // Automatically submit the form
           fileInput.form.submit();
         } else {
           fileNameDisplay.textContent = '';
         }
+      });
+    }
+
+    // Algorithm selection change handler
+    if (algorithmSelect) {
+      algorithmSelect.addEventListener('change', function() {
+        // Update interface preview based on selection
+        const selectedValue = this.value;
+        console.log('Algorithm selected:', selectedValue);
+        
+        // You can add preview logic here if needed
+        // For example, show/hide different UI elements based on selection
       });
     }
   });
