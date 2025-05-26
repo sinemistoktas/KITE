@@ -697,3 +697,98 @@ def create_combined_mask_array(selected_masks):
                 combined_mask[y, x] = region_number
 
     return combined_mask
+
+
+def load_annotations(request):
+    if request.method == "POST":
+        try:
+            if 'annotation_file' in request.FILES:
+                annotation_file = request.FILES['annotation_file']
+                image_name = request.POST.get('image_name', '') 
+                
+                print(f"Loading annotation file: {annotation_file.name}")
+                print(f"For image: {image_name}")
+                
+                # Verify it's a .npy file.
+                if not annotation_file.name.endswith('.npy'):
+                    return JsonResponse({"error": "Only .npy files are supported"}, status=400)
+                
+                # Read the .npy file.
+                annotation_data = np.load(annotation_file, allow_pickle=True)
+                print(f"Loaded annotation data with shape: {annotation_data.shape}")
+                print(f"Data type: {annotation_data.dtype}")
+                print(f"Unique values: {np.unique(annotation_data)}")
+                
+                # Process the annotation data and convert to colored overlay.
+                colored_annotations = process_annotation_data(annotation_data)
+                
+                return JsonResponse({
+                    "success": True,
+                    "annotations": colored_annotations,
+                    "message": f"Loaded {len(colored_annotations)} annotation regions"
+                })
+            else:
+                return JsonResponse({"error": "No annotation file provided"}, status=400)
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({'error': 'Only POST requests allowed'}, status=405)
+
+def process_annotation_data(annotation_data):
+    """
+    Process .npy annotation data and convert to colored regions
+    annotation_data: numpy array where 0=background, 1,2,3...=different layers
+    """
+    # Define colors for different annotation values
+    colors = [
+        "#000000",  # 0: Background (black, will be transparent)
+        "#FF0000",  # 1: Red
+        "#00FF00",  # 2: Green  
+        "#0000FF",  # 3: Blue
+        "#FFFF00",  # 4: Yellow
+        "#FF00FF",  # 5: Magenta
+        "#00FFFF",  # 6: Cyan
+        "#FFA500",  # 7: Orange
+        "#800080",  # 8: Purple
+        "#FFC0CB",  # 9: Pink
+        "#A52A2A",  # 10: Brown
+        "#808080",  # 11: Gray
+    ]
+    
+    annotations = []
+    unique_values = np.unique(annotation_data)
+    
+    print(f"Processing annotation data with shape: {annotation_data.shape}")
+    print(f"Unique values found: {unique_values}")
+    
+    # Process each unique value (skip 0 as it's background!!!)
+    for value in unique_values:
+        if value == 0:
+            continue
+            
+        mask = (annotation_data == value).astype(np.uint8)
+        
+        # Find all pixels with this value.
+        ys, xs = np.where(mask == 1)
+        
+        if len(ys) == 0:
+            continue
+            
+        pixels = [[int(y), int(x)] for y, x in zip(ys, xs)]
+        
+        color_index = int(value) % len(colors)
+        color = colors[color_index]
+        
+        print(f"Found {len(pixels)} pixels for value {value}, assigned color {color}")
+        
+        annotations.append({
+            "regionId": f"loaded_region_{value}",
+            "pixels": pixels,
+            "color": color,
+            "value": int(value)
+        })
+    
+    return annotations

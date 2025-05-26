@@ -630,3 +630,99 @@ export function handlePreprocessedImg() {
         document.body.appendChild(popup);
     });
 }
+
+export function loadAnnotations() {
+    const fileInput = document.getElementById('annotationFileInput');
+    fileInput.click();
+    
+    fileInput.onchange = function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        if (!file.name.endsWith('.npy')) {
+            alert('Please select a .npy file');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('annotation_file', file);
+        formData.append('image_name', state.imageName);
+        
+        const csrfToken = getCSRFToken();
+        
+        fetch('/load-annotations/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken
+            },
+            credentials: 'same-origin',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.annotations) {
+                displayLoadedAnnotations(data.annotations);
+            } else {
+                alert('Error loading annotations: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error loading annotations:', error);
+            alert('Error loading annotations: ' + error.message);
+        });
+    };
+}
+
+function displayLoadedAnnotations(annotations) {
+    console.log('Loading annotations:', annotations);
+    
+    // Clear existing annotations first.
+    state.scribbles = state.scribbles.filter(s => s.isPrediction);
+    
+    const layersContainer = document.getElementById('layersContainer');
+    if (layersContainer) {
+        while (layersContainer.firstChild) {
+            layersContainer.removeChild(layersContainer.firstChild);
+        }
+    }
+    state.visibleLayerIds = [];
+    state.layerCounter = 0;
+    
+    import('./layers.js').then(module => {
+        const { createLayer } = module;
+        
+        // Create layers and annotations for each loaded region.
+        annotations.forEach((annotation, index) => {
+            const layerName = `Loaded Layer ${annotation.value}`;
+            const layerId = createLayer(layerName, annotation.color);
+            
+            // Convert pixels to individual dot points.
+            const points = annotation.pixels.map(pixel => ({
+                x: pixel[1],
+                y: pixel[0]
+            }));
+            
+            // Add each pixel as an individual dot annotation.
+            points.forEach(point => {
+                state.scribbles.push({
+                    points: [point],
+                    isPrediction: false,
+                    color: annotation.color,
+                    layerId: layerId,
+                    isLoadedAnnotation: true,
+                    isDot: true
+                });
+            });
+            
+            console.log(`Added ${points.length} dots for region ${annotation.value}`);
+        });
+        
+        import('./canvas-tools.js').then(module => {
+            const { redrawAnnotations } = module;
+            redrawAnnotations();
+        });
+        
+        alert(`Successfully loaded ${annotations.length} annotation regions!`);
+        console.log(`Loaded ${annotations.length} annotation regions`);
+    });
+}

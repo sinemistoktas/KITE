@@ -12,6 +12,8 @@ urlpatterns = [
     path("preprocessed-image/", views.preprocessed_image_view, name="preprocessed_image"),
     path('process-with-unet/', views.process_with_unet, name='process_with_unet'),
     path('bulk-download-masks/', views.bulk_download_masks, name='bulk_download_masks'),
+    path('load-annotations/', views.load_annotations, name='load_annotations'),
+
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

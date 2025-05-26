@@ -3,7 +3,7 @@ import { state, initializeFromServer } from './state.js';
 import { bindUIEvents, updateMethodDescription, initializeAnnotationsFromPredictions } from './events.js';
 import { redrawAnnotations } from './canvas-tools.js';
 import { initColorPicker } from './color-picker.js';
-import { handleAnnotations, handlePreprocessedImg } from './api-service.js';
+import { handleAnnotations, handlePreprocessedImg, loadAnnotations } from './api-service.js';
 import { initBoxTool } from './box-tool.js';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -87,6 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener("resize", resizeCanvasToImage);
     window.handleAnnotations = handleAnnotations;
     window.handlePreprocessedImg = handlePreprocessedImg;
+    window.loadAnnotations = loadAnnotations;
 
     // Hook up all button + canvas events
     bindUIEvents();

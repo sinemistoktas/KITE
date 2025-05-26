@@ -20,45 +20,44 @@ export function redrawAnnotations() {
     const restoreZoom = (ctx) => ctx.restore();
 
     // Draw user annotations
-    state.scribbles
-        .filter(s => !s.isPrediction && (!s.layerId || state.visibleLayerIds.includes(s.layerId)))
-        .forEach(stroke => {
-            adjustForZoom(aCtx);
+  state.scribbles
+    .filter(s => !s.isPrediction && (!s.layerId || state.visibleLayerIds.includes(s.layerId)))
+    .forEach(stroke => {
+        adjustForZoom(aCtx);
 
-            // Special handling for box annotations
-            if (stroke.isBox) {
-                aCtx.strokeStyle = stroke.color || "red";
-                aCtx.lineWidth = 2 / state.zoomLevel;
-                aCtx.beginPath();
-                aCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
-                for (let i = 1; i < stroke.points.length; i++) {
-                    aCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
-                }
-                aCtx.stroke();
-                
-                // Log that we've drawn a box
-                console.log('Redraw: Drawing box annotation');
-
-            // dot
-            } else if (stroke.points.length === 1) {
-                aCtx.fillStyle = stroke.color || "red";
-                aCtx.beginPath();
-                aCtx.arc(stroke.points[0].x, stroke.points[0].y, 2, 0, 2 * Math.PI);
-                aCtx.fill();
+        // Special handling for loaded annotations.
+        if (stroke.isLoadedAnnotation || stroke.isDot || stroke.points.length === 1) {
+            aCtx.fillStyle = stroke.color || "red";
             
-            // line
-            } else {
-                aCtx.strokeStyle = stroke.color || "red";
-                aCtx.lineWidth = 2 / state.zoomLevel;
+            stroke.points.forEach(point => {
                 aCtx.beginPath();
-                aCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
-                for (let i = 1; i < stroke.points.length; i++) {
-                    aCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
-                }
-                aCtx.stroke();
+                aCtx.arc(point.x, point.y, 1.5 / state.zoomLevel, 0, 2 * Math.PI); // Slightly larger dots
+                aCtx.fill();
+            });
+        }
+        // Special handling for box annotations
+        else if (stroke.isBox) {
+            aCtx.strokeStyle = stroke.color || "red";
+            aCtx.lineWidth = 2 / state.zoomLevel;
+            aCtx.beginPath();
+            aCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+            for (let i = 1; i < stroke.points.length; i++) {
+                aCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
             }
-            restoreZoom(aCtx);
-        });
+            aCtx.stroke();
+        }
+        else {
+            aCtx.strokeStyle = stroke.color || "red";
+            aCtx.lineWidth = 2 / state.zoomLevel;
+            aCtx.beginPath();
+            aCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+            for (let i = 1; i < stroke.points.length; i++) {
+                aCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+            }
+            aCtx.stroke();
+        }
+        restoreZoom(aCtx);
+    });
 
     // Draw predictions
     if (state.showPredictions) {
