@@ -179,7 +179,6 @@ export function handleAnnotations() {
             console.log("No predicted annotations found");
             return;
         }
-
         try {
             // Clear previous predictions
             state.scribbles = state.scribbles.filter(s => !s.isPrediction);
@@ -193,8 +192,6 @@ export function handleAnnotations() {
                 const processedPoints = [];
 
                 predictedAnnotations.forEach((annotation, index) => {
-                    console.log(`Annotation ${index} type:`, typeof annotation);
-                    console.log(`Annotation ${index} value:`, annotation);
 
                     // Handle polygon annotations (from UNet/advanced algorithms)
                     if (annotation && annotation.shape_type === "polygon" && Array.isArray(annotation.points)) {
@@ -217,12 +214,32 @@ export function handleAnnotations() {
                     else if (Array.isArray(annotation)) {
                         if (Array.isArray(annotation[0])) {
                             // Format: [[x, y], color]
-                            const [[x, y], color] = annotation;
-                            processedPoints.push({ x, y, color: color || "blue" });
+                            const [[x, y], color] = annotation;           
+                            // SCALE FIX!!!!!!
+                            const scaleX = state.originalImageDimensions.width / 512;  
+                            const scaleY = state.originalImageDimensions.height / 224; 
+                            
+                            const scaledX = x * scaleX;
+                            const scaledY = y * scaleY;                     
+                            processedPoints.push({ 
+                                x: scaledX, 
+                                y: scaledY, 
+                                color: color || "blue"
+                            });
                         } else {
                             // Format: [x, y]
                             const [x, y] = annotation;
-                            processedPoints.push({ x, y, color: "blue" });
+                            // SCALE FIX!!!!!
+                            const scaleX = state.originalImageDimensions.width / 512;  
+                            const scaleY = state.originalImageDimensions.height / 224; 
+                            
+                            const scaledX = x * scaleX;
+                            const scaledY = y * scaleY;                     
+                            processedPoints.push({ 
+                                x: scaledX, 
+                                y: scaledY, 
+                                color: "blue" 
+                            });
                         }
                     }
                 });
