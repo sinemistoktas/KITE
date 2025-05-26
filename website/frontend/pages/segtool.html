@@ -167,15 +167,18 @@
         </div>
         
         <!-- Segment button for all modes -->
-        <button class="ready-segment-btn px-4 py-2 rounded-pill shadow-sm mt-3" onclick="handleAnnotations()">
-          <i class="fa-solid fa-hurricane me-2"></i> Ready to Segment!
-        </button>
-        <div class="kite-controls">
-        <input type="file" id="annotationFileInput" accept=".npy" style="display: none;">
-        <button class="load-annotations-btn px-4 py-2 rounded-pill shadow-sm mt-2" onclick="loadAnnotations()">
-          <i class="fa-solid fa-upload me-2"></i> Load Annotations
-        </button>
-      </div>
+                <div class="d-flex justify-content-center gap-3 mt-3">
+          <button class="ready-segment-btn px-4 py-2 rounded-pill shadow-sm" onclick="handleAnnotations()">
+            <i class="fa-solid fa-hurricane me-2"></i> Ready to Segment!
+          </button>
+          
+          <div class="kite-controls">
+            <input type="file" id="annotationFileInput" accept=".npy" style="display: none;">
+            <button class="load-annotations-btn px-4 py-2 rounded-pill shadow-sm" onclick="loadAnnotations()">
+              <i class="fa-solid fa-upload me-2"></i> Load Annotations
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- LAYERS PANEL -->

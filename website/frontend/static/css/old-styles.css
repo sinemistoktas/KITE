@@ -11347,7 +11347,8 @@ input[type="file"] {
 
 /* Upload, Ready To Segment & Show-Preprocessed Image Buttons*/
 .custom-upload-btn,
-.ready-segment-btn {
+.ready-segment-btn,
+.load-annotations-btn {
   background: var(--accent) !important;
   color: var(--text-dark) !important;
   font-weight: 500 !important;
