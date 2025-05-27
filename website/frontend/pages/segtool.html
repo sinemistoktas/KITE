@@ -30,14 +30,25 @@
   <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
     <div class="d-flex align-items-center gap-5">
-      <div class="algorithm-selection">
-        <select name="algorithm" id="algorithm" class="form-select" style="height: 60px; border-radius: 30px; text-align: center; text-align-last: center; margin-top: -34px;">
-          <option value="" disabled selected>Choose Algorithm</option>
-          <option value="kite">KITE (Available)</option>
-          <option value="medsam">MedSAM (Available)</option>
-          <option value="unet">U-Net (Coming Soon)</option>
-        </select>
+      <div class="algorithm-selection mb-3">
+        <label class="me-3"><strong>Segmentation Method:</strong></label>
+
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="algorithm" id="kiteRadio" value="kite" required>
+          <label class="form-check-label" for="kiteRadio">KITE</label>
+        </div>
+
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="algorithm" id="medsamRadio" value="medsam">
+          <label class="form-check-label" for="medsamRadio">MedSAM</label>
+        </div>
+
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="algorithm" id="unetRadio" value="unet">
+          <label class="form-check-label" for="unetRadio">Deep Learning Assisted</label>
+        </div>
       </div>
+
 
       <div>
         <input id="file-upload" type="file" name="image" class="form-control" required style="display:none;" accept="image/*">
@@ -48,26 +59,6 @@
       </div>
     </div>
 
-    <!--Segmentation Method Selector for Traditional/UNet (Legacy support)-->
-    {% if segmentation_method %}
-    <div class="segmentation-method mt-3 mb-3">
-      <label class="me-3">Segmentation Method:</label>
-
-      <div class="form-check form-check-inline">
-        <input class="form-check-input" type="radio" name="segmentation_method" id="traditionalMethod" value="traditional"
-               {% if segmentation_method == "traditional" %}checked{% endif %}>
-        <label class="form-check-label" for="traditionalMethod">Traditional</label>
-      </div>
-      <div class="form-check form-check-inline">
-        <input class="form-check-input" type="radio" name="segmentation_method" id="unetMethod" value="unet"
-               {% if segmentation_method == "unet" %}checked{% endif %}>
-        <label class="form-check-label" for="unetMethod">UNet Assisted</label>
-      </div>
-
-    </div>
-
-    <div id="methodDescription" class="mt-2"></div>
-    {% endif %}
   </form>
 
   {% if image_url %}
@@ -251,7 +242,7 @@
 
     const fileInput = document.getElementById('file-upload');
     const fileNameDisplay = document.getElementById('fileNameDisplay');
-    const algorithmSelect = document.getElementById('algorithm');
+    const algorithmRadios = document.querySelectorAll('input[name="algorithm"]');
     const workspace = document.getElementById('segmentationWorkspace');
     const medsamControls = document.querySelector('.medsam-controls');
     const kiteControls = document.querySelector('.kite-controls');
@@ -266,7 +257,7 @@
         workspace.classList.add('medsam-active');
         if (medsamControls) medsamControls.style.display = 'block';
         if (kiteControls) kiteControls.style.display = 'none';
-        
+
         // Load MedSAM JavaScript module
         const script = document.createElement('script');
         script.src = "{% static 'js/medsam-tool.js' %}";
@@ -277,7 +268,7 @@
           }
         };
         document.head.appendChild(script);
-      
+
       } else if (window.algorithm === 'KITE' || window.segmentationMethod) {
         // KITE mode or legacy segmentation method mode
         workspace.classList.add('kite-active');
@@ -291,18 +282,23 @@
       fileInput.addEventListener('change', function () {
         if (fileInput.files && fileInput.files.length > 0) {
           fileNameDisplay.textContent = fileInput.files[0].name;
-          
+
           // Check if algorithm is selected (for new system)
-          if (algorithmSelect && !algorithmSelect.value) {
+          const isAlgorithmSelected = [...algorithmRadios].some(r => r.checked);
+          if (!isAlgorithmSelected) {
             alert('Please select an algorithm first');
             fileNameDisplay.textContent = '';
             fileInput.value = '';
             return;
           }
-          
+
           // Handle algorithm selection and mapping
-          if (algorithmSelect && algorithmSelect.value) {
-            const selectedAlgorithmValue = algorithmSelect.value;
+          let selectedAlgorithmValue = '';
+          algorithmRadios.forEach(radio => {
+            if (radio.checked) selectedAlgorithmValue = radio.value;
+          });
+
+          if (selectedAlgorithmValue) {
             let selectedAlgorithmDisplayName;
             switch (selectedAlgorithmValue) {
               case 'kite':
@@ -317,7 +313,7 @@
               default:
                 selectedAlgorithmDisplayName = selectedAlgorithmValue;
             }
-            
+
             // Create hidden input for algorithm name
             let algorithmNameInput = document.createElement('input');
             algorithmNameInput.type = 'hidden';
@@ -325,24 +321,13 @@
             algorithmNameInput.value = selectedAlgorithmDisplayName;
             fileInput.form.appendChild(algorithmNameInput);
           }
-          
+
+
           // Automatically submit the form
           fileInput.form.submit();
         } else {
           fileNameDisplay.textContent = '';
         }
-      });
-    }
-
-    // Algorithm selection change handler
-    if (algorithmSelect) {
-      algorithmSelect.addEventListener('change', function() {
-        // Update interface preview based on selection
-        const selectedValue = this.value;
-        console.log('Algorithm selected:', selectedValue);
-        
-        // You can add preview logic here if needed
-        // For example, show/hide different UI elements based on selection
       });
     }
   });

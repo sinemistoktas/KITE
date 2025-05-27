@@ -62,11 +62,86 @@ export function handleAnnotations() {
     }
 
     // Get the selected algorithm or method
-    const algorithm = document.getElementById('algorithm')?.value || window.algorithm || 'kite';
+    const algorithmRadio = document.querySelector('input[name="algorithm"]:checked');
+    const algorithm = algorithmRadio?.value || window.algorithm || 'kite';
     const segmentationMethod = state.segmentationMethod || 'traditional';
     
     console.log('Using algorithm:', algorithm);
     console.log('Using segmentation method:', segmentationMethod);
+
+    if (algorithm === 'unet') {
+        console.log("UNet selected, using processWithUNet()");
+        return processWithUNet(state.imageName)
+            .then(data => {
+                console.log("UNet segmentation response:", data);
+                resetZoom();
+
+                window.lastSegmentationData = data;
+
+                const resultImage = document.getElementById("segmentedResultImage");
+                if (!data.segmented_image) {
+                    console.error("No segmented_image returned!");
+                    return;
+                }
+
+                resultImage.src = `data:image/png;base64,${data.segmented_image}`;
+                document.getElementById("segmentationResult").style.display = "block";
+
+                const downloadBtn = document.getElementById("downloadSegmentedImage");
+                downloadBtn.href = resultImage.src;
+                downloadBtn.download = "segmented_result.png";
+                downloadBtn.style.display = "inline-block";
+
+                if (data.segmentation_map) {
+                    segmentationMapData = data.segmentation_map;
+                    const showSegMapBtn = document.getElementById("showSegMapBtn");
+                    if (showSegMapBtn) showSegMapBtn.style.display = "inline-block";
+                }
+
+                const stageContainer = document.getElementById("segmentationStage");
+                if (stageContainer) {
+                    stageContainer.innerHTML = "";
+                    stageContainer.style.width = resultImage.naturalWidth + "px";
+                    stageContainer.style.height = resultImage.naturalHeight + "px";
+                }
+
+                if (data.final_mask && data.final_mask.length > 0 && stageContainer) {
+                    renderInteractiveRegions(resultImage, data.final_mask,
+                        resultImage.naturalWidth || resultImage.clientWidth,
+                        resultImage.naturalHeight || resultImage.clientHeight,
+                        stageContainer);
+                }
+
+                if (data.predicted_annotations && data.predicted_annotations.length > 0) {
+                    try {
+                        const predictedAnnotations = data.predicted_annotations;
+                        state.scribbles = state.scribbles.filter(s => !s.isPrediction);
+
+                        predictedAnnotations.forEach(annotation => {
+                            if (annotation.shape_type === "polygon") {
+                                const points = annotation.points.map(p => ({ x: p[0], y: p[1], color: "cyan" }));
+                                state.scribbles.push({
+                                    points: points,
+                                    isPrediction: true,
+                                    color: "cyan",
+                                    class_id: annotation.class_id || "fluid"
+                                });
+                            }
+                        });
+
+                        if (data.class_info) createClassLegend(data.class_info);
+                        redrawAnnotations();
+                    } catch (err) {
+                        console.error("Error parsing UNet annotations:", err);
+                    }
+                }
+            })
+            .catch(err => {
+                console.error("UNet segmentation failed:", err);
+                alert("UNet segmentation failed. Check the console for more details.");
+            });
+    }
+
 
     state.scribbles = state.scribbles.filter(s => !s.isPrediction);
     redrawAnnotations();
