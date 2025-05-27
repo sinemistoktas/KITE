@@ -1,9 +1,15 @@
-// main.js
 import { state, initializeFromServer } from './state.js';
 import { bindUIEvents, updateMethodDescription, initializeAnnotationsFromPredictions } from './events.js';
 import { redrawAnnotations } from './canvas-tools.js';
 import { initColorPicker } from './color-picker.js';
-import { handleAnnotations, handlePreprocessedImg, loadAnnotations, downloadAnnotations } from './api-service.js';
+import { 
+    handleAnnotations, 
+    handleAnnotationsWithResultLoading, 
+    loadSegmentationResultsAsAnnotations,
+    handlePreprocessedImg, 
+    loadAnnotations, 
+    downloadAnnotations 
+} from './api-service.js';
 import { initBoxTool } from './box-tool.js';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -96,10 +102,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.addEventListener("resize", resizeCanvasToImage);
-    window.handleAnnotations = handleAnnotations;
+    window.handleAnnotations = handleAnnotationsWithResultLoading;
+    window.handleAnnotationsBasic = handleAnnotations;
+    window.loadSegmentationResultsAsAnnotations = loadSegmentationResultsAsAnnotations;
     window.handlePreprocessedImg = handlePreprocessedImg;
     window.loadAnnotations = loadAnnotations;
     window.downloadAnnotations = downloadAnnotations;
+    window.loadSegmentationResultsAsAnnotations = loadSegmentationResultsAsAnnotations;
 
     // Hook up all button + canvas events
     bindUIEvents();
@@ -139,4 +148,13 @@ document.addEventListener('DOMContentLoaded', () => {
 // Debug function
 window.testFunction = function() {
     alert('JavaScript is working!');
+};
+
+window.loadLastSegmentationAsAnnotations = function() {
+    if (window.lastSegmentationData && window.lastSegmentationData.final_mask) {
+        loadSegmentationResultsAsAnnotations(window.lastSegmentationData);
+        alert('Segmentation results loaded as editable annotations!');
+    } else {
+        alert('No segmentation results available to load. Please run segmentation first.');
+    }
 };

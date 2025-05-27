@@ -902,3 +902,270 @@ export function downloadAnnotations() {
         }, 3000);
     });
 }
+
+export function loadSegmentationResultsAsAnnotations(segmentationData) {
+    if (!segmentationData || !segmentationData.final_mask) {
+        console.log('No segmentation results to load as annotations');
+        return;
+    }
+
+    const img = document.getElementById("uploadedImage");
+    const canvas = state.annotationCanvas;
+
+    state.scribbles = state.scribbles.filter(s => !s.isSegmentationResult);
+    
+    const layersContainer = document.getElementById('layersContainer');
+    
+    import('./layers.js').then(module => {
+        const { createLayer } = module;
+        
+        segmentationData.final_mask.forEach((maskData, index) => {
+            const regionId = maskData.regionId;
+            const pixels = maskData.pixels;
+            const color = maskData.color || "#ff0000";
+            
+            if (pixels.length > 0) {
+                const ys = pixels.map(p => p[0]);
+                const xs = pixels.map(p => p[1]);
+            }
+            
+            const layerName = `Segmented ${regionId}`;
+            const layerId = createLayer(layerName, color);
+            
+            const points = pixels.map(pixel => {
+                let x = pixel[1]; 
+                let y = pixel[0]; 
+
+                const scaleX = state.originalImageDimensions.width / 512;  // ASSUMING target width was 512
+                const scaleY = state.originalImageDimensions.height / 224; // ASSUMING target height was 224
+                
+                x = x * scaleX;
+                y = y * scaleY;
+            
+                return { x, y };
+            });
+            
+            if (points.length > 0) {
+                const pointXs = points.map(p => p.x);
+                const pointYs = points.map(p => p.y);
+            }
+            
+            points.forEach(point => {
+                state.scribbles.push({
+                    points: [point], 
+                    isPrediction: false,
+                    color: color,
+                    layerId: layerId,
+                    isLoadedAnnotation: false, 
+                    isSegmentationResult: true, 
+                    isDot: true 
+                });
+            });
+            
+        });
+        
+        import('./canvas-tools.js').then(module => {
+            const { redrawAnnotations } = module;
+            redrawAnnotations();
+        });
+        
+        console.log(`Successfully loaded ${segmentationData.final_mask.length} segmentation results as editable annotations!`);
+        alert(`Successfully loaded ${segmentationData.final_mask.length} segmentation regions as editable annotations!`);
+    });
+}
+
+export function handleAnnotationsWithResultLoading() {
+    const existingPanel = document.getElementById('maskPreviewPanel');
+    if (existingPanel) {
+        existingPanel.remove();
+    }
+
+    const algorithm = document.getElementById('algorithm')?.value || window.algorithm || 'kite';
+    const segmentationMethod = state.segmentationMethod || 'traditional';
+    
+    console.log('Using algorithm:', algorithm);
+    console.log('Using segmentation method:', segmentationMethod);
+
+    state.scribbles = state.scribbles.filter(s => !s.isPrediction);
+    redrawAnnotations();
+
+    const allPoints = state.scribbles.flatMap(s =>
+        s.points.map(p => ({
+            x: p.x,
+            y: p.y,
+            color: s.color,
+            layerId: s.layerId
+        }))
+    );
+
+    const payload = {
+        image_name: state.imageName,
+        algorithm: algorithm,
+        segmentation_method: segmentationMethod,
+        use_unet: state.unetMode || false,
+        shapes: [{
+            label: "anomaly",
+            points: allPoints.map(p => [p.x, p.y]),
+            color: allPoints.map(p => p.color),
+            layerId: allPoints.map(p => p.layerId)
+        }]
+    };
+
+    fetchWithCSRF("/segment/", {
+        method: "POST",
+        body: JSON.stringify(payload)
+    })
+    .then(res => {
+        console.log('Response status:', res.status);
+        if (!res.ok) {
+            return res.text().then(text => {
+                throw new Error(`HTTP error! status: ${res.status}, message: ${text}`);
+            });
+        }
+        return res.json();
+    })
+    .then(data => {
+        console.log("Segmentation response:", data);
+
+        resetZoom();
+
+        window.lastSegmentationData = data;
+
+        const resultImage = document.getElementById("segmentedResultImage");
+        console.log("resultImage element:", resultImage);
+
+        if (!data.segmented_image) {
+            console.error("No segmented_image returned!");
+            return;
+        }
+
+        resultImage.src = `data:image/png;base64,${data.segmented_image}`;
+        document.getElementById("segmentationResult").style.display = "block";
+
+        const downloadBtn = document.getElementById("downloadSegmentedImage");
+        downloadBtn.href = resultImage.src;
+        downloadBtn.download = "segmented_result.png";
+        downloadBtn.style.display = "inline-block";
+
+        if (data.segmentation_map) {
+            segmentationMapData = data.segmentation_map;
+            const showSegMapBtn = document.getElementById("showSegMapBtn");
+            if (showSegMapBtn) {
+                showSegMapBtn.style.display = "inline-block";
+            }
+        } else {
+            const showSegMapBtn = document.getElementById("showSegMapBtn");
+            if (showSegMapBtn) {
+                showSegMapBtn.style.display = "none";
+            }
+        }
+
+        const stageContainer = document.getElementById("segmentationStage");
+        if (stageContainer) {
+            stageContainer.innerHTML = "";
+            const width = resultImage.naturalWidth || resultImage.clientWidth;
+            const height = resultImage.naturalHeight || resultImage.clientHeight;
+            stageContainer.style.width = width + "px";
+            stageContainer.style.height = height + "px";
+        }
+
+        if (data.segmentation_masks && data.segmentation_masks.individual_masks && data.segmentation_masks.individual_masks.length > 0) {
+            createMaskPreviewPanel(data.segmentation_masks);
+        }
+
+        // I feel like we could delete this idk
+        if (data.final_mask && data.final_mask.length > 0 && stageContainer) {
+            renderInteractiveRegions(resultImage, data.final_mask, 
+                resultImage.naturalWidth || resultImage.clientWidth,
+                resultImage.naturalHeight || resultImage.clientHeight, 
+                stageContainer);
+        }
+
+        if (data.final_mask && data.final_mask.length > 0) {
+            const loadBtn = document.getElementById('loadResultsAsAnnotationsBtn');
+            if (loadBtn) {
+                loadBtn.style.display = 'inline-block';
+            }
+        }
+
+        if (!data.predicted_annotations || data.predicted_annotations.length === 0) {
+            return;
+        }
+        
+        try {
+            state.scribbles = state.scribbles.filter(s => !s.isPrediction);
+
+            const predictedAnnotations = data.predicted_annotations;
+
+            if (Array.isArray(predictedAnnotations)) {
+
+                const processedPoints = [];
+
+                predictedAnnotations.forEach((annotation, index) => {
+                    if (annotation && annotation.shape_type === "polygon" && Array.isArray(annotation.points)) {
+                        const points = annotation.points.map(point => ({
+                            x: point[0],
+                            y: point[1],
+                            color: annotation.color ? `rgb(${annotation.color[0]}, ${annotation.color[1]}, ${annotation.color[2]})` : "cyan"
+                        }));
+
+                        state.scribbles.push({
+                            points: points,
+                            isPrediction: true,
+                            color: annotation.color ? `rgb(${annotation.color[0]}, ${annotation.color[1]}, ${annotation.color[2]})` : "cyan",
+                            class_id: annotation.class_id || "fluid"
+                        });
+
+                    }
+                    else if (Array.isArray(annotation)) {
+                        if (Array.isArray(annotation[0])) {
+                            const [[x, y], color] = annotation;           
+                            const scaleX = state.originalImageDimensions.width / 512;  
+                            const scaleY = state.originalImageDimensions.height / 224; 
+                            
+                            const scaledX = x * scaleX;
+                            const scaledY = y * scaleY;                     
+                            processedPoints.push({ 
+                                x: scaledX, 
+                                y: scaledY, 
+                                color: color || "blue"
+                            });
+                        } else {
+                            const [x, y] = annotation;
+                            const scaleX = state.originalImageDimensions.width / 512;  
+                            const scaleY = state.originalImageDimensions.height / 224; 
+                            
+                            const scaledX = x * scaleX;
+                            const scaledY = y * scaleY;                     
+                            processedPoints.push({ 
+                                x: scaledX, 
+                                y: scaledY, 
+                                color: "blue" 
+                            });
+                        }
+                    }
+                });
+
+                if (processedPoints.length > 0) {
+                    state.scribbles.push({
+                        points: processedPoints,
+                        isPrediction: true,
+                        color: "blue"
+                    });
+                }
+
+                if (data.class_info) {
+                    createClassLegend(data.class_info);
+                }
+            }
+
+            redrawAnnotations();
+        } catch (err) {
+            console.error("Error processing annotations:", err);
+        }
+    })
+    .catch(error => {
+        console.error("Error in handleAnnotations:", error);
+        alert('Error processing segmentation: ' + error.message);
+    });
+}

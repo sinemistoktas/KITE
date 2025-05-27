@@ -352,6 +352,7 @@ function eraseAt(x, y) {
     const newScribbles = [];
     const existingLayerIds = new Set(); // Track all layers
     const remainingLayerIds = new Set(); // Track layers that survive
+    const eraseRadius = 10;
 
     // Track existing layers first
     for (const stroke of state.scribbles) {
@@ -359,73 +360,114 @@ function eraseAt(x, y) {
             existingLayerIds.add(stroke.layerId);
         }
     }
+    let erasedCount = 0;
+    let strokesProcessed = 0;
 
     for (const stroke of state.scribbles) {
+        strokesProcessed++;
         if (stroke.isPrediction) {
             newScribbles.push(stroke);
             continue;
         }
 
-        const hasPointInEraser = stroke.points.some(p => Math.hypot(p.x - x, p.y - y) < 10);
+        const pointsInEraser = stroke.points.filter(p => Math.hypot(p.x - x, p.y - y) < eraseRadius);
+        const hasPointInEraser = pointsInEraser.length > 0;
         if (!hasPointInEraser) {
             newScribbles.push(stroke);
             if (stroke.layerId) remainingLayerIds.add(stroke.layerId);
             continue;
         }
 
-        // Try splitting stroke into partials
-        let segment = [];
-        for (const point of stroke.points) {
-            const within = Math.hypot(point.x - x, point.y - y) < 10;
-            if (!within) {
-                segment.push(point);
+        if (stroke.isLoadedAnnotation || stroke.isDot || stroke.isSegmentationResult || stroke.points.length === 1) {
+            const point = stroke.points[0];
+            const withinEraser = Math.hypot(point.x - x, point.y - y) < eraseRadius;
+            if (!withinEraser) {
+                newScribbles.push(stroke);
+                if (stroke.layerId) remainingLayerIds.add(stroke.layerId);
             } else {
-                if (segment.length > 1) {
-                    newScribbles.push({
-                        points: segment,
-                        isPrediction: false,
-                        color: stroke.color,
-                        layerId: stroke.layerId
-                    });
-                    if (stroke.layerId) remainingLayerIds.add(stroke.layerId);
-                }
-                segment = [];
+                console.log(`Erased single ${stroke.isSegmentationResult ? 'segmentation result' : stroke.isLoadedAnnotation ? 'loaded annotation' : 'dot'} at (${point.x}, ${point.y})`);
+                erasedCount++;
             }
+        } 
+        else if (stroke.isBox) {
+            erasedCount++;
         }
-
-        if (segment.length > 1) {
-            newScribbles.push({
-                points: segment,
-                isPrediction: false,
-                color: stroke.color,
-                layerId: stroke.layerId
-            });
-            if (stroke.layerId) remainingLayerIds.add(stroke.layerId);
+        else if (stroke.isFilled || stroke.type === 'fill') {
+            erasedCount++;
+        }
+        else {
+            let segments = [];
+            let currentSegment = [];
+            let pointsErased = 0;
+            
+            for (const point of stroke.points) {
+                const withinEraser = Math.hypot(point.x - x, point.y - y) < eraseRadius;
+                
+                if (!withinEraser) {
+                    currentSegment.push(point);
+                } else {
+                    pointsErased++;
+                    if (currentSegment.length > 1) {
+                        segments.push([...currentSegment]);
+                    }
+                    currentSegment = [];
+                }
+            }
+            
+            if (currentSegment.length > 1) {
+                segments.push(currentSegment);
+            }
+            for (const segment of segments) {
+                newScribbles.push({
+                    points: segment,
+                    isPrediction: false,
+                    color: stroke.color,
+                    layerId: stroke.layerId,
+                    isLoadedAnnotation: stroke.isLoadedAnnotation || false,
+                    isDot: false,
+                    isSegmentationResult: stroke.isSegmentationResult || false,
+                    isBox: false,
+                    isFilled: stroke.isFilled || false,
+                    type: stroke.type
+                });
+                if (stroke.layerId) remainingLayerIds.add(stroke.layerId);
+            }
+            
+            if (pointsErased > 0) {
+                erasedCount += pointsErased;
+            }
         }
     }
 
-    // Remove layers that no longer have any strokes
+   // Remove layers that no longer have any strokes
+    const layersRemoved = [];
     for (const layerId of existingLayerIds) {
         if (!remainingLayerIds.has(layerId)) {
-            const el = document.getElementById(layerId);
-            if (el) el.remove();
+            const layerElement = document.getElementById(layerId);
+            if (layerElement) {
+                layerElement.remove();
+                layersRemoved.push(layerId);
+            }
             state.visibleLayerIds = state.visibleLayerIds.filter(id => id !== layerId);
         }
     }
+
 
     state.scribbles = newScribbles;
     redrawAnnotations();
 }
 
 function eraseAllAnnotations() {
-    state.scribbles = state.scribbles.filter(s => s.isPrediction); // Keep predictions
+    state.scribbles = state.scribbles.filter(s => s.isPrediction);
     state.layerCounter = 0;
     state.visibleLayerIds = [];
     state.currentLayerId = null;
 
     const layersContainer = document.getElementById('layersContainer');
-    while (layersContainer.firstChild) {
-        layersContainer.removeChild(layersContainer.firstChild);
+    if (layersContainer) {
+        while (layersContainer.firstChild) {
+            layersContainer.removeChild(layersContainer.firstChild);
+        }
     }
 
     redrawAnnotations();
