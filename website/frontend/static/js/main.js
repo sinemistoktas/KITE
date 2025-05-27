@@ -9,39 +9,35 @@ import { initBoxTool } from './box-tool.js';
 document.addEventListener('DOMContentLoaded', () => {
     const annotationCanvas = document.getElementById("annotationCanvas");
     const predictionCanvas = document.getElementById("predictionCanvas");
+    const medsamCanvas = document.getElementById("medsamCanvas");
     const img = document.getElementById("uploadedImage");
 
     // Only proceed if the necessary elements are present.
     if (!annotationCanvas || !predictionCanvas || !img) {
         console.log('📷 No image uploaded yet, skipping canvas setup');
-        console.log('Canvas elements found:', {
-            annotationCanvas: !!annotationCanvas,
-            predictionCanvas: !!predictionCanvas,
-            img: !!img
-        });
         return;
     }
 
+    // Store references in global state
     state.annotationCanvas = annotationCanvas;
     state.predictionCanvas = predictionCanvas;
     state.annotationCtx = annotationCanvas.getContext("2d");
     state.predictionCtx = predictionCanvas.getContext("2d");
     state.imageName = window.imageName;
 
-    // Handle both new algorithm system and legacy segmentation method system
+    // Detect algorithm/method
     if (window.algorithm) {
         state.algorithm = window.algorithm;
         state.unetMode = window.algorithm === 'U-Net';
         state.medsamMode = window.algorithm === 'MedSAM';
         state.kiteMode = window.algorithm === 'KITE';
     }
-
     if (window.segmentationMethod) {
         state.segmentationMethod = window.segmentationMethod;
         state.unetMode = window.segmentationMethod === 'unet';
     }
 
-    // Initialize from server data if available
+    // Load server-passed predictions (e.g. UNet)
     if (typeof initializeFromServer === 'function') {
         initializeFromServer({
             imageName: window.imageName,
@@ -51,7 +47,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Handle predicted points for UNet auto-processing
     if (window.predictedPoints && window.predictedPoints.length > 0) {
         try {
             const predictions = [{ points: window.predictedPoints }];
@@ -61,82 +56,69 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // ✅ Resize canvas to match displayed image
     const resizeCanvasToImage = () => {
-        const rect = img.getBoundingClientRect();
-        state.originalImageDimensions = { width: rect.width, height: rect.height };
-        state.viewportCenterX = rect.width / 2;
-        state.viewportCenterY = rect.height / 2;
+        const imageWidth = img.clientWidth;
+        const imageHeight = img.clientHeight;
 
-        [annotationCanvas, predictionCanvas].forEach(c => {
-            c.width = rect.width;
-            c.height = rect.height;
-            c.style.width = `${rect.width}px`;
-            c.style.height = `${rect.height}px`;
+        state.originalImageDimensions = { width: imageWidth, height: imageHeight };
+        state.viewportCenterX = imageWidth / 2;
+        state.viewportCenterY = imageHeight / 2;
+
+        // Resize all 3 canvases
+        [annotationCanvas, predictionCanvas, medsamCanvas].forEach(c => {
+            c.width = imageWidth;
+            c.height = imageHeight;
+            c.style.width = `${imageWidth}px`;
+            c.style.height = `${imageHeight}px`;
             c.style.position = "absolute";
             c.style.top = "0";
             c.style.left = "0";
         });
 
-        annotationCanvas.style.pointerEvents = "auto";
-        predictionCanvas.style.pointerEvents = "none";
-
+        // Zoom container
         const zoomContainer = document.getElementById("zoomContainer");
         if (zoomContainer) {
-            zoomContainer.style.width = `${rect.width}px`;
-            zoomContainer.style.height = `${rect.height}px`;
+            zoomContainer.style.width = `${imageWidth}px`;
+            zoomContainer.style.height = `${imageHeight}px`;
         }
 
-        redrawAnnotations();
+        redrawAnnotations(); // Repaint with correct scaling
     };
 
+    // Ensure resize happens when image loads
     if (img.complete) {
         resizeCanvasToImage();
     } else {
         img.onload = resizeCanvasToImage;
     }
 
+    // Optional: respond to browser resizes
     window.addEventListener("resize", resizeCanvasToImage);
+
+    // Hook event handlers
     window.handleAnnotations = handleAnnotations;
     window.handlePreprocessedImg = handlePreprocessedImg;
     window.loadAnnotations = loadAnnotations;
     window.downloadAnnotations = downloadAnnotations;
 
-    // Hook up all button + canvas events
     bindUIEvents();
     initColorPicker();
     initBoxTool();
 
-    // Update method description (for legacy radio button system)
-    if (typeof updateMethodDescription === 'function') {
-        updateMethodDescription();
-    }
-
-    // Update UI based on selected algorithm/method
-    if (state.unetMode) {
-        const segmentBtn = document.querySelector('.ready-segment-btn');
-        if (segmentBtn) {
+    // Adjust UI for selected method
+    const segmentBtn = document.querySelector('.ready-segment-btn');
+    if (segmentBtn) {
+        if (state.unetMode) {
             segmentBtn.innerHTML = '<i class="fa-solid fa-hurricane me-2"></i> Ready to Segment with UNet!';
-        }
-    }
-
-    // Handle algorithm-specific UI updates
-    if (state.medsamMode) {
-        const segmentBtn = document.querySelector('.ready-segment-btn');
-        if (segmentBtn) {
+        } else if (state.medsamMode) {
             segmentBtn.innerHTML = '<i class="fa-solid fa-hurricane me-2"></i> Ready to Segment with MedSAM!';
-        }
-    }
-
-    if (state.kiteMode || (!state.algorithm && !state.segmentationMethod)) {
-        // Default KITE mode or no specific algorithm selected
-        const segmentBtn = document.querySelector('.ready-segment-btn');
-        if (segmentBtn) {
+        } else {
             segmentBtn.innerHTML = '<i class="fa-solid fa-hurricane me-2"></i> Ready to Segment!';
         }
     }
-});
 
-// Debug function
-window.testFunction = function() {
-    alert('JavaScript is working!');
-};
+    if (typeof updateMethodDescription === 'function') {
+        updateMethodDescription();
+    }
+});

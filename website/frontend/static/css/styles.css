@@ -2484,3 +2484,30 @@ input[type="file"] {
 .unet-active .load-annotations-btn {
     display: none !important;
 }
+
+.img-oct {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 8px;
+}
+
+#zoomContainer {
+  max-width: 1000px;
+}
+
+#zoomContainer img,
+#zoomContainer canvas {
+  max-width: 1000px;
+  width: 100%;
+}
+
+#zoomContainer {
+  max-width: 1000px;
+}
+
+#zoomContainer canvas {
+  width: 100% !important;
+  height: auto;
+}
+
