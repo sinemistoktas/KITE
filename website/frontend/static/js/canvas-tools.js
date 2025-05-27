@@ -35,6 +35,20 @@ export function redrawAnnotations() {
                 aCtx.fill();
             });
         }
+        else if (stroke.isFilled || stroke.type === 'fill') {
+            aCtx.fillStyle = stroke.color || "red";
+            aCtx.beginPath();
+            aCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+            for (let i = 1; i < stroke.points.length; i++) {
+                aCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+            }
+            aCtx.closePath();
+            aCtx.fill();
+            
+            aCtx.strokeStyle = stroke.color || "red";
+            aCtx.lineWidth = 1 / state.zoomLevel;
+            aCtx.stroke();
+        }
         // Special handling for box annotations
         else if (stroke.isBox) {
             aCtx.strokeStyle = stroke.color || "red";

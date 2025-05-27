@@ -11,6 +11,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const predictionCanvas = document.getElementById("predictionCanvas");
     const img = document.getElementById("uploadedImage");
 
+    // Only proceed if the necessary elements are present.
+    if (!annotationCanvas || !predictionCanvas || !img) {
+        console.log('📷 No image uploaded yet, skipping canvas setup');
+        console.log('Canvas elements found:', {
+            annotationCanvas: !!annotationCanvas,
+            predictionCanvas: !!predictionCanvas,
+            img: !!img
+        });
+        return;
+    }
+
     state.annotationCanvas = annotationCanvas;
     state.predictionCanvas = predictionCanvas;
     state.annotationCtx = annotationCanvas.getContext("2d");

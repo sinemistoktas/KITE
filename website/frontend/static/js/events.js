@@ -261,7 +261,7 @@ function setMode(newMode) {
         state.annotationCanvas.style.cursor = "crosshair"; // reset
     }
 
-    if (state.isFillToolActive) {
+    if (state.isFillToolActive && newMode !== "fill") {
         state.isFillToolActive = false;
         document.getElementById('fillToolBtn')?.classList.remove('btn-danger');
         document.getElementById('fillToolBtn')?.classList.add('btn-outline-danger');
@@ -288,18 +288,23 @@ function setMode(newMode) {
             document.getElementById("zoomInBtn")?.classList.add("btn-outline-primary");
             state.annotationCanvas.classList.remove("zoom-cursor");
         }
-    
+
         state.isFillToolActive = !state.isFillToolActive;
     
+        const fillBtn = document.getElementById('fillToolBtn');
         if (state.isFillToolActive) {
+            fillBtn?.classList.add('btn-danger');
+            fillBtn?.classList.remove('btn-outline-danger');
             resetFillTool();
             updateFillToolStatus("Draw a closed boundary around the area you want to fill");
         } else {
-            document.getElementById("fillToolStatus")?.style.setProperty("display", "none");
+            fillBtn?.classList.remove('btn-danger');
+            fillBtn?.classList.add('btn-outline-danger');
+            document.getElementById('fillToolStatus')?.style.setProperty('display', 'none');
         }
     
         state.mode = state.isFillToolActive ? "fill" : null;
-        state.annotationCanvas.style.cursor = state.isFillToolActive ? "crosshair" : "crosshair";
+        state.annotationCanvas.style.cursor = "crosshair";
     
         updateButtonStyles();
         redrawAnnotations();

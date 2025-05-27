@@ -46,70 +46,22 @@ export function handleFillToolClick(imageCoords) {
         }
 
         const layerId = createLayer("Fill", state.selectedColor);
-        state.scribbles.push({
+        const fillStroke = {
             points: [...state.currentBoundary],
             isPrediction: false,
             color: state.selectedColor,
-            layerId
-        });
+            layerId,
+            isFilled: true,
+            type: 'fill'
+        };
+        state.scribbles.push(fillStroke);
 
-        updateFillToolStatus("Filling region with dots... please wait");
-
-        setTimeout(() => {
-            const fillPoints = floodFill(imageCoords);
-            fillPoints.forEach(point => {
-                state.scribbles.push({
-                    points: [point],
-                    isPrediction: false,
-                    color: state.selectedColor,
-                    layerId
-                });
-            });
-
-            resetFillTool();
-            updateFillToolStatus("Fill complete. Draw another boundary or switch tools.");
-            redrawAnnotations();
-        }, 50);
+        resetFillTool();
+        updateFillToolStatus("Fill complete. Draw another boundary or switch tools.");
+        redrawAnnotations();
     }
 }
 
-function floodFill(centerPoint) {
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = state.annotationCanvas.width;
-    tempCanvas.height = state.annotationCanvas.height;
-    const ctx = tempCanvas.getContext('2d');
-
-    const offsetX = state.viewportCenterX - (state.originalImageDimensions.width / (2 * state.zoomLevel));
-    const offsetY = state.viewportCenterY - (state.originalImageDimensions.height / (2 * state.zoomLevel));
-
-    ctx.save();
-    ctx.translate(-offsetX * state.zoomLevel, -offsetY * state.zoomLevel);
-    ctx.scale(state.zoomLevel, state.zoomLevel);
-    ctx.beginPath();
-    ctx.moveTo(state.currentBoundary[0].x, state.currentBoundary[0].y);
-    for (let i = 1; i < state.currentBoundary.length; i++) {
-        ctx.lineTo(state.currentBoundary[i].x, state.currentBoundary[i].y);
-    }
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-
-    const imageData = ctx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-    const data = imageData.data;
-    const sampleRate = 5;
-    const filledPoints = [];
-
-    for (let y = 0; y < tempCanvas.height; y += sampleRate) {
-        for (let x = 0; x < tempCanvas.width; x += sampleRate) {
-            const index = (y * tempCanvas.width + x) * 4;
-            if (data[index + 3] > 0) {
-                filledPoints.push(screenToImageCoords(x + state.annotationCanvas.getBoundingClientRect().left, y + state.annotationCanvas.getBoundingClientRect().top));
-            }
-        }
-    }
-
-    return filledPoints;
-}
 
 export function updateFillToolStatus(msg) {
     const status = document.getElementById('fillToolStatus');

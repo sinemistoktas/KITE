@@ -802,11 +802,13 @@ export function downloadAnnotations() {
         
         // Determine stroke type!!!! This is important for the backend to find the perfect array.
         let strokeType = 'line';
-        
+
         if (stroke.isDot || stroke.points.length === 1) {
             strokeType = 'dot';
         } else if (stroke.isBox) {
             strokeType = 'box';
+        } else if (stroke.isFilled || stroke.type === 'fill') {
+            strokeType = 'fill';
         } else if (stroke.isLoadedAnnotation) {
             strokeType = 'dot';
         } else if (stroke.layerId) {
