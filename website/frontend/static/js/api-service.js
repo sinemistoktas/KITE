@@ -800,11 +800,33 @@ export function downloadAnnotations() {
             };
         }
         
-        stroke.points.forEach(point => {
-            layerGroups[layerId].push({
+        // Determine stroke type!!!! This is important for the backend to find the perfect array.
+        let strokeType = 'line';
+        
+        if (stroke.isDot || stroke.points.length === 1) {
+            strokeType = 'dot';
+        } else if (stroke.isBox) {
+            strokeType = 'box';
+        } else if (stroke.isLoadedAnnotation) {
+            strokeType = 'dot';
+        } else if (stroke.layerId) {
+            // Check layer type from the DOM to determine if it's a fill.
+            const layerElement = document.getElementById(stroke.layerId);
+            if (layerElement) {
+                const layerType = layerElement.getAttribute('data-layer-type');
+                if (layerType && layerType.toLowerCase().includes('fill')) {
+                    strokeType = 'fill';
+                }
+            }
+        }
+        
+        // Add stroke with its TYPE and points.
+        layerGroups[layerId].push({
+            type: strokeType,
+            points: stroke.points.map(point => ({
                 x: point.x,
                 y: point.y
-            });
+            }))
         });
     });
     
@@ -812,10 +834,10 @@ export function downloadAnnotations() {
         layer_id: layerId,
         layer_name: layerOrder[layerId].name,
         layer_order: layerOrder[layerId].order,
-        points: layerGroups[layerId]
+        strokes: layerGroups[layerId]
     }));
     
-    console.log('Preparing to download annotations:', annotationsData);
+    console.log('Preparing to download annotations with stroke types:', annotationsData);
     
     const payload = {
         annotations: annotationsData,

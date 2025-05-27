@@ -846,17 +846,156 @@ def create_annotation_mask_array(annotations_data, image_dimensions):
     
     # Process each layer and assign incremental values for different layers.
     for layer_index, layer_data in enumerate(sorted_layers, start=1):
-        layer_points = layer_data.get("points", [])
-        print(f"Layer {layer_index}: {len(layer_points)} points")
-        
-        for point in layer_points:
-            x = int(round(point["x"]))
-            y = int(round(point["y"]))
+        strokes = layer_data.get("strokes", [])
+        print(f"Layer {layer_index}: {len(strokes)} strokes")
+        if strokes and all(stroke.get("type") == "dot" for stroke in strokes) and len(strokes) > 10:
+            # For the fill tool, render all the dots as filled area
+            all_fill_points = []
+            for stroke in strokes:
+                all_fill_points.extend(stroke.get("points", []))
             
-            if 0 <= x < width and 0 <= y < height:
-                annotation_mask[y, x] = layer_index
-            else:
-                print(f"Point ({x}, {y}) is out of bounds for {width}x{height} image")
+            if all_fill_points:
+                render_fill_dots(annotation_mask, all_fill_points, layer_index, width, height)
+        else:
+            for stroke in strokes:
+                stroke_type = stroke.get("type", "line")  # 4 options: line, box, dot, fill!
+                points = stroke.get("points", [])
+                
+                if not points:
+                    continue
+                    
+                if stroke_type == "dot" or len(points) == 1:
+                    render_dot(annotation_mask, points[0], layer_index, width, height)
+                    
+                elif stroke_type == "box":
+                    render_box(annotation_mask, points, layer_index, width, height)
+                    
+                elif stroke_type == "fill":
+                    render_filled_polygon(annotation_mask, points, layer_index, width, height)
+                    
+                else:
+                    render_line(annotation_mask, points, layer_index, width, height)
     
     print(f"Annotation mask created with unique values: {np.unique(annotation_mask)}")
     return annotation_mask
+
+# Here I added functions to render different shapes and save them as an annotation. Nornally, each annotation is stored as separate dots and the lines are drawn 
+# on the front end. This is why when we load the annotations without this processing step, we would only get dots.
+
+def render_fill_dots(mask, points, layer_value, width, height):
+    for point in points:
+        x = int(round(point["x"]))
+        y = int(round(point["y"]))
+        
+        for dy in range(-1, 2):
+            for dx in range(-1, 2):
+                px, py = x + dx, y + dy
+                if 0 <= px < width and 0 <= py < height:
+                    mask[py, px] = layer_value
+
+
+def render_dot(mask, point, layer_value, width, height, radius=1):
+    x = int(round(point["x"]))
+    y = int(round(point["y"]))
+
+    for dy in range(-radius, radius + 1):
+        for dx in range(-radius, radius + 1):
+            if dx*dx + dy*dy <= radius*radius:  # Circle equation
+                px, py = x + dx, y + dy
+                if 0 <= px < width and 0 <= py < height:
+                    mask[py, px] = layer_value
+
+
+def render_line(mask, points, layer_value, width, height, line_width=1):
+    if len(points) < 2:
+        return
+        
+    for i in range(len(points) - 1):
+        x1 = int(round(points[i]["x"]))
+        y1 = int(round(points[i]["y"]))
+        x2 = int(round(points[i + 1]["x"]))
+        y2 = int(round(points[i + 1]["y"]))
+        
+        draw_line(mask, x1, y1, x2, y2, layer_value, width, height, line_width)
+
+
+def render_box(mask, points, layer_value, width, height, line_width=1):
+    if len(points) < 4:
+        return
+        
+    for i in range(len(points)):
+        next_i = (i + 1) % len(points)
+        x1 = int(round(points[i]["x"]))
+        y1 = int(round(points[i]["y"]))
+        x2 = int(round(points[next_i]["x"]))
+        y2 = int(round(points[next_i]["y"]))
+        
+        draw_line(mask, x1, y1, x2, y2, layer_value, width, height, line_width)
+
+
+def render_filled_polygon(mask, points, layer_value, width, height):
+    """Render a filled polygon using scanline algorithm"""
+    if len(points) < 3:
+        return
+        
+    polygon_points = [(int(round(p["x"])), int(round(p["y"]))) for p in points]
+    
+    # Find bounding box.
+    min_y = max(0, min(p[1] for p in polygon_points))
+    max_y = min(height - 1, max(p[1] for p in polygon_points))
+    
+    for y in range(min_y, max_y + 1):
+        intersections = []
+        
+        # Find intersections with polygon edges.
+        for i in range(len(polygon_points)):
+            j = (i + 1) % len(polygon_points)
+            x1, y1 = polygon_points[i]
+            x2, y2 = polygon_points[j]
+            
+            if y1 <= y < y2 or y2 <= y < y1:
+                if y2 != y1:  # Avoid division by zero here!
+                    x_intersect = x1 + (y - y1) * (x2 - x1) / (y2 - y1)
+                    intersections.append(x_intersect)
+        
+        intersections.sort()
+        for i in range(0, len(intersections), 2):
+            if i + 1 < len(intersections):
+                x_start = max(0, int(intersections[i]))
+                x_end = min(width - 1, int(intersections[i + 1]))
+                for x in range(x_start, x_end + 1):
+                    mask[y, x] = layer_value
+
+# NOTE TO DURU:
+# The lines are drawn a bit thicker than usual, I feel like the issue is somewhere here.
+def draw_line(mask, x1, y1, x2, y2, layer_value, width, height, thickness=1):
+    # Bresenham's line algorithm:
+    dx = abs(x2 - x1)
+    dy = abs(y2 - y1)
+    sx = 1 if x1 < x2 else -1
+    sy = 1 if y1 < y2 else -1
+    err = dx - dy
+    
+    x, y = x1, y1
+    
+    radius = thickness // 2
+    
+    while True:
+        for dy_offset in range(-radius, radius + 1):
+            for dx_offset in range(-radius, radius + 1):
+                if dx_offset * dx_offset + dy_offset * dy_offset <= radius * radius:
+                    px = x + dx_offset
+                    py = y + dy_offset
+                    if 0 <= px < width and 0 <= py < height:
+                        mask[py, px] = layer_value
+        
+        if x == x2 and y == y2:
+            break
+            
+        e2 = 2 * err
+        if e2 > -dy:
+            err -= dy
+            x += sx
+        if e2 < dx:
+            err += dx
+            y += sy
