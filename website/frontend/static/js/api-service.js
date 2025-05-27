@@ -773,3 +773,108 @@ function displayLoadedAnnotations(annotations) {
         console.log(`Loaded ${annotations.length} annotation regions`);
     });
 }
+
+export function downloadAnnotations() {
+    const userAnnotations = state.scribbles.filter(s => !s.isPrediction);
+    
+    if (userAnnotations.length === 0) {
+        alert('No annotations to download. Please add some annotations first.');
+        return;
+    }
+    
+    const layerGroups = {};
+    const layerOrder = {};
+    
+    userAnnotations.forEach(stroke => {
+        const layerId = stroke.layerId || 'default';
+        
+        if (!layerGroups[layerId]) {
+            layerGroups[layerId] = [];
+            const layerElement = document.getElementById(layerId);
+            const layerName = layerElement ? 
+                layerElement.querySelector('input[type="text"]').value : 
+                'Unknown Layer';
+            layerOrder[layerId] = {
+                name: layerName,
+                order: Object.keys(layerGroups).length
+            };
+        }
+        
+        stroke.points.forEach(point => {
+            layerGroups[layerId].push({
+                x: point.x,
+                y: point.y
+            });
+        });
+    });
+    
+    const annotationsData = Object.keys(layerGroups).map((layerId, index) => ({
+        layer_id: layerId,
+        layer_name: layerOrder[layerId].name,
+        layer_order: layerOrder[layerId].order,
+        points: layerGroups[layerId]
+    }));
+    
+    console.log('Preparing to download annotations:', annotationsData);
+    
+    const payload = {
+        annotations: annotationsData,
+        image_dimensions: state.originalImageDimensions,
+        image_name: state.imageName
+    };
+    
+    const downloadBtn = document.getElementById('downloadAnnotationsBtn');
+    const originalText = downloadBtn.innerHTML;
+    downloadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating Annotation File...';
+    downloadBtn.disabled = true;
+    
+    fetchWithCSRF("/download-annotations/", {
+        method: "POST",
+        body: JSON.stringify(payload)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Download response:', data);
+        
+        if (data.download_url) {
+            const link = document.createElement('a');
+            link.href = data.download_url;
+            link.download = data.filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            downloadBtn.innerHTML = '<i class="fa-solid fa-check"></i> Downloaded!';
+            downloadBtn.style.backgroundColor = '#28a745';
+            downloadBtn.style.borderColor = '#28a745';
+            
+            const layerCount = Object.keys(layerGroups).length;
+            const totalPoints = Object.values(layerGroups).reduce((sum, points) => sum + points.length, 0);
+            alert(`Successfully downloaded annotations!\n\nLayers: ${layerCount}\nTotal points: ${totalPoints}\nFile: ${data.filename}`);
+            
+        } else {
+            throw new Error(data.error || 'Unknown error occurred');
+        }
+    })
+    .catch(error => {
+        console.error('Error downloading annotations:', error);
+        alert('Error downloading annotations: ' + error.message);
+        
+        downloadBtn.innerHTML = '<i class="fa-solid fa-exclamation-triangle"></i> Error';
+        downloadBtn.style.backgroundColor = '#dc3545';
+        downloadBtn.style.borderColor = '#dc3545';
+    })
+    .finally(() => {
+        setTimeout(() => {
+            downloadBtn.innerHTML = originalText;
+            downloadBtn.disabled = false;
+            downloadBtn.style.backgroundColor = '';
+            downloadBtn.style.borderColor = '';
+        }, 3000);
+    });
+}

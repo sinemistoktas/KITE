@@ -792,3 +792,71 @@ def process_annotation_data(annotation_data):
         })
     
     return annotations
+
+def download_annotations(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            annotations_data = data.get("annotations", [])
+            image_dimensions = data.get("image_dimensions", {"width": 512, "height": 224})
+            filename = data.get("image_name", "")
+
+            if not annotations_data:
+                return JsonResponse({"error": "No annotations to download"}, status=400)
+
+            annotation_mask = create_annotation_mask_array(annotations_data, image_dimensions)
+
+            annotations_dir = os.path.join(settings.MEDIA_ROOT, "annotations")
+            os.makedirs(annotations_dir, exist_ok=True)
+
+            filename_base = os.path.splitext(filename)[0] if filename else "annotations"
+            annotation_filename = f"{filename_base}_annotations.npy"
+            annotation_path = os.path.join(annotations_dir, annotation_filename)
+
+            # Save the annotations as a .npy file (FOR NOW, maybe we can change it to .npz to add the layer name?)
+            np.save(annotation_path, annotation_mask)
+
+            download_url = f"{settings.MEDIA_URL}annotations/{annotation_filename}"
+            return JsonResponse({
+                "download_url": download_url,
+                "filename": annotation_filename,
+                "shape": annotation_mask.shape,
+                "unique_values": np.unique(annotation_mask).tolist()
+            })
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({'error': 'Only POST requests allowed'}, status=405)
+
+
+def create_annotation_mask_array(annotations_data, image_dimensions):
+    # Convert to integers to handle float values from frontend.
+    width = int(round(image_dimensions["width"]))
+    height = int(round(image_dimensions["height"]))
+    
+    print(f"Creating annotation mask with dimensions: {width} x {height}")
+    print(f"Number of layers to process: {len(annotations_data)}")
+    
+    annotation_mask = np.zeros((height, width), dtype=np.uint8)
+    
+    sorted_layers = sorted(annotations_data, key=lambda x: x.get("layer_order", 0))
+    
+    # Process each layer and assign incremental values for different layers.
+    for layer_index, layer_data in enumerate(sorted_layers, start=1):
+        layer_points = layer_data.get("points", [])
+        print(f"Layer {layer_index}: {len(layer_points)} points")
+        
+        for point in layer_points:
+            x = int(round(point["x"]))
+            y = int(round(point["y"]))
+            
+            if 0 <= x < width and 0 <= y < height:
+                annotation_mask[y, x] = layer_index
+            else:
+                print(f"Point ({x}, {y}) is out of bounds for {width}x{height} image")
+    
+    print(f"Annotation mask created with unique values: {np.unique(annotation_mask)}")
+    return annotation_mask

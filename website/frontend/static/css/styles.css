@@ -1580,7 +1580,8 @@ input[type="file"] {
 /* Upload, Ready To Segment & Show-Preprocessed Image Buttons*/
 .custom-upload-btn,
 .ready-segment-btn,
-.load-annotations-btn {
+.load-annotations-btn,
+.download-annotations-btn {
   background: var(--accent) !important;
   color: var(--text-dark) !important;
   font-weight: 500 !important;
@@ -1597,9 +1598,11 @@ input[type="file"] {
 .custom-upload-btn:hover,
 .load-annotations-btn:hover,
 .ready-segment-btn:hover,
+.download-annotations-btn:hover,
 .custom-upload-btn:focus,
 .ready-segment-btn:focus,
-.load-annotations-btn:focus{
+.load-annotations-btn:focus,
+.download-annotations-btn:focus {
   background: var(--accent-light) !important;
   box-shadow: 0 6px 16px rgba(22, 183, 142, 0.35) !important;
   transform: translateY(-2px) !important;
