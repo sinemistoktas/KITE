@@ -2510,4 +2510,21 @@ input[type="file"] {
   width: 100% !important;
   height: auto;
 }
+.layers-panel input[type="checkbox"] {
+  transform: scale(1.4);
+  accent-color: #78dae6;
+  cursor: pointer;
+}
+
+.layers-panel .fa-trash {
+  color: #78dae6;
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.layers-panel .fa-trash:hover {
+  color: #5097a3;
+}
+
 
