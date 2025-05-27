@@ -361,15 +361,30 @@ function eraseAt(x, y) {
         }
     }
     let erasedCount = 0;
+    let protectedCount = 0;
     let strokesProcessed = 0;
 
     for (const stroke of state.scribbles) {
         strokesProcessed++;
+        // Always keep predictions contours - they shouldn't be erasable by the user!
         if (stroke.isPrediction) {
             newScribbles.push(stroke);
             continue;
         }
 
+        // IF the stroke belongs to a layer that is currently NOT visible, it should NOT be erased. This seems better.
+        const isLayerVisible = !stroke.layerId || state.visibleLayerIds.includes(stroke.layerId);
+        
+        if (!isLayerVisible) {
+            newScribbles.push(stroke);
+            if (stroke.layerId) remainingLayerIds.add(stroke.layerId);
+    
+            const wouldBeErased = stroke.points.some(p => Math.hypot(p.x - x, p.y - y) < eraseRadius);
+            if (wouldBeErased) {
+                protectedCount++;
+            }
+            continue;
+        }
         const pointsInEraser = stroke.points.filter(p => Math.hypot(p.x - x, p.y - y) < eraseRadius);
         const hasPointInEraser = pointsInEraser.length > 0;
         if (!hasPointInEraser) {
@@ -385,7 +400,6 @@ function eraseAt(x, y) {
                 newScribbles.push(stroke);
                 if (stroke.layerId) remainingLayerIds.add(stroke.layerId);
             } else {
-                console.log(`Erased single ${stroke.isSegmentationResult ? 'segmentation result' : stroke.isLoadedAnnotation ? 'loaded annotation' : 'dot'} at (${point.x}, ${point.y})`);
                 erasedCount++;
             }
         } 
@@ -439,19 +453,21 @@ function eraseAt(x, y) {
         }
     }
 
-   // Remove layers that no longer have any strokes
+    // Remove layers that no longer have any strokes, BUT don't remove hidden layers!!!
     const layersRemoved = [];
     for (const layerId of existingLayerIds) {
         if (!remainingLayerIds.has(layerId)) {
-            const layerElement = document.getElementById(layerId);
-            if (layerElement) {
-                layerElement.remove();
-                layersRemoved.push(layerId);
+            const wasVisible = state.visibleLayerIds.includes(layerId);
+            if (wasVisible) {
+                const layerElement = document.getElementById(layerId);
+                if (layerElement) {
+                    layerElement.remove();
+                    layersRemoved.push(layerId);
+                }
+                state.visibleLayerIds = state.visibleLayerIds.filter(id => id !== layerId);
             }
-            state.visibleLayerIds = state.visibleLayerIds.filter(id => id !== layerId);
         }
     }
-
 
     state.scribbles = newScribbles;
     redrawAnnotations();
