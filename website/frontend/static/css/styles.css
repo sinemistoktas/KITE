@@ -168,6 +168,41 @@ p {
   margin-bottom: 1rem;
 }
 
+.home-page h1,
+.home-page h2,
+.home-page h3,
+.home-page .lead {
+  font-family: 'Georgia', serif;
+}
+
+.home-page body,
+.home-page p,
+.home-page li {
+  font-family: 'Georgia', sans-serif;
+}
+
+.home-page .subheading {
+  font-family: 'Georgia', sans-serif;
+  letter-spacing: 0px;
+}
+
+.home-page .title-2 {
+  font-size: 5rem;
+  font-family: 'Georgia', serif;
+}
+
+.home-page .contributor-link {
+  text-decoration: none;
+  transition: color 0.2s ease-in-out;
+}
+
+.home-page .contributor-link:hover {
+  color: #611661; /* hover color */
+  text-decoration: none; /* ensure underline doesn’t reappear */
+}
+
+
+
 
 ul {
   padding-left: 2rem;

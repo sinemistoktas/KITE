@@ -35,16 +35,17 @@
             </div>
         </nav>
         <!-- Page Content-->
-        <div class="container-fluid p-0">
+        <div class="container-fluid p-0 home-page">
             <!-- About-->
             <section class="info-section" id="about">
                 <div class="info-section-content">
                     <h1 class="mb-0">
                         KITE
-                        <span class="text-primary">Segmentation Tool</span>
+                        <br>
+                        <span class="text-primary title-2">Segmentation Tool</span>
                     </h1>
                     <div class="subheading mb-5">
-                        34450 Koç University · Istanbul · Turkey
+                        Koç University · Istanbul · Turkey
                         <br>
                     </div>
                     <h3 class="lead mb-3">Segmentation and Characterization of Retinal Fluids/Deposits in OCT Images</h3>
@@ -53,19 +54,21 @@
                         <br>
                         The project is developed as part of COMP 491 - Computer Engineering Design Project at Koç University.
                     </p>
-                    <br>
+                    <br> <br>
                     <h4 class="lead mb-3">Contributors</h4>
                     <p class="lead mb-5">
-                        Duru Tandoğan
+                        <a href="https://github.com/durutandogan" target="_blank" class="contributor-link">Duru Tandoğan</a>
                         <br>
-                        Mislina Akça
+                        <a href="https://github.com/makca21" target="_blank" class="contributor-link">Mislina Akça</a>
                         <br>
-                        Sinemis Toktaş
+                        <a href="https://github.com/sinemistoktas" target="_blank" class="contributor-link">Sinemis Toktaş</a>
                         <br>
-                        Yamaç Ömür
-                        <br>
-                        <br>
-                        <b>Project Advisor:</b> Çiğdem Gündüz Demir – Koç University
+                        <a href="https://github.com/yomur21" target="_blank" class="contributor-link">Yamaç Ömür</a>
+                    </p>
+
+                    <h4 class="lead mb-3">Project Advisor</h4>
+                    <p class="lead mb-5">
+                        <a href="https://mysite.ku.edu.tr/cgunduz/" target="_blank" class="contributor-link"> Çiğdem Gündüz Demir</a> · Koç University
                     </p>
 
                     <div class="social-icons">
@@ -79,50 +82,76 @@
             <section class="info-section" id="segmentation">
                 <div class="info-section-content">
                     <h2 class="mb-5">Segmentation Tool</h2>
-                    <p>Continue to our segmentation tool</p>
-
-                    <a href="{% url 'seg_tool' %}" class="button-link">
-                        <button class="animated-button">
-                            <svg viewBox="0 0 24 24" class="arr-2" xmlns="http://www.w3.org/2000/svg">
-                                <path
-                                        d="M16.1716 10.9999L10.8076 5.63589L12.2218 4.22168L20 11.9999L12.2218 19.778L10.8076 18.3638L16.1716 12.9999H4V10.9999H16.1716Z"
-                                ></path>
-                            </svg>
-                            <span class="text">Segmentation tool</span>
-                            <span class="circle"></span>
-                            <svg viewBox="0 0 24 24" class="arr-1" xmlns="http://www.w3.org/2000/svg">
-                                <path
-                                        d="M16.1716 10.9999L10.8076 5.63589L12.2218 4.22168L20 11.9999L12.2218 19.778L10.8076 18.3638L16.1716 12.9999H4V10.9999H16.1716Z"
-                                ></path>
-                            </svg>
-                        </button>
-                    </a>
+                    <p class="lead mb-3">
+                        Continue to our segmentation tool
+                    </p>
+                    <p class="lead mb-3">
+                        <a href="{% url 'seg_tool' %}" class="button-link">
+                            <button class="animated-button">
+                                <svg viewBox="0 0 24 24" class="arr-2" xmlns="http://www.w3.org/2000/svg">
+                                    <path
+                                            d="M16.1716 10.9999L10.8076 5.63589L12.2218 4.22168L20 11.9999L12.2218 19.778L10.8076 18.3638L16.1716 12.9999H4V10.9999H16.1716Z"
+                                    ></path>
+                                </svg>
+                                <span class="text">Segmentation tool</span>
+                                <span class="circle"></span>
+                                <svg viewBox="0 0 24 24" class="arr-1" xmlns="http://www.w3.org/2000/svg">
+                                    <path
+                                            d="M16.1716 10.9999L10.8076 5.63589L12.2218 4.22168L20 11.9999L12.2218 19.778L10.8076 18.3638L16.1716 12.9999H4V10.9999H16.1716Z"
+                                    ></path>
+                                </svg>
+                            </button>
+                        </a>
+                    </p>
                 </div>
             </section>
             <!-- References-->
             <section class="info-section" id="references">
                 <div class="info-section-content">
                     <h2 class="mb-5">References</h2>
-                    <div class="subheading mb-3">Programming Languages & Tools</div>
+
+                    <h4 class="subheading mb-3">Acknowledgment</h4>
+                    <p class="lead mb-3">
+                        We would like to sincerely thank 
+                        <strong>Prof. Çiğdem Gündüz Demir</strong>, 
+                        <strong>Selahattin Cansız</strong>, and 
+                        <strong>Reza Kazemzadeh</strong> 
+                        for their <strong>insightful guidance, contributions, and support</strong> throughout the development of this project.
+                    </p>
+                    <br> <br>
+
+                    <h4 class="subheading mb-3">Programming Languages  &  Tools</h4>
                     <ul class="list-inline dev-icons">
+                        <li class="list-inline-item"><i class="fab fa-github" style="color: #611661"></i></li>
+                        <li class="list-inline-item"><i class="fab fa-python" style="color: #611661"></i></li>
                         <li class="list-inline-item"><i class="fab fa-html5" style="color: #611661"></i></li>
                         <li class="list-inline-item"><i class="fab fa-css3-alt" style="color: #611661"></i></li>
                         <li class="list-inline-item"><i class="fab fa-js" style="color: #611661"></i></li>
-                        <li class="list-inline-item"><i class="fab fa-npm" style="color: #611661"></i></li>
+                        <li class="list-inline-item"><i class="fab fa-bootstrap" style="color: #611661"></i></li>
                     </ul>
-                    <div class="subheading mb-3">References</div>
+                    <br><br>
+                    
+                    <h4 class="subheading mb-3">References</h4>
                     <ul class="fa-ul mb-0">
                         <li>
-                            <span class="fa-li"><i class="fa-solid fa-heart" style="color: #611661"></i></span>
-                            BiomedParse
+                            <span class="fa-li"><i class="fa-solid fa-star" style="color: #611661"></i></span>
+                            <a href="https://github.com/bowang-lab/MedSAM" target="_blank" class="contributor-link lead mb-3">MedSam</a>
                         </li>
                         <li>
-                            <span class="fa-li"><i class="fa-solid fa-heart" style="color: #611661"></i></span>
-                            MedSam
+                            <span class="fa-li"><i class="fa-solid fa-star" style="color: #611661"></i></span>
+                            <a href="https://arxiv.org/abs/1505.04597" target="_blank" class="contributor-link lead mb-3">U-Net</a>
                         </li>
                         <li>
-                            <span class="fa-li"><i class="fa-solid fa-heart" style="color: #611661"></i></span>
-                            MedSag
+                            <span class="fa-li"><i class="fa-solid fa-star" style="color: #611661"></i></span>
+                            <a href="https://github.com/facebookresearch/segment-anything" target="_blank" class="contributor-link lead mb-3">Segment Anything</a>
+                        </li>
+                        <li>
+                            <span class="fa-li"><i class="fa-solid fa-star" style="color: #611661"></i></span>
+                            <a href="https://opencv.org/" target="_blank" class="contributor-link lead mb-3">OpenCV</a>
+                        </li>
+                        <li>
+                            <span class="fa-li"><i class="fa-solid fa-star" style="color: #611661"></i></span>
+                            <a href="https://pytorch.org/" target="_blank" class="contributor-link lead mb-3">PyTorch</a>
                         </li>
                     </ul>
                 </div>
