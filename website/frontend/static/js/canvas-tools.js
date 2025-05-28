@@ -20,58 +20,59 @@ export function redrawAnnotations() {
     const restoreZoom = (ctx) => ctx.restore();
 
     // Draw user annotations
-  state.scribbles
-    .filter(s => !s.isPrediction && (!s.layerId || state.visibleLayerIds.includes(s.layerId)))
-    .forEach(stroke => {
-        adjustForZoom(aCtx);
+    state.scribbles
+        .filter(s => !s.isPrediction && (!s.layerId || state.visibleLayerIds.includes(s.layerId)))
+        .forEach(stroke => {
+            adjustForZoom(aCtx);
 
-        // Special handling for loaded annotations.
-        if (stroke.isLoadedAnnotation || stroke.isDot || stroke.points.length === 1) {
-            aCtx.fillStyle = stroke.color || "red";
-            
-            stroke.points.forEach(point => {
+            // Special handling for loaded annotations.
+            if (stroke.isLoadedAnnotation || stroke.isDot || stroke.isSegmentationResult || stroke.points.length === 1) {
+                aCtx.fillStyle = stroke.color || "red";
+                
+                stroke.points.forEach(point => {
+                    aCtx.beginPath();
+                    const dotRadius = 1.5 / state.zoomLevel;
+                    aCtx.arc(point.x, point.y, dotRadius, 0, 2 * Math.PI); // Slightly larger dots
+                    aCtx.fill();
+                });
+            }
+            else if (stroke.isFilled || stroke.type === 'fill') {
+                aCtx.fillStyle = stroke.color || "red";
                 aCtx.beginPath();
-                aCtx.arc(point.x, point.y, 1.5 / state.zoomLevel, 0, 2 * Math.PI); // Slightly larger dots
+                aCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+                for (let i = 1; i < stroke.points.length; i++) {
+                    aCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+                }
+                aCtx.closePath();
                 aCtx.fill();
-            });
-        }
-        else if (stroke.isFilled || stroke.type === 'fill') {
-            aCtx.fillStyle = stroke.color || "red";
-            aCtx.beginPath();
-            aCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
-            for (let i = 1; i < stroke.points.length; i++) {
-                aCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+                
+                aCtx.strokeStyle = stroke.color || "red";
+                aCtx.lineWidth = 1 / state.zoomLevel;
+                aCtx.stroke();
             }
-            aCtx.closePath();
-            aCtx.fill();
-            
-            aCtx.strokeStyle = stroke.color || "red";
-            aCtx.lineWidth = 1 / state.zoomLevel;
-            aCtx.stroke();
-        }
-        // Special handling for box annotations
-        else if (stroke.isBox) {
-            aCtx.strokeStyle = stroke.color || "red";
-            aCtx.lineWidth = 2 / state.zoomLevel;
-            aCtx.beginPath();
-            aCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
-            for (let i = 1; i < stroke.points.length; i++) {
-                aCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+            // Special handling for box annotations
+            else if (stroke.isBox) {
+                aCtx.strokeStyle = stroke.color || "red";
+                aCtx.lineWidth = 2 / state.zoomLevel;
+                aCtx.beginPath();
+                aCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+                for (let i = 1; i < stroke.points.length; i++) {
+                    aCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+                }
+                aCtx.stroke();
             }
-            aCtx.stroke();
-        }
-        else {
-            aCtx.strokeStyle = stroke.color || "red";
-            aCtx.lineWidth = 2 / state.zoomLevel;
-            aCtx.beginPath();
-            aCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
-            for (let i = 1; i < stroke.points.length; i++) {
-                aCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+            else {
+                aCtx.strokeStyle = stroke.color || "red";
+                aCtx.lineWidth = 2 / state.zoomLevel;
+                aCtx.beginPath();
+                aCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+                for (let i = 1; i < stroke.points.length; i++) {
+                    aCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+                }
+                aCtx.stroke();
             }
-            aCtx.stroke();
-        }
-        restoreZoom(aCtx);
-    });
+            restoreZoom(aCtx);
+        });
 
     // Draw predictions
     if (state.showPredictions) {

@@ -198,36 +198,40 @@
 
   {% endif %}
   <div id="segmentationResult" class="text-center mt-4" style="display: none;">
-    <div class="d-flex flex-row align-items-start justify-content-center gap-4 flex-wrap">
-      <div class="segmentation-main">
-        <div class="text-white p-2 mb-2 rounded bg-primary">
-          <strong>Segmented Result</strong>
+  <div class="d-flex flex-row align-items-start justify-content-center gap-4 flex-wrap">
+    <div class="segmentation-main">
+      <div class="text-white p-2 mb-2 rounded bg-primary">
+        <strong>Segmented Result</strong>
+      </div>
+      <div style="margin: 0; padding: 0; text-align: center;">
+        <div id="segmentationStageContainer" style="position: relative;">
+          <img id="segmentedResultImage"
+               class="img-fluid mx-auto d-block"
+               style="max-width: 512px; display: block;"
+               alt="Segmented Output" />
+          <div id="segmentationStage"
+               style="position: absolute; top: 0; left: 0;"></div>
         </div>
-        <div style="margin: 0; padding: 0; text-align: center;">
-          <div id="segmentationStageContainer" style="position: relative;">
-            <img id="segmentedResultImage"
-                 class="img-fluid mx-auto d-block"
-                 style="max-width: 512px; display: block;"
-                 alt="Segmented Output" />
-            <div id="segmentationStage"
-                 style="position: absolute; top: 0; left: 0;"></div>
-          </div>
 
-          <div class="d-flex justify-content-center gap-3 mt-4">
-            <button class="show-pre-btn" onclick="handlePreprocessedImg()">
-              <i class="fa-solid fa-eye"></i> Show Preprocessed Image
-            </button>
-            
-            <button id="showSegMapBtn" class="show-pre-btn" onclick="handleSegmentationMap()" style="display: none;">
-              <i class="fa-solid fa-map"></i> Show Segmentation Map
-            </button>
+        <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
+          <button class="show-pre-btn" onclick="handlePreprocessedImg()">
+            <i class="fa-solid fa-eye"></i> Show Preprocessed Image
+          </button>
+          
+          <button id="showSegMapBtn" class="show-pre-btn" onclick="handleSegmentationMap()" style="display: none;">
+            <i class="fa-solid fa-map"></i> Show Segmentation Map
+          </button>
+          <button id="loadResultsAsAnnotationsBtn" class="results-annotations-btn px-4 py-2 rounded-pill shadow-sm" 
+                  onclick="loadLastSegmentationAsAnnotations()" 
+                  style="display: none;">
+            <i class="fa-solid fa-edit me-2"></i> Edit Results on Canvas
+          </button>
 
-            <a id="downloadSegmentedImage"
-               class="btn btn-outline-success px-4 py-2 rounded-pill shadow-sm"
-               style="display: none;">
-              <i class="fa-solid fa-download"></i> Download Segmented Image
-            </a>
-          </div>
+          <a id="downloadSegmentedImage"
+             class="btn btn-outline-success px-4 py-2 rounded-pill shadow-sm"
+             style="display: none;">
+            <i class="fa-solid fa-download"></i> Download Segmented Image
+          </a>
         </div>
       </div>
     </div>
