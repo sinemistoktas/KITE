@@ -195,51 +195,53 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
     };
 
-    // Enhanced handleAnnotations that converts coordinates
+    // Enhanced handleAnnotations with coordinate conversion
     window.handleAnnotations = function() {
-        if (!state.scribbles || state.scribbles.length === 0) {
-            alert('Please draw some annotations first');
-            return;
-        }
+        // Don't interfere with the original handleAnnotations logic - just add coordinate conversion
+        // when needed. Let the original api-service.js handle UNet detection and processing.
 
-        // Convert all annotation coordinates from display scale to original scale
-        const originalScaleAnnotations = state.scribbles
-            .filter(s => !s.isPrediction)
-            .map(stroke => {
-                const originalPoints = stroke.points.map(point => ({
-                    x: Math.round(point.x / state.displayScale),
-                    y: Math.round(point.y / state.displayScale)
-                }));
+        // Check if we have manual annotations that need coordinate conversion
+        const hasManualAnnotations = state.scribbles && state.scribbles.filter(s => !s.isPrediction).length > 0;
 
-                return {
-                    ...stroke,
-                    points: originalPoints
-                };
-            });
+        if (hasManualAnnotations && state.displayScale && state.displayScale !== 1) {
+            console.log('Converting manual annotations from display scale to original scale');
+            console.log('Display scale:', state.displayScale);
 
-        console.log('Converting annotations from display scale to original scale');
-        console.log('Display scale:', state.displayScale);
-        console.log('Original annotations:', originalScaleAnnotations);
+            // Convert all annotation coordinates from display scale to original scale
+            const originalScaleAnnotations = state.scribbles
+                .filter(s => !s.isPrediction)
+                .map(stroke => {
+                    const originalPoints = stroke.points.map(point => ({
+                        x: Math.round(point.x / state.displayScale),
+                        y: Math.round(point.y / state.displayScale)
+                    }));
 
-        // Call handleAnnotationsWithResultLoading with converted coordinates
-        if (typeof handleAnnotationsWithResultLoading === 'function') {
+                    return {
+                        ...stroke,
+                        points: originalPoints
+                    };
+                });
+
             // Temporarily replace the scribbles with original scale coordinates
             const originalScribbles = state.scribbles;
             state.scribbles = [...state.scribbles.filter(s => s.isPrediction), ...originalScaleAnnotations];
 
-            // Call the enhanced function with result loading
-            handleAnnotationsWithResultLoading();
+            // Call the original function which will handle UNet vs other algorithms
+            if (typeof handleAnnotationsWithResultLoading === 'function') {
+                handleAnnotationsWithResultLoading();
+            } else if (typeof handleAnnotations === 'function') {
+                handleAnnotations();
+            }
 
             // Restore the display scale scribbles
             state.scribbles = originalScribbles;
-        } else if (typeof handleAnnotations === 'function') {
-            // Fallback to basic handleAnnotations
-            const originalScribbles = state.scribbles;
-            state.scribbles = [...state.scribbles.filter(s => s.isPrediction), ...originalScaleAnnotations];
-
-            handleAnnotations();
-
-            state.scribbles = originalScribbles;
+        } else {
+            // No coordinate conversion needed - call original function directly
+            if (typeof handleAnnotationsWithResultLoading === 'function') {
+                handleAnnotationsWithResultLoading();
+            } else if (typeof handleAnnotations === 'function') {
+                handleAnnotations();
+            }
         }
     };
 
@@ -256,6 +258,14 @@ document.addEventListener('DOMContentLoaded', () => {
     window.handlePreprocessedImg = handlePreprocessedImg;
     window.loadAnnotations = loadAnnotations;
     window.downloadAnnotations = downloadAnnotations;
+
+    if (window.algorithm) {
+        const normalizedAlgorithm = window.algorithm.toLowerCase();
+        state.algorithm = normalizedAlgorithm;
+        state.unetMode = normalizedAlgorithm === 'unet';
+        state.medsamMode = normalizedAlgorithm === 'medsam';
+        state.kiteMode = normalizedAlgorithm === 'kite';
+    }
 
     // Initialize UI components
     bindUIEvents();

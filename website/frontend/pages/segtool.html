@@ -79,7 +79,7 @@
       <!-- TOOLS BOX -->
       <div class="tool-sidebar d-flex flex-column align-items-center gap-3" style="min-width: 180px; max-width: 200px;">
         <h6 class="mb-2" style="width: 100%; text-align: center;">Tools</h6>
-        
+
         <!-- MedSAM specific instructions and controls -->
         <div class="medsam-controls" style="display: none;">
           <div class="medsam-info">
@@ -87,14 +87,14 @@
             <p class="mb-2" style="color: #ecf0f1;">Draw bounding boxes around areas you want to segment. Each box will be processed automatically.</p>
             <small style="color: #bdc3c7;">• Draw multiple boxes for different structures<br>• Each area gets segmented instantly<br>• Use undo to remove last box</small>
           </div>
-          
+
           <button type="button" class="btn btn-outline-primary rounded-pill px-3 w-100 mb-2" id="undoMedsamBtn" disabled>
             <i class="fa-solid fa-undo"></i> Undo Last Box
           </button>
           <button type="button" class="btn btn-outline-danger rounded-pill px-3 w-100 mb-2" id="resetMedsamBtn" disabled>
             <i class="fa-solid fa-trash"></i> Reset All Boxes
           </button>
-          
+
           <div class="medsam-stats" id="medsamStats" style="display: none;">
             <strong>Current Session:</strong><br>
             <span id="boxCount">0 boxes drawn</span><br>
@@ -104,7 +104,7 @@
 
 
         </div>
-        
+
         <!-- Standard KITE tool controls -->
         <div class="kite-controls">
           <div class="d-flex flex-column align-items-center" style="width: 100%;">
@@ -217,12 +217,12 @@
           <button class="show-pre-btn" onclick="handlePreprocessedImg()">
             <i class="fa-solid fa-eye"></i> Show Preprocessed Image
           </button>
-          
+
           <button id="showSegMapBtn" class="show-pre-btn" onclick="handleSegmentationMap()" style="display: none;">
             <i class="fa-solid fa-map"></i> Show Segmentation Map
           </button>
-          <button id="loadResultsAsAnnotationsBtn" class="results-annotations-btn px-4 py-2 rounded-pill shadow-sm" 
-                  onclick="loadLastSegmentationAsAnnotations()" 
+          <button id="loadResultsAsAnnotationsBtn" class="results-annotations-btn px-4 py-2 rounded-pill shadow-sm"
+                  onclick="loadLastSegmentationAsAnnotations()"
                   style="display: none;">
             <i class="fa-solid fa-edit me-2"></i> Edit Results on Canvas
           </button>
@@ -313,19 +313,7 @@
 
           if (selectedAlgorithmValue) {
             let selectedAlgorithmDisplayName;
-            switch (selectedAlgorithmValue) {
-              case 'kite':
-                selectedAlgorithmDisplayName = 'KITE';
-                break;
-              case 'medsam':
-                selectedAlgorithmDisplayName = 'MedSAM';
-                break;
-              case 'unet':
-                selectedAlgorithmDisplayName = 'U-Net';
-                break;
-              default:
-                selectedAlgorithmDisplayName = selectedAlgorithmValue;
-            }
+            selectedAlgorithmDisplayName = selectedAlgorithmValue;
 
             // Create hidden input for algorithm name
             let algorithmNameInput = document.createElement('input');
