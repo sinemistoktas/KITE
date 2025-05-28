@@ -17,6 +17,7 @@ let canvasSize = { width: 0, height: 0 };
 let segmentationHistory = [];
 let currentBoxes = []; // Store all drawn boxes
 let currentSegmentation = null;
+let overlayImages = [];
 
 function initMedSAM() {
   console.log('Initializing MedSAM Tool');
@@ -248,35 +249,29 @@ function performAutomaticSegmentation(imageBox, canvasBox) {
 
 function updateCanvasWithSegmentation(data) {
   console.log('Updating canvas with segmentation result');
-  
-  // Store segmentation result
-  currentSegmentation = {
-    overlayPath: data.overlay_path,
-    maskPath: data.mask_path,
-    overlayData: data.overlay_data,
-    boxesProcessed: data.boxes_processed,
-    totalPixels: data.total_mask_pixels
-  };
-  
-  // Create overlay image
+
+  // Store the new overlay image
   const img = new Image();
-  img.onload = function() {
-    console.log('Overlay image loaded successfully');
-    
-    // Clear canvas and draw the segmentation result
+  img.onload = function () {
+    // Save it to the list
+    overlayImages.push(img);
+
+    // Clear and redraw all overlays
     medsamCtx.clearRect(0, 0, medsamCanvas.width, medsamCanvas.height);
-    medsamCtx.drawImage(img, 0, 0, medsamCanvas.width, medsamCanvas.height);
-    
-    // Draw boxes on top
+
+    overlayImages.forEach(overlay => {
+      medsamCtx.drawImage(overlay, 0, 0, medsamCanvas.width, medsamCanvas.height);
+    });
+
+    // Draw all boxes on top
     drawAllBoxesOnTop();
-    
-    console.log('Segmentation overlay applied to canvas');
+    console.log('All overlays drawn, including new one');
   };
-  
-  img.onerror = function() {
-    console.error('Failed to load segmentation overlay image');
+
+  img.onerror = function () {
+    console.error('Failed to load overlay image');
   };
-  
+
   img.src = data.overlay_data;
 }
 
@@ -317,14 +312,14 @@ function getNextBoxColor() {
 function resetAllBoxes() {
   currentBoxes = [];
   segmentationHistory = [];
-  currentSegmentation = null; // reset segmentation
-  
-  // clear Canvas
+  overlayImages = []; // reset overlays too
+  currentSegmentation = null;
+
   medsamCtx.clearRect(0, 0, medsamCanvas.width, medsamCanvas.height);
-  
   updateUI();
-  console.log('Reset all boxes and segmentations - canvas cleared completely');
+  console.log('Reset all boxes and segmentations');
 }
+
 
 function undoLastBox() {
   if (currentBoxes.length > 0) {
@@ -417,7 +412,6 @@ function rerunSegmentationForAllBoxes() {
   });
 }
 
-// Updated redrawAllBoxes function with better comments
 function redrawAllBoxes() {
   // If we have segmentation data, redraw it first as background
   if (currentSegmentation) {
@@ -426,10 +420,10 @@ function redrawAllBoxes() {
     img.onload = function() {
       // Clear canvas completely
       medsamCtx.clearRect(0, 0, medsamCanvas.width, medsamCanvas.height);
-      
+
       // Draw segmentation result as background
       medsamCtx.drawImage(img, 0, 0, medsamCanvas.width, medsamCanvas.height);
-      
+
       // Draw all boxes on top of segmentation
       drawAllBoxesOnTop();
     };
