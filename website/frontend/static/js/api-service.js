@@ -988,7 +988,6 @@ export function loadSegmentationResultsAsAnnotations(segmentationData) {
     const canvas = state.annotationCanvas;
 
     state.scribbles = state.scribbles.filter(s => !s.isSegmentationResult);
-    
     const layersContainer = document.getElementById('layersContainer');
     
     import('./layers.js').then(module => {
