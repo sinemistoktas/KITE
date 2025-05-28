@@ -2,7 +2,14 @@ import { state, initializeFromServer } from './state.js';
 import { bindUIEvents, updateMethodDescription, initializeAnnotationsFromPredictions } from './events.js';
 import { redrawAnnotations } from './canvas-tools.js';
 import { initColorPicker } from './color-picker.js';
-import { handleAnnotations, handlePreprocessedImg, loadAnnotations, downloadAnnotations } from './api-service.js';
+import {
+    handleAnnotations,
+    handleAnnotationsWithResultLoading,
+    loadSegmentationResultsAsAnnotations,
+    handlePreprocessedImg,
+    loadAnnotations,
+    downloadAnnotations
+} from './api-service.js';
 import { initBoxTool } from './box-tool.js';
 
 // Configuration: Set your desired display size
@@ -18,6 +25,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Only proceed if the necessary elements are present.
     if (!annotationCanvas || !predictionCanvas || !img) {
         console.log('📷 No image uploaded yet, skipping canvas setup');
+        console.log('Canvas elements found:', {
+            annotationCanvas: !!annotationCanvas,
+            predictionCanvas: !!predictionCanvas,
+            medsamCanvas: !!medsamCanvas,
+            img: !!img
+        });
         return;
     }
 
@@ -32,19 +45,20 @@ document.addEventListener('DOMContentLoaded', () => {
     state.displayScale = 1;
     state.originalImageNaturalDimensions = { width: 0, height: 0 };
 
-    // Detect algorithm/method
+    // Handle both new algorithm system and legacy segmentation method system
     if (window.algorithm) {
         state.algorithm = window.algorithm;
         state.unetMode = window.algorithm === 'U-Net';
         state.medsamMode = window.algorithm === 'MedSAM';
         state.kiteMode = window.algorithm === 'KITE';
     }
+
     if (window.segmentationMethod) {
         state.segmentationMethod = window.segmentationMethod;
         state.unetMode = window.segmentationMethod === 'unet';
     }
 
-    // Load server-passed predictions (e.g. UNet)
+    // Initialize from server data if available
     if (typeof initializeFromServer === 'function') {
         initializeFromServer({
             imageName: window.imageName,
@@ -54,6 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Handle predicted points for UNet auto-processing
     if (window.predictedPoints && window.predictedPoints.length > 0) {
         try {
             const predictions = [{ points: window.predictedPoints }];
@@ -63,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ✅ Canvas setup with scale tracking
+    // ✅ Advanced canvas setup with scale tracking and coordinate conversion
     const resizeCanvasToImage = () => {
         // Wait for image to be fully loaded
         if (!img.complete) {
@@ -144,6 +159,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // Set specific pointer events for canvases
+        annotationCanvas.style.pointerEvents = "auto";
+        predictionCanvas.style.pointerEvents = "none";
+
         // Redraw annotations after everything is positioned
         setTimeout(() => {
             redrawAnnotations();
@@ -202,16 +221,24 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Display scale:', state.displayScale);
         console.log('Original annotations:', originalScaleAnnotations);
 
-        // Call the original handleAnnotations with converted coordinates
-        if (typeof handleAnnotations === 'function') {
+        // Call handleAnnotationsWithResultLoading with converted coordinates
+        if (typeof handleAnnotationsWithResultLoading === 'function') {
             // Temporarily replace the scribbles with original scale coordinates
             const originalScribbles = state.scribbles;
             state.scribbles = [...state.scribbles.filter(s => s.isPrediction), ...originalScaleAnnotations];
 
-            // Call the original function
-            handleAnnotations();
+            // Call the enhanced function with result loading
+            handleAnnotationsWithResultLoading();
 
             // Restore the display scale scribbles
+            state.scribbles = originalScribbles;
+        } else if (typeof handleAnnotations === 'function') {
+            // Fallback to basic handleAnnotations
+            const originalScribbles = state.scribbles;
+            state.scribbles = [...state.scribbles.filter(s => s.isPrediction), ...originalScaleAnnotations];
+
+            handleAnnotations();
+
             state.scribbles = originalScribbles;
         }
     };
@@ -219,7 +246,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initial resize
     resizeCanvasToImage();
 
-    // Hook other API functions
+    // Handle window resize events
+    window.addEventListener("resize", resizeCanvasToImage);
+
+    // Hook up all API functions
+    window.handleAnnotationsWithResultLoading = handleAnnotationsWithResultLoading;
+    window.handleAnnotationsBasic = handleAnnotations;
+    window.loadSegmentationResultsAsAnnotations = loadSegmentationResultsAsAnnotations;
     window.handlePreprocessedImg = handlePreprocessedImg;
     window.loadAnnotations = loadAnnotations;
     window.downloadAnnotations = downloadAnnotations;
@@ -229,6 +262,11 @@ document.addEventListener('DOMContentLoaded', () => {
     initColorPicker();
     initBoxTool();
 
+    // Update method description (for legacy radio button system)
+    if (typeof updateMethodDescription === 'function') {
+        updateMethodDescription();
+    }
+
     // Adjust UI for selected method
     const segmentBtn = document.querySelector('.ready-segment-btn');
     if (segmentBtn) {
@@ -236,14 +274,26 @@ document.addEventListener('DOMContentLoaded', () => {
             segmentBtn.innerHTML = '<i class="fa-solid fa-hurricane me-2"></i> Ready to Segment with UNet!';
         } else if (state.medsamMode) {
             segmentBtn.innerHTML = '<i class="fa-solid fa-hurricane me-2"></i> Ready to Segment with MedSAM!';
-        } else {
+        } else if (state.kiteMode || (!state.algorithm && !state.segmentationMethod)) {
+            // Default KITE mode or no specific algorithm selected
             segmentBtn.innerHTML = '<i class="fa-solid fa-hurricane me-2"></i> Ready to Segment!';
         }
     }
 
-    if (typeof updateMethodDescription === 'function') {
-        updateMethodDescription();
-    }
-
-    console.log('KITE segmentation tool initialized with coordinate conversion');
+    console.log('KITE segmentation tool initialized with coordinate conversion and enhanced functionality');
 });
+
+// Debug function
+window.testFunction = function() {
+    alert('JavaScript is working!');
+};
+
+// Load last segmentation results as annotations
+window.loadLastSegmentationAsAnnotations = function() {
+    if (window.lastSegmentationData && window.lastSegmentationData.final_mask) {
+        loadSegmentationResultsAsAnnotations(window.lastSegmentationData);
+        alert('Segmentation results loaded as editable annotations!');
+    } else {
+        alert('No segmentation results available to load. Please run segmentation first.');
+    }
+};
