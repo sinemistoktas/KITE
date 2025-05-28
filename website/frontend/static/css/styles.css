@@ -2527,4 +2527,98 @@ input[type="file"] {
   color: #5097a3;
 }
 
+.annotation-action-btn {
+  background-color: #946a90 !important;
+  color: white !important;
+  border: none !important;
+  font-weight: 500;
+  border-radius: 2rem !important;
+  padding: 10px 28px !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.25s ease, transform 0.2s ease !important;
+  margin-right: 10px;
+  margin-bottom: 10px;
+  outline: none;
+}
 
+/* STRONG OVERRIDE FOR ANNOTATION BUTTONS - Add this at the very end of your CSS file */
+
+/* Target by onclick attribute - most specific */
+button[onclick="loadAnnotations()"],
+button[onclick="downloadAnnotations()"] {
+  background-color: #946a90 !important;
+  background: #946a90 !important;
+  color: white !important;
+  border: none !important;
+  font-weight: 500 !important;
+  border-radius: 2rem !important;
+  padding: 10px 28px !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+  transition: all 0.25s ease !important;
+  margin-right: 10px !important;
+  margin-bottom: 10px !important;
+  outline: none !important;
+}
+
+button[onclick="loadAnnotations()"]:hover,
+button[onclick="downloadAnnotations()"]:hover,
+button[onclick="loadAnnotations()"]:focus,
+button[onclick="downloadAnnotations()"]:focus {
+  background-color: #8a3e85 !important;
+  background: #8a3e85 !important;
+  color: white !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(138, 62, 133, 0.35) !important;
+}
+
+/* Also target by class name */
+.annotation-action-btn {
+  background-color: #946a90 !important;
+  background: #946a90 !important;
+  color: white !important;
+  border: none !important;
+  font-weight: 500 !important;
+  border-radius: 2rem !important;
+  padding: 10px 28px !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+  transition: all 0.25s ease !important;
+  margin-right: 10px !important;
+  margin-bottom: 10px !important;
+  outline: none !important;
+}
+
+.annotation-action-btn:hover,
+.annotation-action-btn:focus,
+.annotation-action-btn:active {
+  background-color: #8a3e85 !important;
+  background: #8a3e85 !important;
+  color: white !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(138, 62, 133, 0.35) !important;
+}
+
+/* Target the specific ID if it exists */
+#downloadAnnotationsBtn {
+  background-color: #946a90 !important;
+  background: #946a90 !important;
+  color: white !important;
+  border: none !important;
+  font-weight: 500 !important;
+  border-radius: 2rem !important;
+  padding: 10px 28px !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+  transition: all 0.25s ease !important;
+  margin-right: 10px !important;
+  margin-bottom: 10px !important;
+  outline: none !important;
+}
+
+#downloadAnnotationsBtn:hover,
+#downloadAnnotationsBtn:focus,
+#downloadAnnotationsBtn:active {
+  background-color: #8a3e85 !important;
+  background: #8a3e85 !important;
+  color: white !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(138, 62, 133, 0.35) !important;
+}

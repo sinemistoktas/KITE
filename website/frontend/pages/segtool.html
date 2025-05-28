@@ -157,25 +157,29 @@
             <i class="fa-solid fa-arrows-to-circle"></i> Reset Zoom
           </button>
         </div>
-        
-        <!-- Segment button for all modes -->
-                  <div class="d-flex justify-content-center gap-3 mt-3">
-            <button class="ready-segment-btn px-4 py-2 rounded-pill shadow-sm" onclick="handleAnnotations()">
-              <i class="fa-solid fa-hurricane me-2"></i> Ready to Segment!
+
+        <!-- Primary Segment Button -->
+        <div class="d-flex justify-content-center gap-3 mt-3">
+          <button class="ready-segment-btn px-4 py-2 rounded-pill shadow-sm" onclick="handleAnnotations()">
+            <i class="fa-solid fa-hurricane me-2"></i> Ready to Segment!
+          </button>
+        </div>
+
+        <!-- Annotation Controls Below -->
+        <div class="d-flex justify-content-center gap-4 mt-4">
+          <div>
+            <input type="file" id="annotationFileInput" accept=".npy" style="display: none;">
+            <button class="annotation-action-btn px-4 py-2 rounded-pill" onclick="loadAnnotations()">
+              <i class="fa-solid fa-upload me-2"></i> Load Annotations
             </button>
-            
-            <div class="kite-controls">
-              <input type="file" id="annotationFileInput" accept=".npy" style="display: none;">
-              <button class="load-annotations-btn px-4 py-2 rounded-pill shadow-sm" onclick="loadAnnotations()">
-                <i class="fa-solid fa-upload me-2"></i> Load Annotations
-              </button>
-            </div>
-            <div class="kite-controls">
-              <button id="downloadAnnotationsBtn" class="download-annotations-btn px-4 py-2 rounded-pill shadow-sm" onclick="downloadAnnotations()">
-                <i class="fa-solid fa-download me-2"></i> Download Annotations
-              </button>
-            </div>
           </div>
+          <div>
+            <button id="downloadAnnotationsBtn" class="annotation-action-btn px-4 py-2 rounded-pill" onclick="downloadAnnotations()">
+              <i class="fa-solid fa-download me-2"></i> Download Annotations
+            </button>
+          </div>
+        </div>
+
       </div>
 
       <!-- LAYERS PANEL -->
