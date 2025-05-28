@@ -2911,3 +2911,105 @@ button[onclick="downloadAnnotations()"]:focus {
 .resize-controls .mb-3:last-child {
   margin-bottom: 1rem !important;
 }
+
+/* NPY and PNG Download Button Colors */
+
+/* NPY and PNG Buttons - Both Green/Success style */
+.download-btn[data-type="npy"],
+button[data-type="npy"],
+.mask-download-buttons button[data-filename*=".npy"],
+.download-btn[data-type="png"],
+button[data-type="png"],
+.mask-download-buttons button[data-filename*=".png"] {
+  background-color: #2acf7e !important;
+  border-color: #1a8855 !important;
+  color: white !important;
+  transition: all 0.25s ease !important;
+}
+
+.download-btn[data-type="npy"]:hover,
+button[data-type="npy"]:hover,
+.mask-download-buttons button[data-filename*=".npy"]:hover,
+.download-btn[data-type="npy"]:focus,
+button[data-type="npy"]:focus,
+.mask-download-buttons button[data-filename*=".npy"]:focus,
+.download-btn[data-type="png"]:hover,
+button[data-type="png"]:hover,
+.mask-download-buttons button[data-filename*=".png"]:hover,
+.download-btn[data-type="png"]:focus,
+button[data-type="png"]:focus,
+.mask-download-buttons button[data-filename*=".png"]:focus {
+  background-color: #2acf7e !important;
+  border-color: #1a8855 !important;
+  color: white !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 8px rgba(25, 135, 84, 0.3) !important;
+}
+
+/* Alternative targeting by button content */
+.mask-download-buttons button:contains("NPY"),
+.download-btn:contains("NPY"),
+.mask-download-buttons button:contains("PNG"),
+.download-btn:contains("PNG") {
+  background-color: #2acf7e !important;
+  border-color: #1a8855 !important;
+  color: white !important;
+}
+
+.mask-download-buttons button:contains("NPY"):hover,
+.download-btn:contains("NPY"):hover,
+.mask-download-buttons button:contains("PNG"):hover,
+.download-btn:contains("PNG"):hover {
+  background-color: #2acf7e !important;
+  border-color: #1a8855 !important;
+  color: white !important;
+}
+
+/* More specific targeting using the exact HTML structure */
+.mask-list-item .mask-download-buttons .btn {
+  background-color: #2acf7e !important;
+  border-color: #1a8855 !important;
+  color: white !important;
+  transition: all 0.25s ease !important;
+  font-weight: 500 !important;
+}
+
+.mask-list-item .mask-download-buttons .btn:hover,
+.mask-list-item .mask-download-buttons .btn:focus {
+  background-color: #2acf7e !important;
+  border-color: #1a8855 !important;
+  color: white !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 8px rgba(25, 135, 84, 0.3) !important;
+}
+
+/* Nuclear option - target all buttons in the mask download area */
+.mask-preview-panel .btn,
+.mask-preview-panel button:not(.bulk-download-btn):not(.select-toggle) {
+  background-color: #2acf7e !important;
+  border-color: #1a8855 !important;
+  color: white !important;
+  transition: all 0.25s ease !important;
+}
+
+.mask-preview-panel .btn:hover,
+.mask-preview-panel button:not(.bulk-download-btn):not(.select-toggle):hover,
+.mask-preview-panel .btn:focus,
+.mask-preview-panel button:not(.bulk-download-btn):not(.select-toggle):focus {
+  background-color: #2acf7e !important;
+  border-color: #1a8855 !important;
+  color: white !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 8px rgba(25, 135, 84, 0.3) !important;
+}
+
+/* Ensure the bulk download button keeps its original styling */
+.bulk-download-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: white !important;
+  border: none !important;
+}
+
+.bulk-download-btn:hover {
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%) !important;
+}
