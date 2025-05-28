@@ -1,10 +1,13 @@
-// main.js
 import { state, initializeFromServer } from './state.js';
 import { bindUIEvents, updateMethodDescription, initializeAnnotationsFromPredictions } from './events.js';
 import { redrawAnnotations } from './canvas-tools.js';
 import { initColorPicker } from './color-picker.js';
 import { handleAnnotations, handlePreprocessedImg, loadAnnotations, downloadAnnotations } from './api-service.js';
 import { initBoxTool } from './box-tool.js';
+
+// Configuration: Set your desired display size
+const DESIRED_MAX_WIDTH = 800;  // Target width
+const DESIRED_MAX_HEIGHT = 600; // Target height
 
 document.addEventListener('DOMContentLoaded', () => {
     const annotationCanvas = document.getElementById("annotationCanvas");
@@ -24,6 +27,10 @@ document.addEventListener('DOMContentLoaded', () => {
     state.annotationCtx = annotationCanvas.getContext("2d");
     state.predictionCtx = predictionCanvas.getContext("2d");
     state.imageName = window.imageName;
+
+    // Initialize scale tracking
+    state.displayScale = 1;
+    state.originalImageNaturalDimensions = { width: 0, height: 0 };
 
     // Detect algorithm/method
     if (window.algorithm) {
@@ -56,52 +63,168 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ✅ Resize canvas to match displayed image
+    // ✅ Canvas setup with scale tracking
     const resizeCanvasToImage = () => {
-        const imageWidth = img.clientWidth;
-        const imageHeight = img.clientHeight;
-
-        state.originalImageDimensions = { width: imageWidth, height: imageHeight };
-        state.viewportCenterX = imageWidth / 2;
-        state.viewportCenterY = imageHeight / 2;
-
-        // Resize all 3 canvases
-        [annotationCanvas, predictionCanvas, medsamCanvas].forEach(c => {
-            c.width = imageWidth;
-            c.height = imageHeight;
-            c.style.width = `${imageWidth}px`;
-            c.style.height = `${imageHeight}px`;
-            c.style.position = "absolute";
-            c.style.top = "0";
-            c.style.left = "0";
-        });
-
-        // Zoom container
-        const zoomContainer = document.getElementById("zoomContainer");
-        if (zoomContainer) {
-            zoomContainer.style.width = `${imageWidth}px`;
-            zoomContainer.style.height = `${imageHeight}px`;
+        // Wait for image to be fully loaded
+        if (!img.complete) {
+            img.onload = resizeCanvasToImage;
+            return;
         }
 
-        redrawAnnotations(); // Repaint with correct scaling
+        // Store original natural dimensions
+        const naturalWidth = img.naturalWidth;
+        const naturalHeight = img.naturalHeight;
+        state.originalImageNaturalDimensions = { width: naturalWidth, height: naturalHeight };
+
+        console.log(`Original image size: ${naturalWidth}x${naturalHeight}`);
+
+        // Calculate scaling to fit within desired dimensions while maintaining aspect ratio
+        const scaleX = DESIRED_MAX_WIDTH / naturalWidth;
+        const scaleY = DESIRED_MAX_HEIGHT / naturalHeight;
+
+        // Use the smaller scale to ensure image fits within bounds, but ensure minimum scale
+        const scale = Math.min(scaleX, scaleY);
+        const finalScale = Math.max(scale, 1.2); // At least 1.2x bigger
+
+        // Store the scale factor for coordinate conversion
+        state.displayScale = finalScale;
+
+        // Calculate final display dimensions
+        const displayWidth = Math.round(naturalWidth * finalScale);
+        const displayHeight = Math.round(naturalHeight * finalScale);
+
+        console.log(`Scaling by ${finalScale.toFixed(2)}x to ${displayWidth}x${displayHeight}`);
+
+        // Store dimensions in state
+        state.originalImageDimensions = { width: displayWidth, height: displayHeight };
+        state.viewportCenterX = displayWidth / 2;
+        state.viewportCenterY = displayHeight / 2;
+
+        // Get the zoom container
+        const zoomContainer = document.getElementById("zoomContainer");
+
+        // Reset any existing transforms first
+        img.style.transform = '';
+        img.style.transformOrigin = '';
+        img.style.position = 'relative';
+        img.style.left = '';
+        img.style.top = '';
+
+        // Resize image
+        img.style.width = `${displayWidth}px`;
+        img.style.height = `${displayHeight}px`;
+
+        // Set zoom container size to match image
+        if (zoomContainer) {
+            zoomContainer.style.width = `${displayWidth}px`;
+            zoomContainer.style.height = `${displayHeight}px`;
+            zoomContainer.style.position = 'relative';
+        }
+
+        // Resize and position all canvases to exactly match the image
+        [annotationCanvas, predictionCanvas, medsamCanvas].forEach(canvas => {
+            if (canvas) {
+                // Set canvas internal dimensions
+                canvas.width = displayWidth;
+                canvas.height = displayHeight;
+
+                // Set canvas CSS dimensions to match
+                canvas.style.width = `${displayWidth}px`;
+                canvas.style.height = `${displayHeight}px`;
+
+                // Position canvas exactly over the image
+                canvas.style.position = "absolute";
+                canvas.style.top = "0px";
+                canvas.style.left = "0px";
+                canvas.style.pointerEvents = "auto";
+
+                // Reset any transforms
+                canvas.style.transform = "";
+                canvas.style.transformOrigin = "";
+            }
+        });
+
+        // Redraw annotations after everything is positioned
+        setTimeout(() => {
+            redrawAnnotations();
+        }, 50);
+
+        console.log(`Canvas alignment completed: ${displayWidth}x${displayHeight}, scale: ${finalScale}`);
     };
 
-    // Ensure resize happens when image loads
-    if (img.complete) {
-        resizeCanvasToImage();
-    } else {
-        img.onload = resizeCanvasToImage;
-    }
+    // Function to convert display coordinates to original image coordinates
+    window.convertDisplayToOriginal = function(displayCoords) {
+        if (!state.displayScale || !state.originalImageNaturalDimensions) {
+            return displayCoords;
+        }
 
-    // Optional: respond to browser resizes
-    window.addEventListener("resize", resizeCanvasToImage);
+        return displayCoords.map(coord => ({
+            x: Math.round(coord.x / state.displayScale),
+            y: Math.round(coord.y / state.displayScale)
+        }));
+    };
 
-    // Hook event handlers
-    window.handleAnnotations = handleAnnotations;
+    // Function to convert original coordinates to display coordinates
+    window.convertOriginalToDisplay = function(originalCoords) {
+        if (!state.displayScale) {
+            return originalCoords;
+        }
+
+        return originalCoords.map(coord => ({
+            x: Math.round(coord.x * state.displayScale),
+            y: Math.round(coord.y * state.displayScale)
+        }));
+    };
+
+    // Enhanced handleAnnotations that converts coordinates
+    window.handleAnnotations = function() {
+        if (!state.scribbles || state.scribbles.length === 0) {
+            alert('Please draw some annotations first');
+            return;
+        }
+
+        // Convert all annotation coordinates from display scale to original scale
+        const originalScaleAnnotations = state.scribbles
+            .filter(s => !s.isPrediction)
+            .map(stroke => {
+                const originalPoints = stroke.points.map(point => ({
+                    x: Math.round(point.x / state.displayScale),
+                    y: Math.round(point.y / state.displayScale)
+                }));
+
+                return {
+                    ...stroke,
+                    points: originalPoints
+                };
+            });
+
+        console.log('Converting annotations from display scale to original scale');
+        console.log('Display scale:', state.displayScale);
+        console.log('Original annotations:', originalScaleAnnotations);
+
+        // Call the original handleAnnotations with converted coordinates
+        if (typeof handleAnnotations === 'function') {
+            // Temporarily replace the scribbles with original scale coordinates
+            const originalScribbles = state.scribbles;
+            state.scribbles = [...state.scribbles.filter(s => s.isPrediction), ...originalScaleAnnotations];
+
+            // Call the original function
+            handleAnnotations();
+
+            // Restore the display scale scribbles
+            state.scribbles = originalScribbles;
+        }
+    };
+
+    // Initial resize
+    resizeCanvasToImage();
+
+    // Hook other API functions
     window.handlePreprocessedImg = handlePreprocessedImg;
     window.loadAnnotations = loadAnnotations;
     window.downloadAnnotations = downloadAnnotations;
 
+    // Initialize UI components
     bindUIEvents();
     initColorPicker();
     initBoxTool();
@@ -121,4 +244,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof updateMethodDescription === 'function') {
         updateMethodDescription();
     }
+
+    console.log('KITE segmentation tool initialized with coordinate conversion');
 });

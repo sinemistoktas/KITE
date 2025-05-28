@@ -40,6 +40,11 @@ export const state = {
     predictionCanvas: null,
     predictionCtx: null,
 
+    originalImageNaturalDimensions: { width: 0, height: 0 },
+    currentDisplayScale: 1,
+    resizeScale: 1,
+    resizeHistory: [],
+    currentResizeIndex: -1,
     //UNet integration
     unetMode: false,
     imageName: null,

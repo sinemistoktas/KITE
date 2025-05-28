@@ -2622,3 +2622,292 @@ button[onclick="downloadAnnotations()"]:focus {
   transform: translateY(-2px) !important;
   box-shadow: 0 4px 12px rgba(138, 62, 133, 0.35) !important;
 }
+
+/* ===== RESIZE SYSTEM CSS STYLES ===== */
+
+/* Resize Controls Styling */
+.resize-controls {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.05);
+  margin-top: 1rem;
+}
+
+.resize-controls h6 {
+  color: #ecf0f1;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.resize-controls .btn {
+  font-size: 0.75rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 20px;
+  transition: all 0.2s ease;
+}
+
+.resize-controls .btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.resize-controls .form-range {
+  accent-color: #3498db;
+}
+
+.resize-controls .form-control {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ecf0f1;
+  font-size: 0.75rem;
+}
+
+.resize-controls .form-control:focus {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #3498db;
+  box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+  color: #ecf0f1;
+}
+
+.resize-controls .form-control::placeholder {
+  color: rgba(236, 240, 241, 0.5);
+}
+
+.resize-controls .form-check-input {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.resize-controls .form-check-input:checked {
+  background-color: #3498db;
+  border-color: #3498db;
+}
+
+.resize-controls .form-check-label {
+  color: #bdc3c7;
+  font-size: 0.75rem;
+}
+
+.resize-controls .text-muted {
+  color: #95a5a6 !important;
+  line-height: 1.2;
+}
+
+.resize-controls #resizeInfo {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  padding: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Custom dimensions panel */
+.custom-dimensions {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-top: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.3s ease;
+}
+
+.custom-dimensions.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Enhanced zoom container for better resizing */
+#zoomContainer {
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+#zoomContainer:hover {
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Image resize animation */
+#uploadedImage {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Canvas resize smoothing */
+#annotationCanvas,
+#predictionCanvas,
+#medsamCanvas {
+  transition: all 0.3s ease;
+}
+
+/* Resize info display styling */
+#resizeInfo div {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.2rem;
+}
+
+#resizeInfo div:last-child {
+  margin-bottom: 0;
+}
+
+/* Enhanced button states for resize controls */
+.resize-controls .btn-outline-info:hover {
+  background-color: #3498db;
+  border-color: #3498db;
+  color: white;
+}
+
+.resize-controls .btn-outline-success:hover {
+  background-color: #27ae60;
+  border-color: #27ae60;
+  color: white;
+}
+
+.resize-controls .btn-outline-warning:hover {
+  background-color: #f39c12;
+  border-color: #f39c12;
+  color: white;
+}
+
+.resize-controls .btn-outline-primary:hover {
+  background-color: #3498db;
+  border-color: #3498db;
+  color: white;
+}
+
+.resize-controls .btn-outline-secondary:hover {
+  background-color: #95a5a6;
+  border-color: #95a5a6;
+  color: white;
+}
+
+/* Loading state for resize operations */
+.resizing {
+  opacity: 0.7;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.resizing::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 2px solid #3498db;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Improved form range slider styling */
+.resize-controls .form-range {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  outline: none;
+}
+
+.resize-controls .form-range::-webkit-slider-thumb {
+  appearance: none;
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  background: #3498db;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+}
+
+.resize-controls .form-range::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+.resize-controls .form-range::-moz-range-thumb {
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  background: #3498db;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Responsive design for resize controls */
+@media (max-width: 768px) {
+  .resize-controls {
+    padding: 0.75rem;
+  }
+
+  .resize-controls .btn {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  .tool-sidebar {
+    min-width: 150px;
+    max-width: 170px;
+  }
+}
+
+/* Enhanced layer panel to accommodate resize controls */
+.layers-panel {
+  max-height: 70vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.layers-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.layers-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.layers-panel::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.layers-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Smooth transitions for resize operations */
+.resize-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Better visual feedback for resize controls */
+.resize-controls .btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.resize-controls .form-label {
+  color: #bdc3c7;
+  font-weight: 500;
+}
+
+/* Ensure proper spacing */
+.resize-controls .gap-2 > *:not(:last-child) {
+  margin-bottom: 0.5rem;
+}
+
+.resize-controls .mb-3:last-child {
+  margin-bottom: 1rem !important;
+}
