@@ -377,8 +377,8 @@ function renderInteractiveRegions(resultImage, finalMask, width, height, stageCo
 
             pixels.forEach(([y, x]) => {
                 const rect = new Konva.Rect({
-                    x: x,
-                    y: y,
+                    x: x * state.displayScale,
+                    y: y * state.displayScale,
                     width: 1,
                     height: 1,
                     fill: color || "rgba(233, 37, 37, 0.98)"
@@ -1177,11 +1177,12 @@ export function handleAnnotationsWithResultLoading() {
 
                 predictedAnnotations.forEach((annotation, index) => {
                     if (annotation && annotation.shape_type === "polygon" && Array.isArray(annotation.points)) {
-                        const points = annotation.points.map(point => ({
-                            x: point[0],
-                            y: point[1],
-                            color: annotation.color ? `rgb(${annotation.color[0]}, ${annotation.color[1]}, ${annotation.color[2]})` : "cyan"
+                        const points = annotation.points.map(p => ({
+                            x: p[0] * state.displayScale,
+                            y: p[1] * state.displayScale,
+                            color: "cyan"
                         }));
+
 
                         state.scribbles.push({
                             points: points,
