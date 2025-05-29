@@ -1255,8 +1255,12 @@ function showPredictionToggleButton() {
         toggleBtn.style.display = 'inline-block';
         const toggleText = document.getElementById('predictionToggleText');
         if (state.showPredictions) {
+            toggleBtn.classList.remove('btn-outline-secondary');
+            toggleBtn.classList.add('btn-outline-info');
             toggleText.innerHTML = '<i class="fa-solid fa-eye me-2"></i>Hide Contours';
         } else {
+            toggleBtn.classList.remove('btn-outline-info');
+            toggleBtn.classList.add('btn-outline-secondary');
             toggleText.innerHTML = '<i class="fa-solid fa-eye-slash me-2"></i>Show Contours';
         }
     }

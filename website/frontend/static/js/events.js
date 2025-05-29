@@ -643,6 +643,4 @@ function togglePredictionVisibility() {
     
     // Redraw the canvas with new visibility state.
     redrawAnnotations();
-    
-    console.log(`Prediction visibility toggled: ${state.showPredictions ? 'ON' : 'OFF'}`);
 }

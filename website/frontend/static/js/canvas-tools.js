@@ -74,7 +74,7 @@ export function redrawAnnotations() {
         });
 
     // Draw predictions
-    if (state.showPredictions && !state.isEditingSegmentationResults) {
+    if (state.showPredictions) {
         const predictionStrokes = state.scribbles.filter(s => s.isPrediction);
         if (predictionStrokes.length > 0) {
             adjustForZoom(pCtx);
