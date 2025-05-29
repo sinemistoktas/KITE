@@ -154,7 +154,7 @@
     <!-- Segmentation Workspace Main Container Box -->
     <div class="segmentation-workspace d-flex flex-row align-items-start justify-content-between" style="gap: 8px;">
       <!-- TOOLS BOX -->
-      <div class="tool-sidebar d-flex flex-column align-items-center gap-3" style="min-width: 180px; max-width: 200px;">
+      <div class="tool-sidebar d-flex flex-column align-items-center gap-3 {% if algorithm_name == 'medsam' %}medsam-tools{% endif %}" style="min-width: 180px; max-width: 200px;">
         <h6 class="mb-2" style="width: 100%; text-align: center;">Tools</h6>
 
         <!-- MedSAM specific instructions and controls -->
@@ -293,7 +293,7 @@
       </div>
 
       <!-- LAYERS PANEL -->
-      <div class="layers-panel tool-sidebar d-flex flex-column align-items-center gap-3" style="min-width: 260px; max-width: 280px;">
+      <div class="layers-panel tool-sidebar d-flex flex-column align-items-center gap-3 {% if algorithm_name == 'medsam' %}d-none{% endif %}" style="min-width: 260px; max-width: 280px;">
         <h6 class="mb-2" style="width: 100%; text-align: center;">Layers</h6>
         <div id="layersContainer" class="d-flex flex-column gap-2" style="width: 100%;">
           <!-- Layers will be dynamically added here -->
@@ -431,6 +431,10 @@
         if (keyboardShortcuts) keyboardShortcuts.style.display = 'none';
         if (annotationControls) annotationControls.style.display = 'none';
         
+        // Hide layers panel in MedSAM mode
+        const layersPanel = document.querySelector('.layers-panel');
+        if (layersPanel) layersPanel.style.display = 'none';
+        
         // Show download buttons and hide Ready to Segment button in MedSAM mode
         const downloadMaskBtn = document.getElementById('downloadMedsamMaskBtn');
         const downloadNpyBtn = document.getElementById('downloadMedsamNpyBtn');
@@ -457,6 +461,10 @@
         if (kiteControls) kiteControls.style.display = 'block';
         if (keyboardShortcuts) keyboardShortcuts.style.display = 'block';
         if (annotationControls) annotationControls.style.display = 'flex';
+        
+        // Show layers panel in KITE mode
+        const layersPanel = document.querySelector('.layers-panel');
+        if (layersPanel) layersPanel.style.display = 'flex';
       }
     }
 
@@ -531,5 +539,32 @@
     });
   });
 </script>
+
+<style>
+  /* Add this at the end of the file */
+  .medsam-tools {
+    min-width: 280px !important;
+    max-width: 300px !important;
+    margin-left: auto; /* This will push it more to the right */
+    margin-right: 20px; /* Add some space from the right edge */
+  }
+  
+  /* Remove the row-reverse since we want to keep left alignment */
+  .medsam-active .segmentation-workspace {
+    justify-content: flex-start;
+  }
+
+  /* Make MedSAM control buttons wider */
+  .medsam-tools .medsam-controls .btn {
+    min-width: 200px !important;
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
+  }
+
+  /* Make the alert box wider too */
+  .medsam-tools .medsam-controls .alert {
+    min-width: 200px !important;
+  }
+</style>
 </body>
 </html>
