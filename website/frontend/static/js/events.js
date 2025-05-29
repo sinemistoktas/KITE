@@ -20,7 +20,10 @@ export function bindUIEvents() {
     });
     
     // Box mode button - let the box-tool.js handle this directly
-    // document.getElementById('boxMode')?.addEventListener('click', () => setMode('box'));
+    document.getElementById('boxMode')?.addEventListener('click', () => setMode('box'));
+    document.addEventListener('modeChanged', (e) => {
+        updateButtonStyles();
+    });
 
     document.getElementById('zoomInBtn')?.addEventListener('click', () => {
         if (state.zoomMode) {
@@ -139,7 +142,6 @@ export function bindUIEvents() {
 
     annotationCanvas.addEventListener('mouseup', () => {
         // First check if box tool handles this event
-        // IMPORTANT: Only let the box tool handle it if we're in box mode
         if (state.mode === 'box' && handleBoxMouseUp()) {
             return; // Box tool handled it, stop processing
         }
@@ -176,9 +178,8 @@ export function bindUIEvents() {
 
     annotationCanvas.addEventListener('mouseleave', () => {
         // First check if box tool handles this event
-        // IMPORTANT: Only let the box tool handle it if we're in box mode
         if (state.mode === 'box' && handleBoxMouseLeave()) {
-            return; // Box tool handled it, stop processing
+            return;
         }
 
         // Handle line drawing
@@ -208,7 +209,7 @@ export function bindUIEvents() {
         else if (key === "A") setMode(state.mode === "eraseAll" ? null : "eraseAll");
         else if (key === "Z") toggleZoomMode();
         else if (key === "F") toggleFillTool();
-        // Note: Box keyboard shortcut "B" is handled in box-tool.js
+        else if (key === "B") setMode(state.mode === "box" ? null : "box");
     });
 
     // Segmentation mode form handling (for legacy system)
@@ -253,12 +254,11 @@ function setMode(newMode) {
     const zoomBtn = document.getElementById('zoomInBtn');
 
     // Exit zoom mode if switching to a drawing mode
-    if (state.zoomMode) {
+    if (state.zoomMode && newMode !== null) {
         state.zoomMode = false;
         zoomBtn?.classList.remove('btn-primary');
         zoomBtn?.classList.add('btn-outline-primary');
         state.annotationCanvas.classList.remove("zoom-cursor");
-        state.annotationCanvas.style.cursor = "crosshair"; // reset
     }
 
     if (state.isFillToolActive && newMode !== "fill") {
@@ -271,14 +271,10 @@ function setMode(newMode) {
 
     if (newMode === "eraseAll") {
         eraseAllAnnotations();
-        updateButtonStyles(); 
+        state.mode = null; // Clear mode after erasing all.
+        updateButtonStyles();
+        setCursor();
         return; 
-    }
-
-    if (state.showEraserCursor && state.mode === "eraser") {
-        state.annotationCanvas.style.cursor = "none"; // ✅ invisible cursor
-    } else if (!state.zoomMode && !state.isFillToolActive) {
-        state.annotationCanvas.style.cursor = "crosshair";
     }
 
     if (newMode === "fill") {
@@ -304,9 +300,9 @@ function setMode(newMode) {
         }
     
         state.mode = state.isFillToolActive ? "fill" : null;
-        state.annotationCanvas.style.cursor = "crosshair";
-    
+        
         updateButtonStyles();
+        setCursor();
         redrawAnnotations();
         return;
     }
@@ -319,13 +315,9 @@ function setMode(newMode) {
         state.showEraserCursor = (newMode === 'eraser');
     }
     
-    if (state.mode === 'eraser' && state.showEraserCursor) {
-        state.annotationCanvas.style.cursor = "none";
-    } else if (!state.zoomMode && !state.isFillToolActive) {
-        state.annotationCanvas.style.cursor = "crosshair";
-    }
-    
+
     updateButtonStyles();
+    setCursor();
     redrawAnnotations();
 }
 
@@ -336,17 +328,67 @@ function toggleZoomMode() {
     if (state.zoomMode) {
         state.mode = null;
         state.showEraserCursor = false;
+        state.isFillToolActive = false;
+
+        document.getElementById('fillToolBtn')?.classList.remove('btn-danger');
+        document.getElementById('fillToolBtn')?.classList.add('btn-outline-danger');
+        document.getElementById('fillToolStatus')?.style.setProperty('display', 'none');
+        resetFillTool();
+        
         state.annotationCanvas.style.cursor = "zoom-in";
         zoomBtn?.classList.add("btn-primary");
         zoomBtn?.classList.remove("btn-outline-primary");
     } else {
-        state.annotationCanvas.style.cursor = "crosshair";
         zoomBtn?.classList.remove("btn-primary");
         zoomBtn?.classList.add("btn-outline-primary");
     }
 
+    updateButtonStyles();
+    setCursor();
     redrawAnnotations();
 }
+// Helper function to set the cursor.
+function setCursor() {
+    if (state.zoomMode) {
+        state.annotationCanvas.style.cursor = "zoom-in";
+    } else if (state.mode === 'eraser' && state.showEraserCursor) {
+        state.annotationCanvas.style.cursor = "none";
+    } else {
+        state.annotationCanvas.style.cursor = "crosshair";
+    }
+}
+
+function updateButtonStyles() {
+    const buttons = {
+        line: document.getElementById("scribbleMode"),
+        dot: document.getElementById("dotMode"),
+        eraser: document.getElementById("eraserMode"),
+        eraseAll: document.getElementById("eraseAllMode"),
+        fill: document.getElementById("fillToolBtn"),
+        zoom: document.getElementById("zoomInBtn"),
+        box: document.getElementById("boxMode")
+    };
+    
+    for (const [tool, btn] of Object.entries(buttons)) {
+        if (!btn) continue;
+        
+        const isActive =
+            (tool === state.mode) ||
+            (tool === "fill" && state.isFillToolActive) ||
+            (tool === "zoom" && state.zoomMode);
+        //TODO: the zoom in button should be selected.
+        if (tool === "zoom") {
+            btn.classList.toggle("btn-primary", isActive);
+            btn.classList.toggle("btn-outline-primary", !isActive);
+        } 
+        else {
+            btn.classList.toggle("btn-danger", isActive);
+            btn.classList.toggle("btn-outline-danger", !isActive);
+        }
+    }
+}
+
+window.updateButtonStyles = updateButtonStyles;
 
 function eraseAt(x, y) {
     const newScribbles = [];
@@ -354,7 +396,6 @@ function eraseAt(x, y) {
     const remainingLayerIds = new Set(); // Track layers that survive
     const eraseRadius = 10;
 
-    // Track existing layers first
     for (const stroke of state.scribbles) {
         if (stroke.layerId) {
             existingLayerIds.add(stroke.layerId);
@@ -489,36 +530,7 @@ function eraseAllAnnotations() {
     redrawAnnotations();
 }
 
-function updateButtonStyles() {
-    const buttons = {
-        line: document.getElementById("scribbleMode"),
-        dot: document.getElementById("dotMode"),
-        eraser: document.getElementById("eraserMode"),
-        eraseAll: document.getElementById("eraseAllMode"),
-        fill: document.getElementById("fillToolBtn"),
-        zoom: document.getElementById("zoomInBtn"),
-        box: document.getElementById("boxMode") // Add box mode button
-    };
-    
-    for (const [tool, btn] of Object.entries(buttons)) {
-        if (!btn) continue;
-        const isActive =
-            (tool === state.mode) ||
-            (tool === "fill" && state.isFillToolActive) ||
-            (tool === "zoom" && state.zoomMode);
-    
-        btn.classList.toggle("btn-danger", isActive && tool !== "zoom");
-        btn.classList.toggle("btn-outline-danger", !isActive && tool !== "zoom");
-    
-        if (tool === "zoom") {
-            btn.classList.toggle("btn-primary", isActive);
-            btn.classList.toggle("btn-outline-primary", !isActive);
-        }
-    }
-}
-
 export function initializeAnnotationsFromPredictions(predictions) {
-    
     if (!predictions || !predictions.length) return;
 
     import('./layers.js').then(module => {
@@ -536,7 +548,6 @@ export function initializeAnnotationsFromPredictions(predictions) {
             }
         });
         
-        // Create a layer for each class
         Object.entries(predictionsByClass).forEach(([classId, shapes]) => {
             const layerName = `Layer ${classId}`;
             const color = shapes[0].color ? 
@@ -567,7 +578,6 @@ export function initializeAnnotationsFromPredictions(predictions) {
         });
     });
 }
-
 
 export function processUNetPredictions(predictedPoints) {
     if (!predictedPoints || predictedPoints.length === 0) return [];
