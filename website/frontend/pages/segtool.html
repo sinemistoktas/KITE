@@ -69,9 +69,14 @@
       <div>
         <h6 class="segtool-text">Upload an image</h6>
         <input id="file-upload" type="file" name="image" class="form-control" required style="display:none;" accept="image/*">
-        <button type="button" class="custom-upload-btn" style="height: 60px; text-align: center; display: flex; align-items: center; justify-content: center;" onclick="document.getElementById('file-upload').click()">
-          <i class="fa fa-cloud-upload me-2"></i> Upload Image
-        </button>
+        <div class="d-flex flex-column gap-2">
+          <button type="button" class="custom-upload-btn" style="height: 60px; text-align: center; display: flex; align-items: center; justify-content: center;" onclick="document.getElementById('file-upload').click()">
+            <i class="fa fa-cloud-upload me-2"></i> Upload Image
+          </button>
+          <button type="button" class="custom-upload-btn" style="height: 60px; text-align: center; display: flex; align-items: center; justify-content: center;" onclick="uploadDemoImage()">
+            <i class="fa fa-image me-2"></i> Upload Demo Image
+          </button>
+        </div>
         <span id="fileNameDisplay" class="file-name-display"></span>
       </div>
     </div>
@@ -361,6 +366,57 @@
     const kiteControls = document.querySelector('.kite-controls');
     const keyboardShortcuts = document.querySelector('.keyboard-shortcuts-btn');
     const annotationControls = document.querySelector('.annotation-controls');
+
+    // Make uploadDemoImage function available globally
+    window.uploadDemoImage = function() {
+      // Check if algorithm is selected
+      const isAlgorithmSelected = [...algorithmRadios].some(r => r.checked);
+      if (!isAlgorithmSelected) {
+        alert('Please select an algorithm first');
+        return;
+      }
+
+      // Show loading state
+      const loadingOverlay = document.getElementById('loadingOverlay');
+      if (loadingOverlay) loadingOverlay.style.display = 'flex';
+      
+      // Fetch the demo image
+      fetch("{% static 'img/demo-image.png' %}")
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Failed to fetch demo image');
+          }
+          return response.blob();
+        })
+        .then(blob => {
+          // Create a file from the blob
+          const file = new File([blob], 'demo-image.png', { type: 'image/png' });
+          
+          // Create a new FileList-like object
+          const dataTransfer = new DataTransfer();
+          dataTransfer.items.add(file);
+          
+          // Set the file input's files
+          fileInput.files = dataTransfer.files;
+          
+          // Update filename display
+          if (fileNameDisplay) {
+            fileNameDisplay.textContent = 'demo-image.png';
+          }
+          
+          // Trigger the change event
+          const event = new Event('change', { bubbles: true });
+          fileInput.dispatchEvent(event);
+          
+          // Submit the form
+          fileInput.form.submit();
+        })
+        .catch(error => {
+          console.error('Error loading demo image:', error);
+          alert('Error loading demo image: ' + error.message);
+          if (loadingOverlay) loadingOverlay.style.display = 'none';
+        });
+    };
 
     // Initialize interface based on current algorithm/method
     if (workspace) {
