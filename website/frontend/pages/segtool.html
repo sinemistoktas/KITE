@@ -9,6 +9,41 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="icon" type="image/x-icon" href="{% static 'img/favicon.ico' %}">
   <script type="module" src="{% static 'js/main.js' %}"></script>
+  <style>
+    .tool-with-slider {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .slider-container {
+      width: 100%;
+      max-width: 150px;
+      opacity: 0.7;
+      transition: opacity 0.3s ease;
+    }
+
+    .tool-with-slider:hover .slider-container {
+      opacity: 1;
+    }
+
+    .slider-label {
+      font-size: 0.75rem;
+      color: #666;
+      margin-bottom: 2px;
+      text-align: center;
+    }
+
+    .form-range {
+      height: 4px;
+    }
+
+    .btn.tool-button {
+      min-width: 120px;
+    }
+  </style>
 </head>
 
 <body class="seg-tool-page p-5">
@@ -80,8 +115,8 @@
   {% if image_url %}
   <div class="uploaded-info">
     {% if algorithm_name %}
-      <div class="info-row">
-        <span class="uploaded-filename"><strong>Algorithm:</strong> 
+    <div class="info-row">
+        <span class="uploaded-filename"><strong>Algorithm:</strong>
           {% if algorithm_name == 'kite' %}
             KITE
           {% elif algorithm_name == 'medsam' %}
@@ -90,54 +125,54 @@
             Deep Learning Assisted (U-Net)
           {% endif %}
         </span>
-        <span class="uploaded-filename"><strong>Filename:</strong> {{ image_name }}</span>
-      </div>
-      <div class="info-row">
-        <div class="algorithm-brief">
-          {% if algorithm_name == 'kite' %}
-            Interactive annotation tool for precise manual segmentation
-          {% elif algorithm_name == 'medsam' %}
-            AI-powered segmentation using bounding box prompts
-          {% elif algorithm_name == 'unet' %}
-            Deep learning assisted segmentation with smart refinement
-          {% endif %}
-        </div>
-        <button class="manual-btn" onclick="toggleManual()">
-          <i class="fa-solid fa-book me-2"></i>View Manual
-        </button>
-      </div>
-
-      <div class="algorithm-info" id="algorithmManual" style="display: none;">
+      <span class="uploaded-filename"><strong>Filename:</strong> {{ image_name }}</span>
+    </div>
+    <div class="info-row">
+      <div class="algorithm-brief">
         {% if algorithm_name == 'kite' %}
-          <strong>KITE Instructions:</strong>
-          <ul>
-            <li>Use the Line tool to draw continuous strokes</li>
-            <li>Use the Dot tool for precise point annotations</li>
-            <li>Use the Box tool to create rectangular selections</li>
-            <li>Use the Fill tool to quickly annotate large areas</li>
-            <li>Use the Eraser to remove unwanted annotations</li>
-            <li>Click "Ready to Segment!" when finished</li>
-          </ul>
+        Interactive annotation tool for precise manual segmentation
         {% elif algorithm_name == 'medsam' %}
-          <strong>MedSAM Instructions:</strong>
-          <ul>
-            <li>Draw bounding boxes around areas you want to segment</li>
-            <li>Each box will be processed automatically</li>
-            <li>Draw multiple boxes for different structures</li>
-            <li>Use undo to remove last box</li>
-            <li>Use reset to clear all boxes</li>
-          </ul>
+        AI-powered segmentation using bounding box prompts
         {% elif algorithm_name == 'unet' %}
-          <strong>Deep Learning Assisted Instructions:</strong>
-          <ul>
-            <li>The model will automatically segment fluid regions</li>
-            <li>There is no need for annotations</li>
-            <li>Click "Ready to Segment!" to see results</li>
-          </ul>
+        Deep learning assisted segmentation with smart refinement
         {% endif %}
       </div>
+      <button class="manual-btn" onclick="toggleManual()">
+        <i class="fa-solid fa-book me-2"></i>View Manual
+      </button>
+    </div>
+
+    <div class="algorithm-info" id="algorithmManual" style="display: none;">
+      {% if algorithm_name == 'kite' %}
+      <strong>KITE Instructions:</strong>
+      <ul>
+        <li>Use the Line tool to draw continuous strokes</li>
+        <li>Use the Dot tool for precise point annotations</li>
+        <li>Use the Box tool to create rectangular selections</li>
+        <li>Use the Fill tool to quickly annotate large areas</li>
+        <li>Use the Eraser to remove unwanted annotations</li>
+        <li>Click "Ready to Segment!" when finished</li>
+      </ul>
+      {% elif algorithm_name == 'medsam' %}
+      <strong>MedSAM Instructions:</strong>
+      <ul>
+        <li>Draw bounding boxes around areas you want to segment</li>
+        <li>Each box will be processed automatically</li>
+        <li>Draw multiple boxes for different structures</li>
+        <li>Use undo to remove last box</li>
+        <li>Use reset to clear all boxes</li>
+      </ul>
+      {% elif algorithm_name == 'unet' %}
+      <strong>Deep Learning Assisted Instructions:</strong>
+      <ul>
+        <li>The model will automatically segment fluid regions</li>
+        <li>There is no need for annotations</li>
+        <li>Click "Ready to Segment!" to see results</li>
+      </ul>
+      {% endif %}
+    </div>
     {% else %}
-      <span class="uploaded-filename"><strong>Filename:</strong> {{ image_name }}</span>
+    <span class="uploaded-filename"><strong>Filename:</strong> {{ image_name }}</span>
     {% endif %}
   </div>
   {% endif %}
@@ -153,7 +188,7 @@
         <!-- MedSAM specific instructions and controls -->
         <div class="medsam-controls" style="display: none;">
           <div class="d-flex flex-column align-items-center" style="width: 100%;">
-            
+
 
             <div class="d-flex flex-column align-items-center gap-2" style="width: 100%;">
               <button type="button" class="btn btn-outline-primary rounded-pill px-3 w-100 mb-2" id="undoMedsamBtn" disabled>
@@ -180,26 +215,63 @@
                    style="width: 38px; height: 38px; border: none; border-radius: 8px; margin-bottom: 10px; display: block;">
           </div>
 
-          <!-- KITE Annotation Buttons -->
-          <div class="d-flex flex-column align-items-center gap-2" style="width: 100%;">
-            <button type="button" class="btn btn-outline-danger rounded-pill px-3"  id="scribbleMode">
-              <i class="fa-solid fa-minus"></i> Line
-            </button>
-            <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="dotMode">
-              ● Dot
-            </button>
-            <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="boxMode">
-              <i class="fa-sharp fa-regular fa-square"></i> Box
-            </button>
-            <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="eraserMode">
-              <i class="fa-solid fa-eraser"></i> Eraser
-            </button>
-            <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="eraseAllMode">
-              <i class="fa-solid fa-xmark"></i> Erase All
-            </button>
-            <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="fillToolBtn">
-              <i class="fa-solid fa-fill-drip"></i> Fill Tool
-            </button>
+          <!-- KITE Annotation Buttons with Individual Sliders -->
+          <div class="d-flex flex-column align-items-center gap-3" style="width: 100%;">
+
+            <!-- Line Tool with Slider -->
+            <div class="tool-with-slider">
+              <button type="button" class="btn btn-outline-danger rounded-pill px-3 tool-button" id="scribbleMode">
+                <i class="fa-solid fa-minus"></i> Line
+              </button>
+              <div class="slider-container">
+                <div class="slider-label">Line Size</div>
+                <input type="range" class="form-range" min="1" max="10" step="1" id="lineSizeSlider">
+              </div>
+            </div>
+
+            <!-- Dot Tool with Slider -->
+            <div class="tool-with-slider">
+              <button type="button" class="btn btn-outline-danger rounded-pill px-3 tool-button" id="dotMode">
+                ● Dot
+              </button>
+              <div class="slider-container">
+                <div class="slider-label">Dot Size</div>
+                <input type="range" class="form-range" min="1" max="10" step="1" id="dotSizeSlider">
+              </div>
+            </div>
+
+            <!-- Box Tool (no slider needed) -->
+            <div class="tool-with-slider">
+              <button type="button" class="btn btn-outline-danger rounded-pill px-3 tool-button" id="boxMode">
+                <i class="fa-sharp fa-regular fa-square"></i> Box
+              </button>
+            </div>
+
+            <!-- Eraser Tool with Slider -->
+            <div class="tool-with-slider">
+              <button type="button" class="btn btn-outline-danger rounded-pill px-3 tool-button" id="eraserMode">
+                <i class="fa-solid fa-eraser"></i> Eraser
+              </button>
+              <div class="slider-container">
+                <div class="slider-label">Eraser Size</div>
+                <input type="range" class="form-range" min="5" max="50" step="1" id="eraserSizeSlider">
+              </div>
+            </div>
+
+            <!-- Erase All Tool (no slider needed) -->
+            <div class="tool-with-slider">
+              <button type="button" class="btn btn-outline-danger rounded-pill px-3 tool-button" id="eraseAllMode">
+                <i class="fa-solid fa-xmark"></i> Erase All
+              </button>
+            </div>
+
+            <!-- Fill Tool (no slider needed) -->
+            <div class="tool-with-slider">
+              <button type="button" class="btn btn-outline-danger rounded-pill px-3 tool-button" id="fillToolBtn">
+                <i class="fa-solid fa-fill-drip"></i> Fill Tool
+              </button>
+            </div>
+
           </div>
         </div>
       </div>
@@ -265,167 +337,167 @@
 
   {% endif %}
   <div id="segmentationResult" class="text-center mt-4" style="display: none;">
-  <div class="d-flex flex-row align-items-start justify-content-center gap-4 flex-wrap">
-    <div class="segmentation-main">
-      <div class="text-white p-2 mb-2 rounded bg-primary">
-        <strong>Segmented Result</strong>
-      </div>
-      <div style="margin: 0; padding: 0; text-align: center;">
-        <div id="segmentationStageContainer" style="position: relative;">
-          <img id="segmentedResultImage"
-               class="img-fluid mx-auto d-block"
-               style="max-width: 512px; display: block;"
-               alt="Segmented Output" />
+    <div class="d-flex flex-row align-items-start justify-content-center gap-4 flex-wrap">
+      <div class="segmentation-main">
+        <div class="text-white p-2 mb-2 rounded bg-primary">
+          <strong>Segmented Result</strong>
         </div>
+        <div style="margin: 0; padding: 0; text-align: center;">
+          <div id="segmentationStageContainer" style="position: relative;">
+            <img id="segmentedResultImage"
+                 class="img-fluid mx-auto d-block"
+                 style="max-width: 512px; display: block;"
+                 alt="Segmented Output" />
+          </div>
 
-        <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
-          <button class="show-pre-btn" onclick="handlePreprocessedImg()">
-            <i class="fa-solid fa-eye"></i> Show Preprocessed Image
-          </button>
+          <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
+            <button class="show-pre-btn" onclick="handlePreprocessedImg()">
+              <i class="fa-solid fa-eye"></i> Show Preprocessed Image
+            </button>
 
-          <button id="showSegMapBtn" class="show-pre-btn" onclick="handleSegmentationMap()" style="display: none;">
-            <i class="fa-solid fa-map"></i> Show Segmentation Map
-          </button>
-          <button id="loadResultsAsAnnotationsBtn" class="results-annotations-btn px-4 py-2 rounded-pill shadow-sm"
-                  onclick="loadLastSegmentationAsAnnotations()"
-                  style="display: none;">
-            <i class="fa-solid fa-edit me-2"></i> Edit Results on Canvas
-          </button>
+            <button id="showSegMapBtn" class="show-pre-btn" onclick="handleSegmentationMap()" style="display: none;">
+              <i class="fa-solid fa-map"></i> Show Segmentation Map
+            </button>
+            <button id="loadResultsAsAnnotationsBtn" class="results-annotations-btn px-4 py-2 rounded-pill shadow-sm"
+                    onclick="loadLastSegmentationAsAnnotations()"
+                    style="display: none;">
+              <i class="fa-solid fa-edit me-2"></i> Edit Results on Canvas
+            </button>
 
-          <a id="downloadSegmentedImage"
-             class="download-annotations-btn px-4 py-2 rounded-pill shadow-sm"
-             style="display: none; text-decoration: none; color: inherit;">
-            <i class="fa-solid fa-download me-2"></i> Download Segmented Image
-          </a>
+            <a id="downloadSegmentedImage"
+               class="download-annotations-btn px-4 py-2 rounded-pill shadow-sm"
+               style="display: none; text-decoration: none; color: inherit;">
+              <i class="fa-solid fa-download me-2"></i> Download Segmented Image
+            </a>
+          </div>
         </div>
       </div>
     </div>
   </div>
-</div>
 
-<script>
-  // Global variables for both systems
-  window.imageName = "{{ image_name }}";
-  window.algorithm = "{{ algorithm_name }}";
-  window.segmentationMethod = "{{ segmentation_method|default:'traditional' }}";
-  window.csrfToken = "{{ csrf_token }}";
-</script>
+  <script>
+    // Global variables for both systems
+    window.imageName = "{{ image_name }}";
+    window.algorithm = "{{ algorithm_name }}";
+    window.segmentationMethod = "{{ segmentation_method|default:'traditional' }}";
+    window.csrfToken = "{{ csrf_token }}";
+  </script>
 
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
-    // Log available data
-    console.log('CSRF Token available:', !!window.csrfToken);
-    console.log('Algorithm:', window.algorithm);
-    console.log('Segmentation Method:', window.segmentationMethod);
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      // Log available data
+      console.log('CSRF Token available:', !!window.csrfToken);
+      console.log('Algorithm:', window.algorithm);
+      console.log('Segmentation Method:', window.segmentationMethod);
 
-    const fileInput = document.getElementById('file-upload');
-    const fileNameDisplay = document.getElementById('fileNameDisplay');
-    const algorithmRadios = document.querySelectorAll('input[name="algorithm"]');
-    const workspace = document.getElementById('segmentationWorkspace');
-    const medsamControls = document.querySelector('.medsam-controls');
-    const kiteControls = document.querySelector('.kite-controls');
+      const fileInput = document.getElementById('file-upload');
+      const fileNameDisplay = document.getElementById('fileNameDisplay');
+      const algorithmRadios = document.querySelectorAll('input[name="algorithm"]');
+      const workspace = document.getElementById('segmentationWorkspace');
+      const medsamControls = document.querySelector('.medsam-controls');
+      const kiteControls = document.querySelector('.kite-controls');
 
-    // Initialize interface based on current algorithm/method
-    if (workspace) {
-      // Clear all classes first
-      workspace.classList.remove('medsam-active', 'kite-active');
+      // Initialize interface based on current algorithm/method
+      if (workspace) {
+        // Clear all classes first
+        workspace.classList.remove('medsam-active', 'kite-active');
 
-      // Check if we're in MedSAM mode
-      if (window.algorithm === 'medsam') {
-        workspace.classList.add('medsam-active');
-        if (medsamControls) medsamControls.style.display = 'block';
-        if (kiteControls) kiteControls.style.display = 'none';
+        // Check if we're in MedSAM mode
+        if (window.algorithm === 'medsam') {
+          workspace.classList.add('medsam-active');
+          if (medsamControls) medsamControls.style.display = 'block';
+          if (kiteControls) kiteControls.style.display = 'none';
 
-        // Load MedSAM JavaScript module
-        const script = document.createElement('script');
-        script.src = "{% static 'js/medsam-tool.js' %}";
-        script.onload = function() {
-          console.log('MedSAM tool script loaded');
-          if (typeof initMedSAM === 'function') {
-            initMedSAM();
+          // Load MedSAM JavaScript module
+          const script = document.createElement('script');
+          script.src = "{% static 'js/medsam-tool.js' %}";
+          script.onload = function() {
+            console.log('MedSAM tool script loaded');
+            if (typeof initMedSAM === 'function') {
+              initMedSAM();
+            }
+          };
+          document.head.appendChild(script);
+
+        } else if (window.algorithm === 'KITE' || window.segmentationMethod) {
+          // KITE mode or legacy segmentation method mode
+          workspace.classList.add('kite-active');
+          if (medsamControls) medsamControls.style.display = 'none';
+          if (kiteControls) kiteControls.style.display = 'block';
+        }
+      }
+
+      // File upload handler
+      if (fileInput && fileNameDisplay) {
+        fileInput.addEventListener('change', function () {
+          if (fileInput.files && fileInput.files.length > 0) {
+            fileNameDisplay.textContent = fileInput.files[0].name;
+
+            // Check if algorithm is selected (for new system)
+            const isAlgorithmSelected = [...algorithmRadios].some(r => r.checked);
+            if (!isAlgorithmSelected) {
+              alert('Please select an algorithm first');
+              fileNameDisplay.textContent = '';
+              fileInput.value = '';
+              return;
+            }
+
+            // Handle algorithm selection and mapping
+            let selectedAlgorithmValue = '';
+            algorithmRadios.forEach(radio => {
+              if (radio.checked) selectedAlgorithmValue = radio.value;
+            });
+
+            if (selectedAlgorithmValue) {
+              let selectedAlgorithmDisplayName;
+              selectedAlgorithmDisplayName = selectedAlgorithmValue;
+
+              // Create hidden input for algorithm name
+              let algorithmNameInput = document.createElement('input');
+              algorithmNameInput.type = 'hidden';
+              algorithmNameInput.name = 'algorithm_name';
+              algorithmNameInput.value = selectedAlgorithmDisplayName;
+              fileInput.form.appendChild(algorithmNameInput);
+            }
+
+
+            // Automatically submit the form
+            fileInput.form.submit();
+          } else {
+            fileNameDisplay.textContent = '';
           }
-        };
-        document.head.appendChild(script);
+        });
+      }
+    });
+  </script>
 
-      } else if (window.algorithm === 'KITE' || window.segmentationMethod) {
-        // KITE mode or legacy segmentation method mode
-        workspace.classList.add('kite-active');
-        if (medsamControls) medsamControls.style.display = 'none';
-        if (kiteControls) kiteControls.style.display = 'block';
+  <script>
+    function toggleManual() {
+      const manual = document.getElementById('algorithmManual');
+      const button = document.querySelector('.manual-btn');
+      if (manual.style.display === 'none') {
+        manual.style.display = 'block';
+        button.innerHTML = '<i class="fa-solid fa-book me-2"></i>Hide Manual';
+      } else {
+        manual.style.display = 'none';
+        button.innerHTML = '<i class="fa-solid fa-book me-2"></i>View Manual';
       }
     }
+  </script>
 
-    // File upload handler
-    if (fileInput && fileNameDisplay) {
-      fileInput.addEventListener('change', function () {
-        if (fileInput.files && fileInput.files.length > 0) {
-          fileNameDisplay.textContent = fileInput.files[0].name;
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const shortcutsBtn = document.querySelector('.keyboard-shortcuts-btn');
+      const tooltip = document.querySelector('.shortcuts-tooltip');
 
-          // Check if algorithm is selected (for new system)
-          const isAlgorithmSelected = [...algorithmRadios].some(r => r.checked);
-          if (!isAlgorithmSelected) {
-            alert('Please select an algorithm first');
-            fileNameDisplay.textContent = '';
-            fileInput.value = '';
-            return;
-          }
-
-          // Handle algorithm selection and mapping
-          let selectedAlgorithmValue = '';
-          algorithmRadios.forEach(radio => {
-            if (radio.checked) selectedAlgorithmValue = radio.value;
-          });
-
-          if (selectedAlgorithmValue) {
-            let selectedAlgorithmDisplayName;
-            selectedAlgorithmDisplayName = selectedAlgorithmValue;
-
-            // Create hidden input for algorithm name
-            let algorithmNameInput = document.createElement('input');
-            algorithmNameInput.type = 'hidden';
-            algorithmNameInput.name = 'algorithm_name';
-            algorithmNameInput.value = selectedAlgorithmDisplayName;
-            fileInput.form.appendChild(algorithmNameInput);
-          }
-
-
-          // Automatically submit the form
-          fileInput.form.submit();
-        } else {
-          fileNameDisplay.textContent = '';
-        }
+      shortcutsBtn.addEventListener('mouseenter', function() {
+        tooltip.style.display = 'block';
       });
-    }
-  });
-</script>
 
-<script>
-  function toggleManual() {
-    const manual = document.getElementById('algorithmManual');
-    const button = document.querySelector('.manual-btn');
-    if (manual.style.display === 'none') {
-      manual.style.display = 'block';
-      button.innerHTML = '<i class="fa-solid fa-book me-2"></i>Hide Manual';
-    } else {
-      manual.style.display = 'none';
-      button.innerHTML = '<i class="fa-solid fa-book me-2"></i>View Manual';
-    }
-  }
-</script>
-
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-    const shortcutsBtn = document.querySelector('.keyboard-shortcuts-btn');
-    const tooltip = document.querySelector('.shortcuts-tooltip');
-    
-    shortcutsBtn.addEventListener('mouseenter', function() {
-      tooltip.style.display = 'block';
+      shortcutsBtn.addEventListener('mouseleave', function() {
+        tooltip.style.display = 'none';
+      });
     });
-    
-    shortcutsBtn.addEventListener('mouseleave', function() {
-      tooltip.style.display = 'none';
-    });
-  });
-</script>
+  </script>
 </body>
 </html>

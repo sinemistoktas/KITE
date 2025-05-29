@@ -18,7 +18,20 @@ export function bindUIEvents() {
     document.getElementById('fillToolBtn')?.addEventListener('click', () => {
         setMode(state.mode === "fill" ? null : "fill");
     });
-    
+    document.getElementById("lineSizeSlider").value = state.lineThickness || 2;
+    document.getElementById("dotSizeSlider").value = state.dotRadius || 2;
+    document.getElementById("eraserSizeSlider").value = state.eraserRadius || 10;
+
+    document.getElementById("lineSizeSlider").addEventListener("input", (e) => {
+        state.lineThickness = parseInt(e.target.value);
+    });
+    document.getElementById("dotSizeSlider").addEventListener("input", (e) => {
+        state.dotRadius = parseInt(e.target.value);
+    });
+    document.getElementById("eraserSizeSlider").addEventListener("input", (e) => {
+        state.eraserRadius = parseInt(e.target.value);
+    });
+
     // Box mode button - let the box-tool.js handle this directly
     // document.getElementById('boxMode')?.addEventListener('click', () => setMode('box'));
 
@@ -95,7 +108,9 @@ export function bindUIEvents() {
                 points: [coords],
                 isPrediction: false,
                 color: state.selectedColor,
-                layerId
+                layerId,
+                isDot: true,
+                radius: state.dotRadius
             });
             redrawAnnotations();
         } else if (state.mode === 'line') {
@@ -150,7 +165,8 @@ export function bindUIEvents() {
                 points: state.currentStroke,
                 isPrediction: false,
                 color: state.currentStrokeColor,
-                layerId: state.currentLayerId
+                layerId: state.currentLayerId,
+                thickness: state.lineThickness
             });
             state.currentStroke = [];
             redrawAnnotations();
@@ -348,113 +364,77 @@ function toggleZoomMode() {
     redrawAnnotations();
 }
 
+// In your events.js file, replace the existing eraseAt function with this:
+
 function eraseAt(x, y) {
     const newScribbles = [];
-    const existingLayerIds = new Set(); // Track all layers
-    const remainingLayerIds = new Set(); // Track layers that survive
-    const eraseRadius = 10;
+    const existingLayerIds = new Set();
+    const remainingLayerIds = new Set();
+    const eraseRadius = state.eraserRadius || 10;
 
-    // Track existing layers first
     for (const stroke of state.scribbles) {
         if (stroke.layerId) {
             existingLayerIds.add(stroke.layerId);
         }
     }
-    let erasedCount = 0;
-    let protectedCount = 0;
-    let strokesProcessed = 0;
 
     for (const stroke of state.scribbles) {
-        strokesProcessed++;
-        // Always keep predictions contours - they shouldn't be erasable by the user!
         if (stroke.isPrediction) {
             newScribbles.push(stroke);
             continue;
         }
 
-        // IF the stroke belongs to a layer that is currently NOT visible, it should NOT be erased. This seems better.
         const isLayerVisible = !stroke.layerId || state.visibleLayerIds.includes(stroke.layerId);
-        
         if (!isLayerVisible) {
             newScribbles.push(stroke);
             if (stroke.layerId) remainingLayerIds.add(stroke.layerId);
-    
-            const wouldBeErased = stroke.points.some(p => Math.hypot(p.x - x, p.y - y) < eraseRadius);
-            if (wouldBeErased) {
-                protectedCount++;
-            }
-            continue;
-        }
-        const pointsInEraser = stroke.points.filter(p => Math.hypot(p.x - x, p.y - y) < eraseRadius);
-        const hasPointInEraser = pointsInEraser.length > 0;
-        if (!hasPointInEraser) {
-            newScribbles.push(stroke);
-            if (stroke.layerId) remainingLayerIds.add(stroke.layerId);
             continue;
         }
 
-        if (stroke.isLoadedAnnotation || stroke.isDot || stroke.isSegmentationResult || stroke.points.length === 1) {
-            const point = stroke.points[0];
-            const withinEraser = Math.hypot(point.x - x, point.y - y) < eraseRadius;
-            if (!withinEraser) {
+        // Handle single point strokes (dots, loaded annotations, segmentation results)
+        if (stroke.isDot || stroke.isLoadedAnnotation || stroke.isSegmentationResult || stroke.points.length === 1) {
+            const pointsToKeep = stroke.points.filter(p => Math.hypot(p.x - x, p.y - y) >= eraseRadius);
+
+            if (pointsToKeep.length === stroke.points.length) {
                 newScribbles.push(stroke);
                 if (stroke.layerId) remainingLayerIds.add(stroke.layerId);
-            } else {
-                erasedCount++;
-            }
-        } 
-        else if (stroke.isBox) {
-            erasedCount++;
-        }
-        else if (stroke.isFilled || stroke.type === 'fill') {
-            erasedCount++;
-        }
-        else {
-            let segments = [];
-            let currentSegment = [];
-            let pointsErased = 0;
-            
-            for (const point of stroke.points) {
-                const withinEraser = Math.hypot(point.x - x, point.y - y) < eraseRadius;
-                
-                if (!withinEraser) {
-                    currentSegment.push(point);
-                } else {
-                    pointsErased++;
-                    if (currentSegment.length > 1) {
-                        segments.push([...currentSegment]);
-                    }
-                    currentSegment = [];
-                }
-            }
-            
-            if (currentSegment.length > 1) {
-                segments.push(currentSegment);
-            }
-            for (const segment of segments) {
+            } else if (pointsToKeep.length > 0) {
                 newScribbles.push({
-                    points: segment,
-                    isPrediction: false,
-                    color: stroke.color,
-                    layerId: stroke.layerId,
-                    isLoadedAnnotation: stroke.isLoadedAnnotation || false,
-                    isDot: false,
-                    isSegmentationResult: stroke.isSegmentationResult || false,
-                    isBox: false,
-                    isFilled: stroke.isFilled || false,
-                    type: stroke.type
+                    ...stroke,
+                    points: pointsToKeep
                 });
                 if (stroke.layerId) remainingLayerIds.add(stroke.layerId);
             }
-            
-            if (pointsErased > 0) {
-                erasedCount += pointsErased;
-            }
+            continue;
         }
+
+        // Handle multi-point strokes (lines, fills, boxes) - SPLIT LOGIC
+        const segments = splitStrokeAtErasedPoints(stroke.points, x, y, eraseRadius);
+
+        segments.forEach(segment => {
+            if (segment.length > 0) {
+                // Determine minimum points needed based on stroke type
+                let minPoints = 1;
+                if (stroke.isFilled || stroke.type === 'fill') {
+                    minPoints = 3; // Need at least 3 points for a fill area
+                } else if (stroke.isBox) {
+                    minPoints = 4; // Need 4 points for a box
+                } else if (!stroke.isDot && stroke.points.length > 1) {
+                    minPoints = 2; // Need at least 2 points for a line
+                }
+
+                if (segment.length >= minPoints) {
+                    newScribbles.push({
+                        ...stroke,
+                        points: segment
+                    });
+                    if (stroke.layerId) remainingLayerIds.add(stroke.layerId);
+                }
+            }
+        });
     }
 
-    // Remove layers that no longer have any strokes, BUT don't remove hidden layers!!!
-    const layersRemoved = [];
+    // Clean up empty layers
     for (const layerId of existingLayerIds) {
         if (!remainingLayerIds.has(layerId)) {
             const wasVisible = state.visibleLayerIds.includes(layerId);
@@ -462,7 +442,6 @@ function eraseAt(x, y) {
                 const layerElement = document.getElementById(layerId);
                 if (layerElement) {
                     layerElement.remove();
-                    layersRemoved.push(layerId);
                 }
                 state.visibleLayerIds = state.visibleLayerIds.filter(id => id !== layerId);
             }
@@ -473,6 +452,37 @@ function eraseAt(x, y) {
     redrawAnnotations();
 }
 
+// ADD this new helper function to your events.js file:
+function splitStrokeAtErasedPoints(points, eraseX, eraseY, eraseRadius) {
+    if (points.length === 0) return [];
+
+    const segments = [];
+    let currentSegment = [];
+
+    for (let i = 0; i < points.length; i++) {
+        const point = points[i];
+        const distanceToEraser = Math.hypot(point.x - eraseX, point.y - eraseY);
+
+        if (distanceToEraser >= eraseRadius) {
+            // Point is outside erase radius, keep it
+            currentSegment.push(point);
+        } else {
+            // Point is within erase radius, should be removed
+            if (currentSegment.length > 0) {
+                // Save current segment and start a new one
+                segments.push([...currentSegment]);
+                currentSegment = [];
+            }
+        }
+    }
+
+    // Don't forget the last segment
+    if (currentSegment.length > 0) {
+        segments.push(currentSegment);
+    }
+
+    return segments;
+}
 function eraseAllAnnotations() {
     state.scribbles = state.scribbles.filter(s => s.isPrediction);
     state.layerCounter = 0;
