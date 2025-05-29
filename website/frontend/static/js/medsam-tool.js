@@ -186,6 +186,12 @@ function handleMouseUp(e) {
   
   console.log(`Added box ${currentBoxes.length}: ${imageBox}`);
   
+  // Update button text to reflect current state
+  const toggleBoxesBtn = document.getElementById('toggleBoxesBtn');
+  if (toggleBoxesBtn) {
+    toggleBoxesBtn.innerHTML = '<i class="fa-solid fa-eye-slash"></i> Show Boxes';
+  }
+  
   // Perform segmentation for every new box
   performSegmentation(imageBox);
 }
@@ -313,8 +319,10 @@ function redrawAllBoxesAndSegmentation() {
     medsamCtx.drawImage(result.overlay, 0, 0, medsamCanvas.width, medsamCanvas.height);
   });
   
-  // Draw all boxes on top
-  drawAllBoxesOnTop();
+  // Only draw boxes if they should be visible
+  if (window.showBoxes !== false) {
+    drawAllBoxesOnTop();
+  }
 }
 
 function drawBox(x1, y1, x2, y2, color, dashed = false) {
@@ -431,11 +439,13 @@ function updateUI() {
   const redoBtn = document.getElementById('redoMedsamBtn');
   const resetBtn = document.getElementById('resetMedsamBtn');
   const downloadBtn = document.getElementById('downloadMedsamMaskBtn');
+  const toggleBoxesBtn = document.getElementById('toggleBoxesBtn');
   
   if (undoBtn) undoBtn.disabled = currentBoxes.length === 0;
   if (redoBtn) redoBtn.disabled = undoHistory.length === 0;
   if (resetBtn) resetBtn.disabled = currentBoxes.length === 0;
   if (downloadBtn) downloadBtn.disabled = currentBoxes.length === 0;
+  if (toggleBoxesBtn) toggleBoxesBtn.disabled = currentBoxes.length === 0;
 }
 
 function updateStats(data) {
@@ -660,8 +670,22 @@ function downloadNpyMask() {
   });
 }
 
-// Make function available globally
+// Add this function to handle box visibility
+function toggleBoxVisibility(show) {
+  // Store the current state
+  window.showBoxes = show;
+  
+  // Redraw everything
+  redrawAllBoxesAndSegmentation();
+}
+
+// Make functions available globally
 window.initMedSAM = initMedSAM;
+window.uploadDemoImage = uploadDemoImage;
+window.toggleBoxVisibility = toggleBoxVisibility;
+
+// Initialize box visibility state
+window.showBoxes = false;  // Set to false by default
 
 // Auto-initialize if we're in MedSAM mode
 document.addEventListener('DOMContentLoaded', function() {

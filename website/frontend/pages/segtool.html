@@ -176,6 +176,9 @@
               <button type="button" class="btn btn-outline-danger rounded-pill px-3 w-100 mb-2" id="resetMedsamBtn" disabled>
                 <i class="fa-solid fa-trash"></i> Reset All Boxes
               </button>
+              <button type="button" class="btn btn-outline-primary rounded-pill px-3 w-100 mb-2" id="toggleBoxesBtn" disabled>
+                <i class="fa-solid fa-eye-slash"></i> Show Boxes
+              </button>
             </div>
 
             <div class="medsam-stats" id="medsamStats" style="display: block; width: 100%; text-align: center; font-size: 0.85rem; margin-top: 10px;">
@@ -537,6 +540,21 @@
     shortcutsBtn.addEventListener('mouseleave', function() {
       tooltip.style.display = 'none';
     });
+  });
+</script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const toggleBoxesBtn = document.getElementById('toggleBoxesBtn');
+    if (toggleBoxesBtn) {
+      toggleBoxesBtn.addEventListener('click', function() {
+        const isVisible = window.showBoxes !== false;
+        window.toggleBoxVisibility(!isVisible);
+        this.innerHTML = isVisible ? 
+          '<i class="fa-solid fa-eye-slash"></i> Show Boxes' : 
+          '<i class="fa-solid fa-eye"></i> Hide Boxes';
+      });
+    }
   });
 </script>
 

@@ -1680,7 +1680,8 @@ input[type="file"] {
 #fillToolBtn,
 #undoMedsamBtn,
 #redoMedsamBtn,
-#resetMedsamBtn {
+#resetMedsamBtn,
+#toggleBoxesBtn {
   background: transparent !important;
   border: 2px solid #fff !important;
   color: #fff !important;
@@ -1702,7 +1703,8 @@ input[type="file"] {
 #fillToolBtn.btn-danger,
 #undoMedsamBtn.btn-danger,
 #redoMedsamBtn.btn-danger,
-#resetMedsamBtn.btn-danger {
+#resetMedsamBtn.btn-danger,
+#toggleBoxesBtn.btn-danger {
   background: #946a90 !important;
   border-color: #634260 !important;
   color: #fff !important;
@@ -1723,7 +1725,8 @@ input[type="file"] {
 #fillToolBtn:hover, #fillToolBtn:active, #fillToolBtn.active,
 #undoMedsamBtn:hover, #undoMedsamBtn:active, #undoMedsamBtn.active,
 #redoMedsamBtn:hover, #redoMedsamBtn:active, #redoMedsamBtn.active,
-#resetMedsamBtn:hover, #resetMedsamBtn:active, #resetMedsamBtn.active{
+#resetMedsamBtn:hover, #resetMedsamBtn:active, #resetMedsamBtn.active,
+#toggleBoxesBtn:hover, #toggleBoxesBtn:active, #toggleBoxesBtn.active {
   background: #946a90 !important;
   border-color: #634260 !important;
   color: #fff !important;
@@ -1737,7 +1740,8 @@ input[type="file"] {
 #fillToolBtn:focus,
 #undoMedsamBtn:focus,
 #redoMedsamBtn:focus,
-#resetMedsamBtn:focus {
+#resetMedsamBtn:focus,
+#toggleBoxesBtn:focus {
   outline: none !important;
   box-shadow: none !important;
 }
