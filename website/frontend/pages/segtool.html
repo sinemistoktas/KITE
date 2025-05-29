@@ -305,6 +305,16 @@
           <button type="button" class="btn btn-outline-primary rounded-pill px-3" id="resetZoomBtn">
             <i class="fa-solid fa-arrows-to-circle"></i> Reset Zoom
           </button>
+
+          <!--contour button-->
+          <button id="togglePredictionsBtn"
+                  class="btn btn-outline-light rounded-pill px-3"
+                  style="display: none; height: 38px;"
+                  onclick="togglePredictionVisibility()">
+            <i id="predictionToggleIcon" class="fa-solid fa-eye me-2"></i>
+            <span id="predictionToggleText">Hide Contours</span>
+          </button>
+
         </div>
 
         <!-- Primary Segment Button -->
@@ -339,14 +349,6 @@
          </a>
          </div>
 
-      
-
-  <div>
-    <button id="togglePredictionsBtn" class="annotation-action-btn px-4 py-2 rounded-pill" style="display: none;">
-      <i class="fa-solid fa-eye me-2"></i>
-      <span id="predictionToggleText">Hide Contours</span>
-    </button>
-  </div>
 </div>
 </div>
 

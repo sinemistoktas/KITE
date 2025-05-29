@@ -622,25 +622,29 @@ export function processUNetPredictions(predictedPoints) {
         return null;
     }).filter(Boolean);
 }
-
 function togglePredictionVisibility() {
     state.showPredictions = !state.showPredictions;
-    
+
     const toggleBtn = document.getElementById('togglePredictionsBtn');
-    const toggleText = document.getElementById('predictionToggleText');
-    
+    const icon = document.getElementById('predictionToggleIcon');
+    const text = document.getElementById('predictionToggleText');
+
     if (state.showPredictions) {
-        // Showing predictions:
         toggleBtn.classList.remove('btn-outline-secondary');
-        toggleBtn.classList.add('btn-outline-info');
-        toggleText.innerHTML = '<i class="fa-solid fa-eye me-2"></i>Hide Contours';
+        toggleBtn.classList.add('btn-outline-light');
+
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+
+        text.textContent = 'Hide Contours';
     } else {
-        // Hiding predictions:
-        toggleBtn.classList.remove('btn-outline-info');
-        toggleBtn.classList.add('btn-outline-secondary');
-        toggleText.innerHTML = '<i class="fa-solid fa-eye-slash me-2"></i>Show Contours';
+        toggleBtn.classList.add('btn-outline-light');
+
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+
+        text.textContent = 'Show Contours';
     }
-    
-    // Redraw the canvas with new visibility state.
+
     redrawAnnotations();
 }

@@ -3338,6 +3338,15 @@ h6.segtool-text {
   color: rgb(115, 187, 197);
 }
 
+#togglePredictionsBtn {
+  border: 2px solid white !important;
+  color: white !important;
+  background-color: transparent !important;
+}
+
+#togglePredictionsBtn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
 
 
 
