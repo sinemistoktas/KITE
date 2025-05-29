@@ -1,3 +1,5 @@
+// website/frontend/static/js/fill-tool.js
+
 import { state } from './state.js';
 import { screenToImageCoords } from './canvas-utils.js';
 import { redrawAnnotations } from './canvas-tools.js';

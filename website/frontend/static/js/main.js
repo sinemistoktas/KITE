@@ -1,3 +1,5 @@
+// website/frontend/static/js/main.js
+
 import { state, initializeFromServer } from './state.js';
 import { bindUIEvents, updateMethodDescription, initializeAnnotationsFromPredictions } from './events.js';
 import { redrawAnnotations } from './canvas-tools.js';

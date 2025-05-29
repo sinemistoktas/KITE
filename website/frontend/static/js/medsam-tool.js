@@ -1,8 +1,8 @@
 // website/frontend/static/js/medsam-tool.js
 
 /**
- * MedSAM Tool Integration for KITE
- * Provides interactive segmentation using the Medical Segment Anything Model
+ * Simplified MedSAM Tool Integration for KITE
+ * Fixed version that works with the current setup
  */
 
 // Global variables
@@ -14,13 +14,11 @@ let startX = 0;
 let startY = 0;
 let imageNaturalSize = { width: 0, height: 0 };
 let canvasSize = { width: 0, height: 0 };
-let segmentationHistory = [];
 let currentBoxes = []; // Store all drawn boxes
-let currentSegmentation = null;
-let overlayImages = [];
+let cumulativeOverlayImage = null; // Store the cumulative overlay
 
 function initMedSAM() {
-  console.log('Initializing MedSAM Tool');
+  console.log('Initializing MedSAM Tool (Simple Version)');
   
   // Get DOM elements
   uploadedImage = document.getElementById('uploadedImage');
@@ -64,15 +62,7 @@ function initMedSAM() {
   const resetBtn = document.getElementById('resetMedsamBtn');
   if (resetBtn) resetBtn.addEventListener('click', resetAllBoxes);
   
-  // Handle zoom changes
-  const zoomInBtn = document.getElementById('zoomInBtn');
-  if (zoomInBtn) zoomInBtn.addEventListener('click', updateCanvasOnZoom);
-  
-  const zoomOutBtn = document.getElementById('zoomOutBtn');
-  if (zoomOutBtn) zoomOutBtn.addEventListener('click', updateCanvasOnZoom);
-  
-  const resetZoomBtn = document.getElementById('resetZoomBtn');
-  if (resetZoomBtn) resetZoomBtn.addEventListener('click', updateCanvasOnZoom);
+  console.log('MedSAM Tool initialized successfully');
 }
 
 function setupCanvas() {
@@ -88,20 +78,7 @@ function setupCanvas() {
   medsamCanvas.style.pointerEvents = 'auto';
   medsamCanvas.style.zIndex = '10';
   
-  // Position the canvas relative to the container
-  const container = document.getElementById('zoomContainer');
-  if (container) {
-    container.style.position = 'relative';
-  }
-  
   canvasSize = { width: medsamCanvas.width, height: medsamCanvas.height };
-}
-
-function updateCanvasOnZoom() {
-  setTimeout(() => {
-    setupCanvas();
-    redrawAllBoxes();
-  }, 100);
 }
 
 function onImageLoaded() {
@@ -121,8 +98,8 @@ function handleMouseDown(e) {
   startY = e.clientY - rect.top;
   isDrawingMedsamBox = true;
   
-  // Clear canvas and redraw existing boxes
-  redrawAllBoxes();
+  // Clear canvas and redraw existing content
+  redrawAllBoxesAndSegmentation();
 }
 
 function handleMouseMove(e) {
@@ -132,8 +109,8 @@ function handleMouseMove(e) {
   const currentX = e.clientX - rect.left;
   const currentY = e.clientY - rect.top;
   
-  // Clear canvas and redraw existing boxes
-  redrawAllBoxes();
+  // Clear canvas and redraw existing content
+  redrawAllBoxesAndSegmentation();
   
   // Draw current box being drawn
   drawBox(startX, startY, currentX, currentY, 'red', true); // dashed for current drawing
@@ -159,7 +136,7 @@ function handleMouseUp(e) {
   // Check if box is too small
   if (x2 - x1 < 10 || y2 - y1 < 10) {
     console.log('Bounding box too small, ignoring');
-    redrawAllBoxes();
+    redrawAllBoxesAndSegmentation();
     return;
   }
   
@@ -183,49 +160,49 @@ function handleMouseUp(e) {
     color: getNextBoxColor()
   });
   
-  // Update UI
-  updateUI();
-  
   console.log(`Added box ${currentBoxes.length}: ${imageBox}`);
   
-  // OTOMATIK SEGMENTASYON BAŞLAT
-  performAutomaticSegmentation(imageBox, canvasBox);
+  // Perform segmentation
+  performSegmentation(imageBox);
 }
 
 function handleMouseLeave(e) {
   if (isDrawingMedsamBox) {
     isDrawingMedsamBox = false;
-    redrawAllBoxes();
+    redrawAllBoxesAndSegmentation();
   }
 }
 
-function performAutomaticSegmentation(imageBox, canvasBox) {
-  console.log('Starting automatic segmentation for box:', imageBox);
+function performSegmentation(imageBox) {
+  console.log('Starting segmentation for box:', imageBox);
   showLoading(true);
   
   // Get the relative image path from the src attribute
-  const imageSrc = uploadedImage.src;
-  const imagePath = imageSrc.split('/media/')[1];
+  const imagePath = getImagePath();
   
-  // Prepare request data for single box
+  // Prepare request data
   const requestData = {
     image_path: imagePath,
-    box: imageBox
+    box: imageBox,
+    mode: 'add'
   };
   
   console.log('Sending segmentation request:', requestData);
   
-  // Call the backend API
+  // Call the simple API endpoint
   fetch('/api/medsam/segment', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-CSRFToken': window.csrfToken
+      'X-CSRFToken': getCSRFToken()
     },
     body: JSON.stringify(requestData)
   })
   .then(response => {
     console.log('Response received:', response.status);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
     return response.json();
   })
   .then(data => {
@@ -233,39 +210,49 @@ function performAutomaticSegmentation(imageBox, canvasBox) {
     console.log('Segmentation response:', data);
     
     if (data.success) {
-      // Update the canvas with segmentation result immediately
-      updateCanvasWithSegmentation(data);
+      // Update the cumulative overlay image
+      updateCumulativeSegmentation(data);
+      
+      // Update UI
+      updateUI();
+      updateStats(data);
+      
+      // Show success message if it's a fallback
+      if (data.implementation === 'fallback_dummy') {
+        console.warn('Using fallback segmentation - MedSAM model not available');
+      }
     } else {
       console.error('Segmentation failed:', data.error);
       alert('Segmentation failed: ' + data.error);
+      
+      // Remove the box from our local array since segmentation failed
+      currentBoxes.pop();
+      redrawAllBoxesAndSegmentation();
     }
   })
   .catch(error => {
     showLoading(false);
     console.error('Error during segmentation:', error);
-    alert('An error occurred during segmentation. Please try again.');
+    alert('An error occurred during segmentation: ' + error.message);
+    
+    // Remove the box from our local array since segmentation failed
+    currentBoxes.pop();
+    redrawAllBoxesAndSegmentation();
   });
 }
 
-function updateCanvasWithSegmentation(data) {
-  console.log('Updating canvas with segmentation result');
+function updateCumulativeSegmentation(data) {
+  console.log('Updating segmentation result');
 
   // Store the new overlay image
   const img = new Image();
   img.onload = function () {
-    // Save it to the list
-    overlayImages.push(img);
-
-    // Clear and redraw all overlays
-    medsamCtx.clearRect(0, 0, medsamCanvas.width, medsamCanvas.height);
-
-    overlayImages.forEach(overlay => {
-      medsamCtx.drawImage(overlay, 0, 0, medsamCanvas.width, medsamCanvas.height);
-    });
-
-    // Draw all boxes on top
-    drawAllBoxesOnTop();
-    console.log('All overlays drawn, including new one');
+    cumulativeOverlayImage = img;
+    
+    // Redraw everything with the new result
+    redrawAllBoxesAndSegmentation();
+    
+    console.log('Segmentation updated successfully');
   };
 
   img.onerror = function () {
@@ -275,6 +262,18 @@ function updateCanvasWithSegmentation(data) {
   img.src = data.overlay_data;
 }
 
+function redrawAllBoxesAndSegmentation() {
+  // Clear the canvas
+  medsamCtx.clearRect(0, 0, medsamCanvas.width, medsamCanvas.height);
+  
+  // Draw the segmentation result if available
+  if (cumulativeOverlayImage) {
+    medsamCtx.drawImage(cumulativeOverlayImage, 0, 0, medsamCanvas.width, medsamCanvas.height);
+  }
+  
+  // Draw all boxes on top
+  drawAllBoxesOnTop();
+}
 
 function drawBox(x1, y1, x2, y2, color = 'red', dashed = false) {
   medsamCtx.strokeStyle = color;
@@ -308,143 +307,48 @@ function getNextBoxColor() {
   return colors[currentBoxes.length % colors.length];
 }
 
-
 function resetAllBoxes() {
+  console.log('Resetting all boxes');
+  
+  // Clear local state
   currentBoxes = [];
-  segmentationHistory = [];
-  overlayImages = []; // reset overlays too
-  currentSegmentation = null;
+  cumulativeOverlayImage = null;
 
+  // Clear canvas
   medsamCtx.clearRect(0, 0, medsamCanvas.width, medsamCanvas.height);
+  
+  // Update UI
   updateUI();
-  console.log('Reset all boxes and segmentations');
+  updateStats({ total_boxes: 0, total_mask_pixels: 0 });
 }
-
 
 function undoLastBox() {
   if (currentBoxes.length > 0) {
-    // Remove the last box from the collection
-    const removedBox = currentBoxes.pop();
-    console.log(`Removed box ${currentBoxes.length + 1}:`, removedBox.image);
+    console.log('Removing last box');
+    currentBoxes.pop();
     
-    // If we still have boxes, we need to re-run segmentation for remaining boxes
-    if (currentBoxes.length > 0) {
-      console.log('Re-running segmentation for remaining boxes');
-      rerunSegmentationForAllBoxes();
+    if (currentBoxes.length === 0) {
+      resetAllBoxes();
     } else {
-      // No boxes left - clear everything including segmentation
-      console.log('No boxes remaining - clearing segmentation');
-      currentSegmentation = null;
-      segmentationHistory = [];
-      
-      // Clear canvas completely
-      medsamCtx.clearRect(0, 0, medsamCanvas.width, medsamCanvas.height);
+      // For simplicity, just redraw without the last segmentation
+      // In a more advanced version, you'd re-run segmentation for remaining boxes
+      redrawAllBoxesAndSegmentation();
+      updateUI();
     }
-    
-    // Update UI buttons
-    updateUI();
-    console.log(`Remaining boxes: ${currentBoxes.length}`);
   }
 }
 
-// New helper function to re-run segmentation for all remaining boxes
-function rerunSegmentationForAllBoxes() {
-  if (currentBoxes.length === 0) {
-    currentSegmentation = null;
-    medsamCtx.clearRect(0, 0, medsamCanvas.width, medsamCanvas.height);
-    return;
-  }
-  
-  console.log('Re-running batch segmentation for', currentBoxes.length, 'boxes');
-  showLoading(true);
-  
-  // Get the relative image path from the src attribute
-  const imageSrc = uploadedImage.src;
-  const imagePath = imageSrc.split('/media/')[1];
-  
-  // Prepare request data for all remaining boxes
-  const requestData = {
-    image_path: imagePath
-  };
-  
-  // Use batch format if multiple boxes, single format if one box
-  if (currentBoxes.length === 1) {
-    requestData.box = currentBoxes[0].image;
-  } else {
-    requestData.boxes = currentBoxes.map(boxData => boxData.image);
-  }
-  
-  console.log('Re-running segmentation with data:', requestData);
-  
-  // Call the backend API
-  fetch('/api/medsam/segment', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRFToken': window.csrfToken
-    },
-    body: JSON.stringify(requestData)
-  })
-  .then(response => {
-    console.log('Re-segmentation response received:', response.status);
-    return response.json();
-  })
-  .then(data => {
-    showLoading(false);
-    console.log('Re-segmentation response:', data);
-    
-    if (data.success) {
-      // Update canvas with new segmentation result
-      updateCanvasWithSegmentation(data);
-    } else {
-      console.error('Re-segmentation failed:', data.error);
-      // Clear segmentation on failure
-      currentSegmentation = null;
-      redrawAllBoxes();
-    }
-  })
-  .catch(error => {
-    showLoading(false);
-    console.error('Error during re-segmentation:', error);
-    // Clear segmentation on error
-    currentSegmentation = null;
-    redrawAllBoxes();
-  });
-}
-
-function redrawAllBoxes() {
-  // If we have segmentation data, redraw it first as background
-  if (currentSegmentation) {
-    console.log('Redrawing with segmentation background');
-    const img = new Image();
-    img.onload = function() {
-      // Clear canvas completely
-      medsamCtx.clearRect(0, 0, medsamCanvas.width, medsamCanvas.height);
-
-      // Draw segmentation result as background
-      medsamCtx.drawImage(img, 0, 0, medsamCanvas.width, medsamCanvas.height);
-
-      // Draw all boxes on top of segmentation
-      drawAllBoxesOnTop();
-    };
-    img.src = currentSegmentation.overlayData;
-  } else {
-    // No segmentation - just draw boxes on clean canvas
-    console.log('Redrawing boxes only (no segmentation)');
-    medsamCtx.clearRect(0, 0, medsamCanvas.width, medsamCanvas.height);
-    drawAllBoxesOnTop();
-  }
-}
-
-// Helper function to draw all boxes on top of whatever is already on canvas
 function drawAllBoxesOnTop() {
   currentBoxes.forEach((boxData, index) => {
     const [x1, y1, x2, y2] = boxData.canvas;
     drawBox(x1, y1, x2, y2, boxData.color, false);
     
-    // Add box number label
+    // Add box number label with background for better visibility
+    medsamCtx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    medsamCtx.fillRect(x1 + 2, y1 + 2, 20, 16);
+    
     medsamCtx.fillStyle = boxData.color;
-    medsamCtx.font = '14px Arial';
+    medsamCtx.font = '12px Arial';
     medsamCtx.fillText(`${index + 1}`, x1 + 5, y1 + 15);
   });
 }
@@ -457,11 +361,65 @@ function updateUI() {
   if (resetBtn) resetBtn.disabled = currentBoxes.length === 0;
 }
 
+function updateStats(data) {
+  const statsElement = document.getElementById('medsamStats');
+  const boxCountElement = document.getElementById('boxCount');
+  const segmentedAreasElement = document.getElementById('segmentedAreas');
+  
+  if (statsElement) {
+    statsElement.style.display = 'block';
+  }
+  
+  if (boxCountElement) {
+    boxCountElement.textContent = `${data.total_boxes || currentBoxes.length} boxes drawn`;
+  }
+  
+  if (segmentedAreasElement) {
+    const pixels = data.total_mask_pixels || 0;
+    segmentedAreasElement.textContent = `${pixels.toLocaleString()} pixels segmented`;
+  }
+}
+
 function showLoading(show = true) {
   const loadingOverlay = document.getElementById('loadingOverlay');
   if (loadingOverlay) {
     loadingOverlay.style.display = show ? 'flex' : 'none';
   }
+  
+  // Also update button states during loading
+  const undoBtn = document.getElementById('undoMedsamBtn');
+  const resetBtn = document.getElementById('resetMedsamBtn');
+  
+  if (undoBtn) undoBtn.disabled = show || currentBoxes.length === 0;
+  if (resetBtn) resetBtn.disabled = show || currentBoxes.length === 0;
+}
+
+function getImagePath() {
+  const imageSrc = uploadedImage.src;
+  return imageSrc.split('/media/')[1];
+}
+
+function getCSRFToken() {
+  // Try multiple methods to get CSRF token
+  if (window.csrfToken) {
+    return window.csrfToken;
+  }
+  
+  const metaToken = document.querySelector('meta[name="csrf-token"]');
+  if (metaToken) {
+    return metaToken.getAttribute('content');
+  }
+  
+  const cookieValue = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('csrftoken='));
+  
+  if (cookieValue) {
+    return cookieValue.split('=')[1];
+  }
+  
+  console.warn('CSRF token not found');
+  return '';
 }
 
 // Make function available globally
@@ -469,7 +427,7 @@ window.initMedSAM = initMedSAM;
 
 // Auto-initialize if we're in MedSAM mode
 document.addEventListener('DOMContentLoaded', function() {
-  if (window.algorithm === 'MedSAM') {
+  if (window.algorithm === 'medsam') {
     // Small delay to ensure DOM is fully ready
     setTimeout(initMedSAM, 100);
   }

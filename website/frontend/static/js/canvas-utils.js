@@ -1,3 +1,5 @@
+// website/frontend/static/js/canvas-utils.js
+
 import { state, ERASE_RADIUS } from './state.js';
 
 let createLayer;

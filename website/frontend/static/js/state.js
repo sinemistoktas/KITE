@@ -1,3 +1,5 @@
+// website/frontend/static/js/state.js
+
 export const state = {
     // Interaction state
     mouseX: 0,

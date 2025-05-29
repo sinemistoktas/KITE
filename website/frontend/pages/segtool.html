@@ -117,15 +117,17 @@
             <li>Use the Fill tool to quickly annotate large areas</li>
             <li>Use the Eraser to remove unwanted annotations</li>
             <li>Click "Ready to Segment!" when finished</li>
+            <b style="color: #73bbc5"> General tip: Draw inside the selection not outside! </b>
           </ul>
         {% elif algorithm_name == 'medsam' %}
           <strong>MedSAM Instructions:</strong>
           <ul>
             <li>Draw bounding boxes around areas you want to segment</li>
             <li>Each box will be processed automatically</li>
-            <li>Draw multiple boxes for different structures</li>
-            <li>Use undo to remove last box</li>
-            <li>Use reset to clear all boxes</li>
+            <li>Multiple boxes will create combined segmentation masks</li>
+            <li>Use Undo to remove last box</li>
+            <li>Use Reset All to clear all boxes</li>
+            <li>Different colors are assigned to each box for easy identification</li>
           </ul>
         {% elif algorithm_name == 'unet' %}
           <strong>Deep Learning Assisted Instructions:</strong>
@@ -153,7 +155,11 @@
         <!-- MedSAM specific instructions and controls -->
         <div class="medsam-controls" style="display: none;">
           <div class="d-flex flex-column align-items-center" style="width: 100%;">
-            
+            <div class="alert alert-info text-center mb-3" style="font-size: 0.85rem;">
+              <i class="fa-solid fa-info-circle me-1"></i>
+              <strong>Draw bounding boxes</strong><br>
+              Each box adds to the segmentation
+            </div>
 
             <div class="d-flex flex-column align-items-center gap-2" style="width: 100%;">
               <button type="button" class="btn btn-outline-primary rounded-pill px-3 w-100 mb-2" id="undoMedsamBtn" disabled>
@@ -164,10 +170,10 @@
               </button>
             </div>
 
-            <div class="medsam-stats" id="medsamStats" style="display: none;">
+            <div class="medsam-stats" id="medsamStats" style="display: block; width: 100%; text-align: center; font-size: 0.85rem; margin-top: 10px;">
               <strong>Current Session:</strong><br>
               <span id="boxCount">0 boxes drawn</span><br>
-              <span id="segmentedAreas">0 areas segmented</span>
+              <span id="segmentedAreas">0 pixels segmented</span>
             </div>
           </div>
         </div>
@@ -212,8 +218,17 @@
           <canvas id="annotationCanvas"></canvas>
           <canvas id="medsamCanvas"></canvas>
           <div class="zoom-info" id="zoomInfo">Zoom: 100%</div>
+          
+          <!-- Loading overlay for MedSAM -->
+          <div id="loadingOverlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 20; align-items: center; justify-content: center; color: white;">
+            <div class="text-center">
+              <div class="spinner-border text-light mb-2" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+              <div>Processing segmentation...</div>
+            </div>
+          </div>
         </div>
-
 
         <!-- Zoom controls -->
         <div class="zoom-controls mt-3">
@@ -347,7 +362,7 @@
         };
         document.head.appendChild(script);
 
-      } else if (window.algorithm === 'KITE' || window.segmentationMethod) {
+      } else if (window.algorithm === 'kite' || window.segmentationMethod) {
         // KITE mode or legacy segmentation method mode
         workspace.classList.add('kite-active');
         if (medsamControls) medsamControls.style.display = 'none';
@@ -387,7 +402,6 @@
             algorithmNameInput.value = selectedAlgorithmDisplayName;
             fileInput.form.appendChild(algorithmNameInput);
           }
-
 
           // Automatically submit the form
           fileInput.form.submit();

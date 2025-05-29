@@ -1,3 +1,4 @@
+//website/frontend/static/js/box-tool.js
 
 import { state } from './state.js';
 import { redrawAnnotations } from './canvas-tools.js';
