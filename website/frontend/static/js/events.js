@@ -648,3 +648,19 @@ function togglePredictionVisibility() {
 
     redrawAnnotations();
 }
+
+document.addEventListener("DOMContentLoaded", function () {
+    const downloadSegmentedBtn = document.getElementById("downloadSegmentedImage");
+
+    if (downloadSegmentedBtn) {
+        downloadSegmentedBtn.addEventListener("click", function () {
+            const segmentedImg = document.getElementById("segmentedResultImage");
+            if (!segmentedImg || !segmentedImg.src) return;
+
+            const link = document.createElement("a");
+            link.href = segmentedImg.src;
+            link.download = "segmented_result.png";
+            link.click();
+        });
+    }
+});
