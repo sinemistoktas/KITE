@@ -9,7 +9,7 @@ import json
 import uuid
 import numpy as np
 from django.conf import settings
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from skimage import io
@@ -456,3 +456,154 @@ def health_check(request):
         'medsam_available': MEDSAM_AVAILABLE,
         'active_sessions': len(session_results)
     })
+
+def convert_mask_to_npy(mask_path):
+    """Convert PNG mask to NPY format with binary values (0 for background, 1 for mask)"""
+    try:
+        logger.info(f"Starting NPY conversion for mask: {mask_path}")
+        
+        # Check if file exists
+        if not os.path.exists(mask_path):
+            logger.error(f"Mask file not found: {mask_path}")
+            return None
+            
+        # Check if directory is writable
+        npy_dir = os.path.dirname(mask_path)
+        if not os.access(npy_dir, os.W_OK):
+            logger.error(f"Directory not writable: {npy_dir}")
+            return None
+            
+        # Load the mask image and convert to grayscale
+        logger.info("Loading and converting image to grayscale")
+        try:
+            img = Image.open(mask_path).convert('L')
+        except Exception as e:
+            logger.error(f"Failed to open image: {str(e)}")
+            return None
+        
+        # Convert to numpy array
+        logger.info("Converting to numpy array")
+        try:
+            mask_array = np.array(img)
+            logger.info(f"Array shape: {mask_array.shape}, dtype: {mask_array.dtype}, min: {mask_array.min()}, max: {mask_array.max()}")
+        except Exception as e:
+            logger.error(f"Failed to convert image to numpy array: {str(e)}")
+            return None
+        
+        # Convert to binary: background (black) = 0, mask (white) = 1
+        logger.info("Converting to binary mask")
+        try:
+            binary_mask = (mask_array > 127).astype(np.uint8)
+            logger.info(f"Binary mask shape: {binary_mask.shape}, dtype: {binary_mask.dtype}, unique values: {np.unique(binary_mask)}")
+        except Exception as e:
+            logger.error(f"Failed to create binary mask: {str(e)}")
+            return None
+        
+        # Create NPY file path
+        npy_path = mask_path.replace('.png', '.npy')
+        logger.info(f"Saving NPY file to: {npy_path}")
+        
+        # Save as NPY file
+        try:
+            np.save(npy_path, binary_mask)
+        except Exception as e:
+            logger.error(f"Failed to save NPY file: {str(e)}")
+            return None
+        
+        # Verify the saved file
+        if os.path.exists(npy_path):
+            # Verify the file is readable
+            try:
+                loaded_mask = np.load(npy_path)
+                if loaded_mask.shape == binary_mask.shape:
+                    logger.info(f"Successfully saved and verified NPY file: {npy_path}")
+                    return npy_path
+                else:
+                    logger.error(f"Saved NPY file has incorrect shape: {loaded_mask.shape} vs {binary_mask.shape}")
+                    return None
+            except Exception as e:
+                logger.error(f"Failed to verify NPY file: {str(e)}")
+                return None
+        else:
+            logger.error(f"NPY file was not created: {npy_path}")
+            return None
+            
+    except Exception as e:
+        logger.error(f"Error converting mask to NPY: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return None
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def download_npy_mask(request):
+    """Endpoint to download mask in NPY format"""
+    try:
+        data = json.loads(request.body)
+        mask_path = data.get('mask_path')
+        
+        if not mask_path:
+            logger.error("No mask path provided in request")
+            return JsonResponse({'success': False, 'error': 'No mask path provided'})
+        
+        # Clean up the mask path
+        mask_path = mask_path.lstrip('/')
+        if mask_path.startswith('media/'):
+            mask_path = mask_path[6:]  # Remove 'media/' prefix if present
+            
+        # Get absolute path - handle both cases where path might include 'backend/media' or not
+        if mask_path.startswith('backend/media/'):
+            full_mask_path = os.path.join(settings.BASE_DIR, mask_path)
+        else:
+            full_mask_path = os.path.join(settings.MEDIA_ROOT, mask_path)
+            
+        logger.info(f"Attempting to convert mask at path: {full_mask_path}")
+        
+        # Verify the mask file exists
+        if not os.path.exists(full_mask_path):
+            error_msg = f"Mask file not found at path: {full_mask_path}"
+            logger.error(error_msg)
+            return JsonResponse({'success': False, 'error': error_msg})
+            
+        # Convert PNG to NPY
+        npy_path = convert_mask_to_npy(full_mask_path)
+        
+        if not npy_path:
+            error_msg = "Failed to convert mask to NPY format. Check server logs for details."
+            logger.error(error_msg)
+            return JsonResponse({'success': False, 'error': error_msg})
+            
+        # Read the NPY file data
+        try:
+            with open(npy_path, 'rb') as f:
+                npy_data = f.read()
+        except Exception as e:
+            error_msg = f"Failed to read NPY file: {str(e)}"
+            logger.error(error_msg)
+            return JsonResponse({'success': False, 'error': error_msg})
+            
+        # Get the filename for the download
+        filename = os.path.basename(npy_path)
+        
+        # Create the response with the NPY file data
+        response = HttpResponse(npy_data, content_type='application/octet-stream')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        # Clean up the temporary NPY file
+        try:
+            os.remove(npy_path)
+        except Exception as e:
+            logger.warning(f"Failed to remove temporary NPY file: {str(e)}")
+            
+        return response
+        
+    except json.JSONDecodeError:
+        error_msg = "Invalid JSON data in request"
+        logger.error(error_msg)
+        return JsonResponse({'success': False, 'error': error_msg})
+    except Exception as e:
+        error_msg = f"Error in download_npy_mask: {str(e)}"
+        logger.error(error_msg)
+        import traceback
+        logger.error(traceback.format_exc())
+        return JsonResponse({'success': False, 'error': error_msg})

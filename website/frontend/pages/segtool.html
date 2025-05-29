@@ -231,6 +231,17 @@
               <div>Processing segmentation...</div>
             </div>
           </div>
+
+          <!-- Download waiting overlay -->
+          <div id="downloadWaitingOverlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 20; align-items: center; justify-content: center; color: white;">
+            <div class="text-center">
+              <div class="download-spinner mb-3">
+                <i class="fa-solid fa-download fa-bounce" style="font-size: 2rem;"></i>
+              </div>
+              <div class="download-status">Preparing mask for download...</div>
+              <div class="download-progress mt-2" style="font-size: 0.9rem; opacity: 0.8;">This may take a few moments</div>
+            </div>
+          </div>
         </div>
 
         <!-- Zoom controls -->
@@ -250,6 +261,12 @@
         <div class="d-flex justify-content-center gap-3 mt-3">
           <button class="ready-segment-btn px-4 py-2 rounded-pill shadow-sm" onclick="handleAnnotations()">
             <i class="fa-solid fa-hurricane me-2"></i> Ready to Segment!
+          </button>
+          <button id="downloadMedsamMaskBtn" class="ready-segment-btn px-4 py-2 rounded-pill shadow-sm" style="display: none;">
+            <i class="fa-solid fa-download me-2"></i> Download PNG Mask
+          </button>
+          <button id="downloadMedsamNpyBtn" class="ready-segment-btn px-4 py-2 rounded-pill shadow-sm" onclick="downloadNpyMask()" style="display: none;">
+            <i class="fa-solid fa-download me-2"></i> Download NPY Mask
           </button>
         </div>
 
@@ -357,6 +374,14 @@
         if (kiteControls) kiteControls.style.display = 'none';
         if (keyboardShortcuts) keyboardShortcuts.style.display = 'none';
         if (annotationControls) annotationControls.style.display = 'none';
+        
+        // Show download buttons and hide Ready to Segment button in MedSAM mode
+        const downloadMaskBtn = document.getElementById('downloadMedsamMaskBtn');
+        const downloadNpyBtn = document.getElementById('downloadMedsamNpyBtn');
+        const readySegmentBtn = document.querySelector('.ready-segment-btn');
+        if (downloadMaskBtn) downloadMaskBtn.style.display = 'inline-block';
+        if (downloadNpyBtn) downloadNpyBtn.style.display = 'inline-block';
+        if (readySegmentBtn) readySegmentBtn.style.display = 'none';
 
         // Load MedSAM JavaScript module
         const script = document.createElement('script');

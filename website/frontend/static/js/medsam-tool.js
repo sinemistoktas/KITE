@@ -80,6 +80,9 @@ function initMedSAM() {
   const resetBtn = document.getElementById('resetMedsamBtn');
   if (resetBtn) resetBtn.addEventListener('click', resetAllBoxes);
   
+  const downloadBtn = document.getElementById('downloadMedsamMaskBtn');
+  if (downloadBtn) downloadBtn.addEventListener('click', downloadMask);
+  
   console.log('MedSAM Tool initialized successfully');
 }
 
@@ -234,6 +237,9 @@ function performSegmentation(imageBox) {
     console.log('Segmentation response:', data);
     
     if (data.success) {
+      // Store the response data globally for download functionality
+      window.lastSegmentationData = data;
+      
       // Update the cumulative overlay image
       updateCumulativeSegmentation(data);
       
@@ -424,10 +430,12 @@ function updateUI() {
   const undoBtn = document.getElementById('undoMedsamBtn');
   const redoBtn = document.getElementById('redoMedsamBtn');
   const resetBtn = document.getElementById('resetMedsamBtn');
+  const downloadBtn = document.getElementById('downloadMedsamMaskBtn');
   
   if (undoBtn) undoBtn.disabled = currentBoxes.length === 0;
   if (redoBtn) redoBtn.disabled = undoHistory.length === 0;
   if (resetBtn) resetBtn.disabled = currentBoxes.length === 0;
+  if (downloadBtn) downloadBtn.disabled = currentBoxes.length === 0;
 }
 
 function updateStats(data) {
@@ -491,6 +499,165 @@ function getCSRFToken() {
   
   console.warn('CSRF token not found');
   return '';
+}
+
+function showDownloadWaiting(show = true) {
+  const downloadOverlay = document.getElementById('downloadWaitingOverlay');
+  if (downloadOverlay) {
+    downloadOverlay.style.display = show ? 'flex' : 'none';
+  }
+}
+
+function downloadMask() {
+  if (currentBoxes.length === 0) return;
+  
+  // Show download waiting screen
+  showDownloadWaiting(true);
+  
+  // Get the relative image path from the src attribute
+  const imagePath = getImagePath();
+  
+  // Prepare request data
+  const requestData = {
+    image_path: imagePath,
+    mode: 'replace', // Always use replace mode to send all boxes
+    boxes: currentBoxes.map(box => box.image) // Send all boxes
+  };
+  
+  console.log('Sending segmentation request for download:', requestData);
+  
+  // Call the API endpoint
+  fetch('/api/medsam/segment', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCSRFToken()
+    },
+    body: JSON.stringify(requestData)
+  })
+  .then(response => {
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    return response.json();
+  })
+  .then(data => {
+    console.log('Download segmentation response:', data);
+    
+    if (data.success) {
+      // Store the response data globally
+      window.lastSegmentationData = data;
+      
+      // Create download link for the mask file
+      const a = document.createElement('a');
+      a.href = data.mask_path;
+      a.download = data.mask_path.split('/').pop(); // Get filename from path
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else {
+      console.error('Segmentation failed:', data.error);
+      alert('Failed to generate mask for download: ' + data.error);
+    }
+  })
+  .catch(error => {
+    console.error('Error during download segmentation:', error);
+    alert('An error occurred while preparing the mask for download: ' + error.message);
+  })
+  .finally(() => {
+    // Hide download waiting screen
+    showDownloadWaiting(false);
+  });
+}
+
+function downloadNpyMask() {
+  if (currentBoxes.length === 0) return;
+  
+  // Show download waiting screen
+  showDownloadWaiting(true);
+  
+  // Get the relative image path from the src attribute
+  const imagePath = getImagePath();
+  
+  // Prepare request data
+  const requestData = {
+    image_path: imagePath,
+    mode: 'replace', // Always use replace mode to send all boxes
+    boxes: currentBoxes.map(box => box.image) // Send all boxes
+  };
+  
+  console.log('Sending segmentation request for NPY download:', requestData);
+  
+  // First get the PNG mask
+  fetch('/api/medsam/segment', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCSRFToken()
+    },
+    body: JSON.stringify(requestData)
+  })
+  .then(response => {
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    return response.json();
+  })
+  .then(data => {
+    if (!data.success) {
+      throw new Error(data.error || 'Segmentation failed');
+    }
+    
+    // Now convert to NPY and download
+    return fetch('/api/medsam/download-npy/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCSRFToken()
+      },
+      body: JSON.stringify({ mask_path: data.mask_path })
+    });
+  })
+  .then(async response => {
+    if (!response.ok) {
+      // If the response is not OK, try to get the error message
+      const errorData = await response.json();
+      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    // Get the filename from the Content-Disposition header
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let filename = 'mask.npy';
+    if (contentDisposition) {
+      const matches = /filename="(.+)"/.exec(contentDisposition);
+      if (matches && matches[1]) {
+        filename = matches[1];
+      }
+    }
+    
+    // Get the binary data
+    const blob = await response.blob();
+    
+    // Create a download link
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    
+    // Clean up
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  })
+  .catch(error => {
+    console.error('Error during NPY download:', error);
+    alert('An error occurred while preparing the NPY mask: ' + error.message);
+  })
+  .finally(() => {
+    // Hide download waiting screen
+    showDownloadWaiting(false);
+  });
 }
 
 // Make function available globally
