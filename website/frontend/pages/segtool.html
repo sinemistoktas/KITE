@@ -237,20 +237,24 @@
 
         <!-- Annotation Controls Below -->
         <div class="d-flex justify-content-center gap-4 mt-4">
-          <div>
-            <input type="file" id="annotationFileInput" accept=".npy" style="display: none;">
-            <button class="annotation-action-btn px-4 py-2 rounded-pill" onclick="loadAnnotations()">
-              <i class="fa-solid fa-upload me-2"></i> Load Annotations
-            </button>
-          </div>
-          <div>
-            <button id="downloadAnnotationsBtn" class="annotation-action-btn px-4 py-2 rounded-pill" onclick="downloadAnnotations()">
-              <i class="fa-solid fa-download me-2"></i> Download Annotations
-            </button>
-          </div>
-        </div>
-
-      </div>
+  <div>
+    <input type="file" id="annotationFileInput" accept=".npy" style="display: none;">
+    <button class="annotation-action-btn px-4 py-2 rounded-pill" onclick="loadAnnotations()">
+      <i class="fa-solid fa-upload me-2"></i> Load Annotations
+    </button>
+  </div>
+  <div>
+    <button id="downloadAnnotationsBtn" class="annotation-action-btn px-4 py-2 rounded-pill" onclick="downloadAnnotations()">
+      <i class="fa-solid fa-download me-2"></i> Download Annotations
+    </button>
+  </div>
+  <div>
+    <button id="togglePredictionsBtn" class="annotation-action-btn px-4 py-2 rounded-pill" style="display: none;">
+      <i class="fa-solid fa-eye me-2"></i>
+      <span id="predictionToggleText">Hide Contours</span>
+    </button>
+  </div>
+</div>
 
       <!-- LAYERS PANEL -->
       <div class="layers-panel tool-sidebar d-flex flex-column align-items-center gap-3" style="min-width: 260px; max-width: 280px;">

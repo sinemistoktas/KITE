@@ -15,6 +15,7 @@ export function bindUIEvents() {
     document.getElementById('dotMode')?.addEventListener('click', () => setMode('dot'));
     document.getElementById('eraserMode')?.addEventListener('click', () => setMode('eraser'));
     document.getElementById('eraseAllMode')?.addEventListener('click', () => setMode('eraseAll'));
+    document.getElementById('togglePredictionsBtn')?.addEventListener('click', togglePredictionVisibility);
     document.getElementById('fillToolBtn')?.addEventListener('click', () => {
         setMode(state.mode === "fill" ? null : "fill");
     });
@@ -609,4 +610,28 @@ export function processUNetPredictions(predictedPoints) {
         }
         return null;
     }).filter(Boolean);
+}
+
+function togglePredictionVisibility() {
+    state.showPredictions = !state.showPredictions;
+    
+    const toggleBtn = document.getElementById('togglePredictionsBtn');
+    const toggleText = document.getElementById('predictionToggleText');
+    
+    if (state.showPredictions) {
+        // Showing predictions:
+        toggleBtn.classList.remove('btn-outline-secondary');
+        toggleBtn.classList.add('btn-outline-info');
+        toggleText.innerHTML = '<i class="fa-solid fa-eye me-2"></i>Hide Contours';
+    } else {
+        // Hiding predictions:
+        toggleBtn.classList.remove('btn-outline-info');
+        toggleBtn.classList.add('btn-outline-secondary');
+        toggleText.innerHTML = '<i class="fa-solid fa-eye-slash me-2"></i>Show Contours';
+    }
+    
+    // Redraw the canvas with new visibility state.
+    redrawAnnotations();
+    
+    console.log(`Prediction visibility toggled: ${state.showPredictions ? 'ON' : 'OFF'}`);
 }

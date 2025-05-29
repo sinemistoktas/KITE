@@ -1097,7 +1097,6 @@ export function handleAnnotationsWithResultLoading() {
     if (!state.isEditingSegmentationResults) {
         state.scribbles = state.scribbles.filter(s => !s.isPrediction);
     } else {
-        // In editing mode, clear predictions but keep them hidden
         state.scribbles = state.scribbles.filter(s => !s.isPrediction);
     }
 
@@ -1140,11 +1139,9 @@ export function handleAnnotationsWithResultLoading() {
         console.log("Segmentation response:", data);
 
         resetZoom();
-
         window.lastSegmentationData = data;
 
         const resultImage = document.getElementById("segmentedResultImage");
-        console.log("resultImage element:", resultImage);
 
         if (!data.segmented_image) {
             console.error("No segmented_image returned!");
@@ -1190,13 +1187,11 @@ export function handleAnnotationsWithResultLoading() {
             if (loadBtn) {
                 loadBtn.style.display = 'inline-block';
                 if (state.isEditingSegmentationResults) {
-                    //  editing mode, keep editing appearance
                     loadBtn.innerHTML = '<i class="fa-solid fa-edit me-2"></i> Load New Results';
                     loadBtn.classList.remove('btn-outline-info');
                     loadBtn.classList.add('btn-warning'); 
                     loadBtn.disabled = false; 
                 } else {
-                    // not in editing mode,  normal appearance
                     loadBtn.innerHTML = '<i class="fa-solid fa-edit me-2"></i> Edit Results on Canvas';
                     loadBtn.classList.remove('btn-info', 'btn-warning');
                     loadBtn.classList.add('btn-outline-info');
@@ -1205,7 +1200,10 @@ export function handleAnnotationsWithResultLoading() {
             }
         }
 
+        // ✅ CHECK FOR PREDICTIONS AND SHOW/HIDE TOGGLE BUTTON
         if (!data.predicted_annotations || data.predicted_annotations.length === 0) {
+            console.log("No predicted annotations found");
+            hidePredictionToggleButton(); // Hide toggle when no predictions
             redrawAnnotations();
             return;
         }
@@ -1273,10 +1271,10 @@ export function handleAnnotationsWithResultLoading() {
                 if (data.class_info) {
                     createClassLegend(data.class_info);
                 }
+                showPredictionToggleButton();
             }
             
             if (state.isEditingSegmentationResults) {
-                // Update editing banner to show new results available
                 const banner = document.getElementById('editingModeBanner');
                 if (banner) {
                     banner.innerHTML = `
@@ -1294,12 +1292,36 @@ export function handleAnnotationsWithResultLoading() {
             redrawAnnotations();
         } catch (err) {
             console.error("Error processing annotations:", err);
+            hidePredictionToggleButton(); // Hide toggle on error
             redrawAnnotations();
         }
     })
     .catch(error => {
         console.error("Error in handleAnnotations:", error);
+        hidePredictionToggleButton();
         redrawAnnotations();
         alert('Error processing segmentation: ' + error.message);
     });
+}
+
+function showPredictionToggleButton() {
+    const toggleBtn = document.getElementById('togglePredictionsBtn');
+    
+    if (toggleBtn) {
+        toggleBtn.style.display = 'inline-block';
+        const toggleText = document.getElementById('predictionToggleText');
+        if (state.showPredictions) {
+            toggleText.innerHTML = '<i class="fa-solid fa-eye me-2"></i>Hide Contours';
+        } else {
+            toggleText.innerHTML = '<i class="fa-solid fa-eye-slash me-2"></i>Show Contours';
+        }
+    }
+}
+
+function hidePredictionToggleButton() {
+    const toggleBtn = document.getElementById('togglePredictionsBtn');
+    
+    if (toggleBtn) {
+        toggleBtn.style.display = 'none';
+    }
 }
