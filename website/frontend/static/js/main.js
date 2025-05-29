@@ -195,55 +195,53 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
     };
 
-    // Enhanced handleAnnotations with coordinate conversion
-    window.handleAnnotations = function() {
-        // Don't interfere with the original handleAnnotations logic - just add coordinate conversion
-        // when needed. Let the original api-service.js handle UNet detection and processing.
+   window.handleAnnotations = function() {
+    // Check if we have manual annotations that need coordinate conversion
+    const hasManualAnnotations = state.scribbles && state.scribbles.filter(s => !s.isPrediction).length > 0;
 
-        // Check if we have manual annotations that need coordinate conversion
-        const hasManualAnnotations = state.scribbles && state.scribbles.filter(s => !s.isPrediction).length > 0;
+    if (hasManualAnnotations && state.displayScale && state.displayScale !== 1) {
+        console.log('Converting manual annotations from display scale to backend scale');
+        const originalRedrawFunction = window.redrawAnnotations || redrawAnnotations;
+        const originalScribbles = JSON.parse(JSON.stringify(state.scribbles));
+        
+        const backendScaleAnnotations = state.scribbles
+            .filter(s => !s.isPrediction)
+            .map(stroke => ({
+                ...stroke,
+                points: stroke.points.map(point => ({
+                    x: Math.round(point.x / state.displayScale),
+                    y: Math.round(point.y / state.displayScale)
+                }))
+            }));
 
-        if (hasManualAnnotations && state.displayScale && state.displayScale !== 1) {
-            console.log('Converting manual annotations from display scale to original scale');
-            console.log('Display scale:', state.displayScale);
+        // Temporarily replace the scribbles with original scale coordinates
+        const predictionsOnly = state.scribbles.filter(s => s.isPrediction);
+        state.coordinatesAlreadyScaled = true;
+        
+        // Create temporary state for API call.
+        const tempScribbles = [...predictionsOnly, ...backendScaleAnnotations];
+        const originalStateScribbles = state.scribbles;
+        
+        // Temporarily set state for API call.
+        state.scribbles = tempScribbles;
 
-            // Convert all annotation coordinates from display scale to original scale
-            const originalScaleAnnotations = state.scribbles
-                .filter(s => !s.isPrediction)
-                .map(stroke => {
-                    const originalPoints = stroke.points.map(point => ({
-                        x: Math.round(point.x / state.displayScale),
-                        y: Math.round(point.y / state.displayScale)
-                    }));
+        // Call API.
+        const apiCall = typeof handleAnnotationsWithResultLoading === 'function' 
+            ? handleAnnotationsWithResultLoading() 
+            : handleAnnotations();
 
-                    return {
-                        ...stroke,
-                        points: originalPoints
-                    };
-                });
+        // ✅ Restore everything immediately without triggering redraws
+        state.scribbles = originalStateScribbles;
+        state.coordinatesAlreadyScaled = false;
 
-            // Temporarily replace the scribbles with original scale coordinates
-            const originalScribbles = state.scribbles;
-            state.scribbles = [...state.scribbles.filter(s => s.isPrediction), ...originalScaleAnnotations];
-
-            // Call the original function which will handle UNet vs other algorithms
-            if (typeof handleAnnotationsWithResultLoading === 'function') {
-                handleAnnotationsWithResultLoading();
-            } else if (typeof handleAnnotations === 'function') {
-                handleAnnotations();
-            }
-
-            // Restore the display scale scribbles
-            state.scribbles = originalScribbles;
-        } else {
-            // No coordinate conversion needed - call original function directly
-            if (typeof handleAnnotationsWithResultLoading === 'function') {
-                handleAnnotationsWithResultLoading();
-            } else if (typeof handleAnnotations === 'function') {
-                handleAnnotations();
-            }
-        }
-    };
+        return apiCall;
+    } else {
+        // No coordinate conversion needed - call original function directly
+        return typeof handleAnnotationsWithResultLoading === 'function' 
+            ? handleAnnotationsWithResultLoading() 
+            : handleAnnotations();
+    }
+};
 
     // Initial resize
     resizeCanvasToImage();

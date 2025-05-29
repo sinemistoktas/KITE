@@ -52,6 +52,7 @@ export const state = {
     imageName: null,
     predictedPoints: [],
     segmentationMethod: null,
+    coordinatesAlreadyScaled: false,
 };
 
 export const ERASE_RADIUS = 10;

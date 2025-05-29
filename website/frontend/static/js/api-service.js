@@ -143,8 +143,8 @@ export function handleAnnotations() {
     }
 
 
+    const originalScribbles = state.scribbles;
     state.scribbles = state.scribbles.filter(s => !s.isPrediction);
-    redrawAnnotations();
 
     const allPoints = state.scribbles.flatMap(s =>
         s.points.map(p => ({
@@ -168,12 +168,11 @@ export function handleAnnotations() {
         }]
     };
 
-    fetchWithCSRF("/segment/", {
+    return fetchWithCSRF("/segment/", {
         method: "POST",
         body: JSON.stringify(payload)
     })
     .then(res => {
-        console.log('Response status:', res.status);
         if (!res.ok) {
             return res.text().then(text => {
                 throw new Error(`HTTP error! status: ${res.status}, message: ${text}`);
@@ -183,10 +182,7 @@ export function handleAnnotations() {
     })
     .then(data => {
         console.log("Segmentation response:", data);
-
         resetZoom();
-
-        // Store segmentation data globally for bulk download
         window.lastSegmentationData = data;
 
         console.log(data.segmentation_mask_npy);
@@ -195,19 +191,21 @@ export function handleAnnotations() {
         const resultImage = document.getElementById("segmentedResultImage");
         console.log("resultImage element:", resultImage);
 
+        if (data.segmented_image) {
+            resultImage.src = `data:image/png;base64,${data.segmented_image}`;
+            document.getElementById("segmentationResult").style.display = "block";
+            
+            const downloadBtn = document.getElementById("downloadSegmentedImage");
+            downloadBtn.href = resultImage.src;
+            downloadBtn.download = "segmented_result.png";
+            downloadBtn.style.display = "inline-block";
+        }
+
+
         if (!data.segmented_image) {
             console.error("No segmented_image returned!");
             return;
         }
-
-        resultImage.src = `data:image/png;base64,${data.segmented_image}`;
-        document.getElementById("segmentationResult").style.display = "block";
-
-        const downloadBtn = document.getElementById("downloadSegmentedImage");
-        downloadBtn.href = resultImage.src;
-        downloadBtn.download = "segmented_result.png";
-        downloadBtn.style.display = "inline-block";
-
         // Handle segmentation map display (for UNet)
         if (data.segmentation_map) {
             segmentationMapData = data.segmentation_map;
@@ -251,7 +249,7 @@ export function handleAnnotations() {
                 // Handle different annotation formats
                 const processedPoints = [];
 
-                predictedAnnotations.forEach((annotation, index) => {
+                 predictedAnnotations.forEach((annotation, index) => {
 
                     // Handle polygon annotations (from UNet/advanced algorithms)
                     if (annotation && annotation.shape_type === "polygon" && Array.isArray(annotation.points)) {
@@ -275,12 +273,19 @@ export function handleAnnotations() {
                         if (Array.isArray(annotation[0])) {
                             // Format: [[x, y], color]
                             const [[x, y], color] = annotation;           
-                            // SCALE FIX!!!!!!
-                            const scaleX = state.originalImageDimensions.width / 512;  
-                            const scaleY = state.originalImageDimensions.height / 224; 
                             
-                            const scaledX = x * scaleX;
-                            const scaledY = y * scaleY;                     
+                            let scaledX, scaledY;
+                            // Scale fix to ensure that the coordinates are NOT scaled again!
+                            if (state.coordinatesAlreadyScaled) {
+                                scaledX = x * state.displayScale;
+                                scaledY = y * state.displayScale;
+                            } else {
+                                const scaleX = state.originalImageDimensions.width / 512;  
+                                const scaleY = state.originalImageDimensions.height / 224; 
+                                scaledX = x * scaleX;
+                                scaledY = y * scaleY;
+                            }
+                            
                             processedPoints.push({ 
                                 x: scaledX, 
                                 y: scaledY, 
@@ -289,12 +294,18 @@ export function handleAnnotations() {
                         } else {
                             // Format: [x, y]
                             const [x, y] = annotation;
-                            // SCALE FIX!!!!!
-                            const scaleX = state.originalImageDimensions.width / 512;  
-                            const scaleY = state.originalImageDimensions.height / 224; 
                             
-                            const scaledX = x * scaleX;
-                            const scaledY = y * scaleY;                     
+                            let scaledX, scaledY;
+                            if (state.coordinatesAlreadyScaled) {
+                                scaledX = x * state.displayScale;
+                                scaledY = y * state.displayScale;
+                            } else {
+                                const scaleX = state.originalImageDimensions.width / 512;  
+                                const scaleY = state.originalImageDimensions.height / 224; 
+                                scaledX = x * scaleX;
+                                scaledY = y * scaleY;
+                            }
+                            
                             processedPoints.push({ 
                                 x: scaledX, 
                                 y: scaledY, 
@@ -1072,8 +1083,6 @@ window.exitEditingMode = function() {
 
 
 export function handleAnnotationsWithResultLoading() {
-    
-
     const existingPanel = document.getElementById('maskPreviewPanel');
     if (existingPanel) {
         existingPanel.remove();
@@ -1085,14 +1094,12 @@ export function handleAnnotationsWithResultLoading() {
     console.log('Using algorithm:', algorithm);
     console.log('Using segmentation method:', segmentationMethod);
 
-
     if (!state.isEditingSegmentationResults) {
         state.scribbles = state.scribbles.filter(s => !s.isPrediction);
     } else {
         // In editing mode, clear predictions but keep them hidden
         state.scribbles = state.scribbles.filter(s => !s.isPrediction);
     }
-    redrawAnnotations();
 
     const allPoints = state.scribbles.flatMap(s =>
         s.points.map(p => ({
@@ -1116,7 +1123,7 @@ export function handleAnnotationsWithResultLoading() {
         }]
     };
 
-    fetchWithCSRF("/segment/", {
+    return fetchWithCSRF("/segment/", {
         method: "POST",
         body: JSON.stringify(payload)
     })
@@ -1178,7 +1185,6 @@ export function handleAnnotationsWithResultLoading() {
             createMaskPreviewPanel(data.segmentation_masks);
         }
 
-
         if (data.final_mask && data.final_mask.length > 0) {
             const loadBtn = document.getElementById('loadResultsAsAnnotationsBtn');
             if (loadBtn) {
@@ -1200,6 +1206,7 @@ export function handleAnnotationsWithResultLoading() {
         }
 
         if (!data.predicted_annotations || data.predicted_annotations.length === 0) {
+            redrawAnnotations();
             return;
         }
         
@@ -1209,7 +1216,6 @@ export function handleAnnotationsWithResultLoading() {
             const predictedAnnotations = data.predicted_annotations;
 
             if (Array.isArray(predictedAnnotations)) {
-
                 const processedPoints = [];
 
                 predictedAnnotations.forEach((annotation, index) => {
@@ -1220,14 +1226,12 @@ export function handleAnnotationsWithResultLoading() {
                             color: "cyan"
                         }));
 
-
                         state.scribbles.push({
                             points: points,
                             isPrediction: true,
                             color: annotation.color ? `rgb(${annotation.color[0]}, ${annotation.color[1]}, ${annotation.color[2]})` : "cyan",
                             class_id: annotation.class_id || "fluid"
                         });
-
                     }
                     else if (Array.isArray(annotation)) {
                         if (Array.isArray(annotation[0])) {
@@ -1272,7 +1276,6 @@ export function handleAnnotationsWithResultLoading() {
             }
             
             if (state.isEditingSegmentationResults) {
-                
                 // Update editing banner to show new results available
                 const banner = document.getElementById('editingModeBanner');
                 if (banner) {
@@ -1291,10 +1294,12 @@ export function handleAnnotationsWithResultLoading() {
             redrawAnnotations();
         } catch (err) {
             console.error("Error processing annotations:", err);
+            redrawAnnotations();
         }
     })
     .catch(error => {
         console.error("Error in handleAnnotations:", error);
+        redrawAnnotations();
         alert('Error processing segmentation: ' + error.message);
     });
 }
