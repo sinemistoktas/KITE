@@ -2068,7 +2068,6 @@ input[type="file"] {
   display: none;
 }
 
-
 /* MedSAM aktifken */
 .medsam-controls {
   display: none;
@@ -2080,6 +2079,22 @@ input[type="file"] {
 
 .medsam-active .kite-controls {
   display: none;
+}
+
+/* Hide keyboard shortcuts and annotation controls in MedSAM mode */
+.medsam-active .keyboard-shortcuts-btn,
+.medsam-active .annotation-controls {
+  display: none !important;
+}
+
+/* Show keyboard shortcuts and annotation controls in KITE mode */
+.kite-active .keyboard-shortcuts-btn,
+.kite-active .annotation-controls {
+  display: block;
+}
+
+.kite-active .annotation-controls {
+  display: flex;
 }
 
 .loading-overlay {

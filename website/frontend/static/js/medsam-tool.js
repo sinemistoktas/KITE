@@ -131,7 +131,7 @@ function handleMouseMove(e) {
   redrawAllBoxesAndSegmentation();
   
   // Draw current box being drawn
-  drawBox(startX, startY, currentX, currentY, 'red', true); // dashed for current drawing
+  drawBox(startX, startY, currentX, currentY, '#73bbc5', true); // dashed for current drawing
 }
 
 function handleMouseUp(e) {

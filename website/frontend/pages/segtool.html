@@ -254,7 +254,7 @@
         </div>
 
         <!-- Annotation Controls Below -->
-        <div class="d-flex justify-content-center gap-4 mt-4">
+        <div class="d-flex justify-content-center gap-4 mt-4 annotation-controls">
           <div>
             <input type="file" id="annotationFileInput" accept=".npy" style="display: none;">
             <button class="annotation-action-btn px-4 py-2 rounded-pill" onclick="loadAnnotations()">
@@ -342,6 +342,8 @@
     const workspace = document.getElementById('segmentationWorkspace');
     const medsamControls = document.querySelector('.medsam-controls');
     const kiteControls = document.querySelector('.kite-controls');
+    const keyboardShortcuts = document.querySelector('.keyboard-shortcuts-btn');
+    const annotationControls = document.querySelector('.annotation-controls');
 
     // Initialize interface based on current algorithm/method
     if (workspace) {
@@ -353,6 +355,8 @@
         workspace.classList.add('medsam-active');
         if (medsamControls) medsamControls.style.display = 'block';
         if (kiteControls) kiteControls.style.display = 'none';
+        if (keyboardShortcuts) keyboardShortcuts.style.display = 'none';
+        if (annotationControls) annotationControls.style.display = 'none';
 
         // Load MedSAM JavaScript module
         const script = document.createElement('script');
@@ -370,6 +374,8 @@
         workspace.classList.add('kite-active');
         if (medsamControls) medsamControls.style.display = 'none';
         if (kiteControls) kiteControls.style.display = 'block';
+        if (keyboardShortcuts) keyboardShortcuts.style.display = 'block';
+        if (annotationControls) annotationControls.style.display = 'flex';
       }
     }
 
