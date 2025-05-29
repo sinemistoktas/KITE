@@ -824,11 +824,9 @@ function displayLoadedAnnotations(annotations) {
             redrawAnnotations();
         });
         
-        alert(`Successfully loaded ${annotations.length} annotation regions!`);
         console.log(`Loaded ${annotations.length} annotation regions`);
     });
 }
-
 export function downloadAnnotations() {
     const userAnnotations = state.scribbles.filter(s => !s.isPrediction);
     
@@ -934,7 +932,6 @@ export function downloadAnnotations() {
             
             const layerCount = Object.keys(layerGroups).length;
             const totalPoints = Object.values(layerGroups).reduce((sum, points) => sum + points.length, 0);
-            alert(`Successfully downloaded annotations!\n\nLayers: ${layerCount}\nTotal points: ${totalPoints}\nFile: ${data.filename}`);
             
         } else {
             throw new Error(data.error || 'Unknown error occurred');
@@ -1025,36 +1022,14 @@ export function loadSegmentationResultsAsAnnotations(segmentationData) {
         });
         
         console.log(`Successfully loaded ${segmentationData.final_mask.length} segmentation results as editable annotations!`);
-        alert(`Successfully loaded ${segmentationData.final_mask.length} segmentation regions as editable annotations!`);
     });
 }
 
-function showEditingModeIndicator() {
+function showEditingModeIndicator(autoMode= false) {
     // Update the "Edit Results on Canvas" button to show active state
     const loadBtn = document.getElementById('loadResultsAsAnnotationsBtn');
     if (loadBtn) {
-        loadBtn.innerHTML = '<i class="fa-solid fa-edit me-2"></i> Editing Mode Active';
-        loadBtn.classList.remove('btn-outline-info');
-        loadBtn.classList.add('btn-info');
-        loadBtn.disabled = true; 
-    }
-    
-    const editingBanner = document.createElement('div');
-    editingBanner.id = 'editingModeBanner';
-    editingBanner.className = 'alert alert-info d-flex align-items-center';
-    editingBanner.style = 'margin: 10px 0; padding: 8px 12px;';
-    editingBanner.innerHTML = `
-        <i class="fa-solid fa-edit me-2"></i>
-        <strong>Editing Mode:</strong> Contours hidden for cleaner editing. 
-        Run segmentation again to see new contours.
-        <button class="btn btn-sm btn-outline-secondary ms-auto" onclick="exitEditingMode()">
-            <i class="fa-solid fa-times"></i> Exit Editing Mode
-        </button>
-    `;
-    
-    const segmentButtonsContainer = document.querySelector('.d-flex.justify-content-center.gap-3.mt-3');
-    if (segmentButtonsContainer) {
-        segmentButtonsContainer.insertAdjacentElement('afterend', editingBanner);
+        loadBtn.style.display = 'none'; // Hide the button for now can be deleted directly later
     }
 }
 
@@ -1067,26 +1042,19 @@ window.exitEditingMode = function() {
     const banner = document.getElementById('editingModeBanner');
     if (banner) banner.remove();
     
-    const loadBtn = document.getElementById('loadResultsAsAnnotationsBtn');
-    if (loadBtn) {
-        loadBtn.innerHTML = '<i class="fa-solid fa-edit me-2"></i> Edit Results on Canvas';
-        loadBtn.classList.remove('btn-info');
-        loadBtn.classList.add('btn-outline-info');
-        loadBtn.disabled = false;
-    }
+    
     
     import('./canvas-tools.js').then(module => {
         const { redrawAnnotations } = module;
         redrawAnnotations();
     });
+
     };
 
-
 export function handleAnnotationsWithResultLoading() {
-    const existingPanel = document.getElementById('maskPreviewPanel');
-    if (existingPanel) {
-        existingPanel.remove();
-    }
+    
+
+
 
     const algorithm = document.getElementById('algorithm')?.value || window.algorithm || 'kite';
     const segmentationMethod = state.segmentationMethod || 'traditional';
@@ -1136,6 +1104,7 @@ export function handleAnnotationsWithResultLoading() {
         return res.json();
     })
     .then(data => {
+        
         console.log("Segmentation response:", data);
 
         resetZoom();
@@ -1150,7 +1119,7 @@ export function handleAnnotationsWithResultLoading() {
 
         resultImage.src = `data:image/png;base64,${data.segmented_image}`;
         document.getElementById("segmentationResult").style.display = "block";
-
+        
         const downloadBtn = document.getElementById("downloadSegmentedImage");
         downloadBtn.href = resultImage.src;
         downloadBtn.download = "segmented_result.png";
@@ -1183,21 +1152,11 @@ export function handleAnnotationsWithResultLoading() {
         }
 
         if (data.final_mask && data.final_mask.length > 0) {
-            const loadBtn = document.getElementById('loadResultsAsAnnotationsBtn');
-            if (loadBtn) {
-                loadBtn.style.display = 'inline-block';
-                if (state.isEditingSegmentationResults) {
-                    loadBtn.innerHTML = '<i class="fa-solid fa-edit me-2"></i> Load New Results';
-                    loadBtn.classList.remove('btn-outline-info');
-                    loadBtn.classList.add('btn-warning'); 
-                    loadBtn.disabled = false; 
-                } else {
-                    loadBtn.innerHTML = '<i class="fa-solid fa-edit me-2"></i> Edit Results on Canvas';
-                    loadBtn.classList.remove('btn-info', 'btn-warning');
-                    loadBtn.classList.add('btn-outline-info');
-                    loadBtn.disabled = false;
-                }
-            }
+            console.log('Auto-loading segmentation results as editable annotations');
+            loadSegmentationResultsAsAnnotations(data);
+            showEditingModeIndicator(true);
+
+            
         }
 
         // ✅ CHECK FOR PREDICTIONS AND SHOW/HIDE TOGGLE BUTTON
@@ -1273,21 +1232,6 @@ export function handleAnnotationsWithResultLoading() {
                 }
                 showPredictionToggleButton();
             }
-            
-            if (state.isEditingSegmentationResults) {
-                const banner = document.getElementById('editingModeBanner');
-                if (banner) {
-                    banner.innerHTML = `
-                        <i class="fa-solid fa-edit me-2"></i>
-                        <strong>Editing Mode:</strong> New segmentation complete! Contours still hidden for editing.
-                        <button class="btn btn-sm btn-outline-secondary ms-auto" onclick="exitEditingMode()">
-                            <i class="fa-solid fa-eye"></i> Show New Contours
-                        </button>
-                    `;
-                    banner.classList.remove('alert-info');
-                    banner.classList.add('alert-success');
-                }
-            } 
 
             redrawAnnotations();
         } catch (err) {

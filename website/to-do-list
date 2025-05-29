@@ -24,3 +24,8 @@
 
 - site küçük boyutlarda da fixed hale getirilebilir
 - bug to fix: when i click download annotations after i edit the mask on canvas when uploading it it does not come to its places correctly
+
+
+the interactive layer goes to left when image is segmented again in the editing motion
+
+unet with interactivity does not work? check also medsam

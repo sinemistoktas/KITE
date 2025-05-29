@@ -236,18 +236,38 @@
         </div>
 
         <!-- Annotation Controls Below -->
-        <div class="d-flex justify-content-center gap-4 mt-4">
+        <div class="d-flex justify-content-center align-items-center flex-wrap gap-3 mt-4">
+
   <div>
     <input type="file" id="annotationFileInput" accept=".npy" style="display: none;">
     <button class="annotation-action-btn px-4 py-2 rounded-pill" onclick="loadAnnotations()">
       <i class="fa-solid fa-upload me-2"></i> Load Annotations
     </button>
   </div>
+
   <div>
     <button id="downloadAnnotationsBtn" class="annotation-action-btn px-4 py-2 rounded-pill" onclick="downloadAnnotations()">
       <i class="fa-solid fa-download me-2"></i> Download Annotations
     </button>
   </div>
+
+        <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
+        <button class="show-pre-btn px-4 py-2 rounded-pill" onclick="handlePreprocessedImg()">
+        <i class="fa-solid fa-eye me-2"></i> Show Preprocessed Image
+        </button>
+        </div>
+
+        
+         <div> 
+        <a id="downloadSegmentedImage"
+          class="download-annotations-btn px-4 py-2 rounded-pill shadow-sm"
+          style="display: none; text-decoration: none; color: inherit;">
+         <i class="fa-solid fa-download me-2"></i> Download Segmented Image
+         </a>
+         </div>
+
+      
+
   <div>
     <button id="togglePredictionsBtn" class="annotation-action-btn px-4 py-2 rounded-pill" style="display: none;">
       <i class="fa-solid fa-eye me-2"></i>
@@ -283,25 +303,11 @@
                alt="Segmented Output" />
         </div>
 
-        <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
-          <button class="show-pre-btn" onclick="handlePreprocessedImg()">
-            <i class="fa-solid fa-eye"></i> Show Preprocessed Image
-          </button>
-
           <button id="showSegMapBtn" class="show-pre-btn" onclick="handleSegmentationMap()" style="display: none;">
             <i class="fa-solid fa-map"></i> Show Segmentation Map
           </button>
-          <button id="loadResultsAsAnnotationsBtn" class="results-annotations-btn px-4 py-2 rounded-pill shadow-sm"
-                  onclick="loadLastSegmentationAsAnnotations()"
-                  style="display: none;">
-            <i class="fa-solid fa-edit me-2"></i> Edit Results on Canvas
-          </button>
-
-          <a id="downloadSegmentedImage"
-             class="download-annotations-btn px-4 py-2 rounded-pill shadow-sm"
-             style="display: none; text-decoration: none; color: inherit;">
-            <i class="fa-solid fa-download me-2"></i> Download Segmented Image
-          </a>
+          
+          
         </div>
       </div>
     </div>
