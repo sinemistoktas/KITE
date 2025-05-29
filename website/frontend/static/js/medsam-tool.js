@@ -15,7 +15,22 @@ let startY = 0;
 let imageNaturalSize = { width: 0, height: 0 };
 let canvasSize = { width: 0, height: 0 };
 let currentBoxes = []; // Store all drawn boxes
+let segmentationResults = []; // Store all segmentation results
 let cumulativeOverlayImage = null; // Store the cumulative overlay
+let pendingSegmentation = false; // Flag to track if we need to update segmentation
+let undoHistory = []; // Store history of undone boxes and their segmentations
+
+// Color palette for boxes and segmentations
+const colorPalette = [
+  { box: 'rgba(251, 252, 30, 0.5)', border: 'rgb(251, 252, 30)', segmentation: [251, 252, 30] },  // Yellow
+  { box: 'rgba(255, 0, 0, 0.5)', border: 'rgb(255, 0, 0)', segmentation: [255, 0, 0] },           // Red
+  { box: 'rgba(0, 255, 0, 0.5)', border: 'rgb(0, 255, 0)', segmentation: [0, 255, 0] },           // Green
+  { box: 'rgba(0, 0, 255, 0.5)', border: 'rgb(0, 0, 255)', segmentation: [0, 0, 255] },           // Blue
+  { box: 'rgba(255, 165, 0, 0.5)', border: 'rgb(255, 165, 0)', segmentation: [255, 165, 0] },     // Orange
+  { box: 'rgba(128, 0, 128, 0.5)', border: 'rgb(128, 0, 128)', segmentation: [128, 0, 128] },     // Purple
+  { box: 'rgba(255, 192, 203, 0.5)', border: 'rgb(255, 192, 203)', segmentation: [255, 192, 203] }, // Pink
+  { box: 'rgba(0, 255, 255, 0.5)', border: 'rgb(0, 255, 255)', segmentation: [0, 255, 255] }      // Cyan
+];
 
 function initMedSAM() {
   console.log('Initializing MedSAM Tool (Simple Version)');
@@ -58,6 +73,9 @@ function initMedSAM() {
   // Add event listeners for buttons
   const undoBtn = document.getElementById('undoMedsamBtn');
   if (undoBtn) undoBtn.addEventListener('click', undoLastBox);
+  
+  const redoBtn = document.getElementById('redoMedsamBtn');
+  if (redoBtn) redoBtn.addEventListener('click', redoLastBox);
   
   const resetBtn = document.getElementById('resetMedsamBtn');
   if (resetBtn) resetBtn.addEventListener('click', resetAllBoxes);
@@ -153,16 +171,19 @@ function handleMouseUp(e) {
   
   const canvasBox = [x1, y1, x2, y2];
   
+  // Get color for this box
+  const color = getNextBoxColor();
+  
   // Add box to collection
   currentBoxes.push({
     canvas: canvasBox,
     image: imageBox,
-    color: getNextBoxColor()
+    color: color
   });
   
   console.log(`Added box ${currentBoxes.length}: ${imageBox}`);
   
-  // Perform segmentation
+  // Perform segmentation for every new box
   performSegmentation(imageBox);
 }
 
@@ -180,11 +201,14 @@ function performSegmentation(imageBox) {
   // Get the relative image path from the src attribute
   const imagePath = getImagePath();
   
+  // Get the color for this box
+  const color = currentBoxes[currentBoxes.length - 1].color;
+  
   // Prepare request data
   const requestData = {
     image_path: imagePath,
-    box: imageBox,
-    mode: 'add'
+    mode: 'replace', // Always use replace mode to send all boxes
+    boxes: currentBoxes.map(box => box.image) // Send all boxes
   };
   
   console.log('Sending segmentation request:', requestData);
@@ -247,6 +271,18 @@ function updateCumulativeSegmentation(data) {
   // Store the new overlay image
   const img = new Image();
   img.onload = function () {
+    // Add the new segmentation result to our array
+    segmentationResults.push({
+      overlay: img,
+      box: currentBoxes[currentBoxes.length - 1],
+      stats: {
+        mask_pixels: data.new_mask_pixels,
+        total_boxes: data.total_boxes,
+        total_mask_pixels: data.total_mask_pixels
+      }
+    });
+    
+    // Update the cumulative overlay with the latest result
     cumulativeOverlayImage = img;
     
     // Redraw everything with the new result
@@ -266,17 +302,20 @@ function redrawAllBoxesAndSegmentation() {
   // Clear the canvas
   medsamCtx.clearRect(0, 0, medsamCanvas.width, medsamCanvas.height);
   
-  // Draw the segmentation result if available
-  if (cumulativeOverlayImage) {
-    medsamCtx.drawImage(cumulativeOverlayImage, 0, 0, medsamCanvas.width, medsamCanvas.height);
-  }
+  // Draw all segmentation results
+  segmentationResults.forEach(result => {
+    medsamCtx.drawImage(result.overlay, 0, 0, medsamCanvas.width, medsamCanvas.height);
+  });
   
   // Draw all boxes on top
   drawAllBoxesOnTop();
 }
 
-function drawBox(x1, y1, x2, y2, color = 'red', dashed = false) {
-  medsamCtx.strokeStyle = color;
+function drawBox(x1, y1, x2, y2, color, dashed = false) {
+  const boxColor = typeof color === 'string' ? color : color.border;
+  
+  // Draw border
+  medsamCtx.strokeStyle = boxColor;
   medsamCtx.lineWidth = 2;
   
   if (dashed) {
@@ -289,10 +328,10 @@ function drawBox(x1, y1, x2, y2, color = 'red', dashed = false) {
   
   // Draw corner points
   medsamCtx.setLineDash([]);
-  drawPoint(x1, y1, color);
-  drawPoint(x2, y1, color);
-  drawPoint(x1, y2, color);
-  drawPoint(x2, y2, color);
+  drawPoint(x1, y1, boxColor);
+  drawPoint(x2, y1, boxColor);
+  drawPoint(x1, y2, boxColor);
+  drawPoint(x2, y2, boxColor);
 }
 
 function drawPoint(x, y, color = 'red') {
@@ -303,8 +342,7 @@ function drawPoint(x, y, color = 'red') {
 }
 
 function getNextBoxColor() {
-  const colors = ['red', 'blue', 'green', 'orange', 'purple', 'yellow', 'pink', 'cyan'];
-  return colors[currentBoxes.length % colors.length];
+  return colorPalette[currentBoxes.length % colorPalette.length];
 }
 
 function resetAllBoxes() {
@@ -312,7 +350,10 @@ function resetAllBoxes() {
   
   // Clear local state
   currentBoxes = [];
+  segmentationResults = [];
   cumulativeOverlayImage = null;
+  pendingSegmentation = false;
+  undoHistory = []; // Clear undo history
 
   // Clear canvas
   medsamCtx.clearRect(0, 0, medsamCanvas.width, medsamCanvas.height);
@@ -325,16 +366,45 @@ function resetAllBoxes() {
 function undoLastBox() {
   if (currentBoxes.length > 0) {
     console.log('Removing last box');
-    currentBoxes.pop();
     
-    if (currentBoxes.length === 0) {
-      resetAllBoxes();
-    } else {
-      // For simplicity, just redraw without the last segmentation
-      // In a more advanced version, you'd re-run segmentation for remaining boxes
-      redrawAllBoxesAndSegmentation();
-      updateUI();
-    }
+    // Store the last box and its segmentation in history
+    undoHistory.push({
+      box: currentBoxes[currentBoxes.length - 1],
+      segmentation: segmentationResults[segmentationResults.length - 1]
+    });
+    
+    // Remove the last box and its segmentation result
+    currentBoxes.pop();
+    segmentationResults.pop();
+    
+    // Redraw remaining boxes and segmentations
+    redrawAllBoxesAndSegmentation();
+    updateUI();
+    updateStats({ total_boxes: currentBoxes.length, total_mask_pixels: 0 });
+    
+    // Set flag to indicate we need to update segmentation
+    pendingSegmentation = true;
+  }
+}
+
+function redoLastBox() {
+  if (undoHistory.length > 0) {
+    console.log('Restoring last undone box');
+    
+    // Get the last undone box and its segmentation
+    const lastUndone = undoHistory.pop();
+    
+    // Add back the box and its segmentation
+    currentBoxes.push(lastUndone.box);
+    segmentationResults.push(lastUndone.segmentation);
+    
+    // Redraw everything
+    redrawAllBoxesAndSegmentation();
+    updateUI();
+    updateStats({ total_boxes: currentBoxes.length, total_mask_pixels: 0 });
+    
+    // Set flag to indicate we need to update segmentation
+    pendingSegmentation = true;
   }
 }
 
@@ -343,11 +413,8 @@ function drawAllBoxesOnTop() {
     const [x1, y1, x2, y2] = boxData.canvas;
     drawBox(x1, y1, x2, y2, boxData.color, false);
     
-    // Add box number label with background for better visibility
-    medsamCtx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-    medsamCtx.fillRect(x1 + 2, y1 + 2, 20, 16);
-    
-    medsamCtx.fillStyle = boxData.color;
+    // Add box number label without background
+    medsamCtx.fillStyle = boxData.color.border;
     medsamCtx.font = '12px Arial';
     medsamCtx.fillText(`${index + 1}`, x1 + 5, y1 + 15);
   });
@@ -355,9 +422,11 @@ function drawAllBoxesOnTop() {
 
 function updateUI() {
   const undoBtn = document.getElementById('undoMedsamBtn');
+  const redoBtn = document.getElementById('redoMedsamBtn');
   const resetBtn = document.getElementById('resetMedsamBtn');
   
   if (undoBtn) undoBtn.disabled = currentBoxes.length === 0;
+  if (redoBtn) redoBtn.disabled = undoHistory.length === 0;
   if (resetBtn) resetBtn.disabled = currentBoxes.length === 0;
 }
 
@@ -388,9 +457,11 @@ function showLoading(show = true) {
   
   // Also update button states during loading
   const undoBtn = document.getElementById('undoMedsamBtn');
+  const redoBtn = document.getElementById('redoMedsamBtn');
   const resetBtn = document.getElementById('resetMedsamBtn');
   
   if (undoBtn) undoBtn.disabled = show || currentBoxes.length === 0;
+  if (redoBtn) redoBtn.disabled = show || undoHistory.length === 0;
   if (resetBtn) resetBtn.disabled = show || currentBoxes.length === 0;
 }
 

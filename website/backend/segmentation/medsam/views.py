@@ -263,9 +263,13 @@ def segment_image(request):
                 
                 new_masks.append(binary_mask)
                 
-                # Assign color
-                color_index = (len(session_data['boxes']) + i) % len(color_palette)
-                new_colors.append(color_palette[color_index])
+                # Use the color from the frontend if provided, otherwise use the default palette
+                color = data.get('color')
+                if color:
+                    new_colors.append(color)
+                else:
+                    color_index = (len(session_data['boxes']) + i) % len(color_palette)
+                    new_colors.append(color_palette[color_index])
                 
                 logger.info(f"Successfully processed box {i}: {np.sum(binary_mask)} pixels")
                 
