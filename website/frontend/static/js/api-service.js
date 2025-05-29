@@ -758,11 +758,6 @@ function displayLoadedAnnotations(annotations) {
     // FOR DEBUGGING!!
     const img = document.getElementById("uploadedImage");
     const canvas = state.annotationCanvas;
-    console.log("=== DIMENSION DEBUG ===");
-    console.log("Image natural dimensions:", img.naturalWidth, "x", img.naturalHeight);
-    console.log("Image display dimensions:", img.clientWidth, "x", img.clientHeight);
-    console.log("Canvas dimensions:", canvas.width, "x", canvas.height);
-    console.log("State image dimensions:", state.originalImageDimensions);
     
     // Clear existing annotations first.
     state.scribbles = state.scribbles.filter(s => s.isPrediction);
@@ -785,31 +780,18 @@ function displayLoadedAnnotations(annotations) {
             const layerId = createLayer(layerName, annotation.color);
             console.log(`Processing annotation ${annotation.value} with ${annotation.pixels.length} pixels`);
             if (annotation.pixels.length > 0) {
-                const ys = annotation.pixels.map(p => p[0]);
-                const xs = annotation.pixels.map(p => p[1]);
-                console.log(`Annotation ${annotation.value} ranges: Y(${Math.min(...ys)}-${Math.max(...ys)}), X(${Math.min(...xs)}-${Math.max(...xs)})`);
+                const rawXs = annotation.pixels.map(p => p[1]);
+                const rawYs = annotation.pixels.map(p => p[0]);
             }
             
-            // Convert pixels to individual dot points.
             const points = annotation.pixels.map(pixel => {
                 let x = pixel[1];
                 let y = pixel[0];
-                const scaleX = state.originalImageDimensions.width / 512;  // ASSUMING target width was 512 -> TODO: CHANGE THIS WHEN WE CHANGE THE CANVAS SIZE!!!
-                const scaleY = state.originalImageDimensions.height / 224; // ASSUMING target height was 224
-                
-                x = x * scaleX;
-                y = y * scaleY;
-                
-                console.log(`Sample scaling: original(${pixel[1]}, ${pixel[0]}) -> scaled(${x}, ${y})`);
+
                 
                 return { x, y };
             });
-                        
-            if (points.length > 0) {
-                const pointXs = points.map(p => p.x);
-                const pointYs = points.map(p => p.y);
-                console.log(`Converted points ranges: X(${Math.min(...pointXs)}-${Math.max(...pointXs)}), Y(${Math.min(...pointYs)}-${Math.max(...pointYs)})`);
-            }
+            
             
             // Add each pixel as an individual dot annotation.
             points.forEach(point => {
@@ -992,23 +974,16 @@ export function loadSegmentationResultsAsAnnotations(segmentationData) {
             const pixels = maskData.pixels;
             const color = maskData.color || "#ff0000";
             
-            if (pixels.length > 0) {
-                const ys = pixels.map(p => p[0]);
-                const xs = pixels.map(p => p[1]);
-            }
             
             const layerName = `Segmented ${regionId}`;
             const layerId = createLayer(layerName, color);
             
             const points = pixels.map(pixel => {
-                let x = pixel[1]; 
+                let x = pixel[1];
                 let y = pixel[0]; 
 
-                const scaleX = state.originalImageDimensions.width / 512;  // ASSUMING target width was 512
-                const scaleY = state.originalImageDimensions.height / 224; // ASSUMING target height was 224
-                
-                x = x * scaleX;
-                y = y * scaleY;
+                x = x * state.displayScale;
+                y = y * state.displayScale;
             
                 return { x, y };
             });
