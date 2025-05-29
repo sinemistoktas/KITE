@@ -75,7 +75,7 @@ export function redrawAnnotations() {
         });
 
     // Draw predictions
-    if (state.showPredictions) {
+    if (state.showPredictions && !state.isEditingSegmentationResults) {
         const predictionStrokes = state.scribbles.filter(s => s.isPrediction);
         if (predictionStrokes.length > 0) {
             adjustForZoom(pCtx);
@@ -136,6 +136,12 @@ export function redrawAnnotations() {
         aCtx.stroke();
         restoreZoom(aCtx);
     }
+    
+    if (state.isEditingSegmentationResults) {
+        const segmentationStrokes = state.scribbles.filter(s => s.isSegmentationResult);
+        console.log(`🎯 Editing mode: Rendering ${segmentationStrokes.length} editable segmentation strokes, predictions hidden`);
+    }
+    
 }
 
 export function zoomToPoint(x, y) {

@@ -26,6 +26,7 @@ export const state = {
     currentLayerId: null,
     visibleLayerIds: [],
     showPredictions: true,
+    isEditingSegmentationResults: false, // Track if we're in editing mode
 
     // Zooming
     zoomLevel: 1,
@@ -45,6 +46,7 @@ export const state = {
     resizeScale: 1,
     resizeHistory: [],
     currentResizeIndex: -1,
+    
     //UNet integration
     unetMode: false,
     imageName: null,

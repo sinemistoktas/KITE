@@ -223,29 +223,14 @@ export function handleAnnotations() {
             }
         }
 
-        // Setup stage container
-        const stageContainer = document.getElementById("segmentationStage");
-        if (stageContainer) {
-            stageContainer.innerHTML = ""; // Clear previous content
-
-            const width = resultImage.naturalWidth || resultImage.clientWidth;
-            const height = resultImage.naturalHeight || resultImage.clientHeight;
-            stageContainer.style.width = width + "px";
-            stageContainer.style.height = height + "px";
-        }
+     
 
         // Create mask preview panel if individual masks are available
         if (data.segmentation_masks && data.segmentation_masks.individual_masks && data.segmentation_masks.individual_masks.length > 0) {
             createMaskPreviewPanel(data.segmentation_masks);
         }
 
-        // Handle Konva stage rendering for interactive regions
-        if (data.final_mask && data.final_mask.length > 0 && stageContainer) {
-            renderInteractiveRegions(resultImage, data.final_mask, 
-                resultImage.naturalWidth || resultImage.clientWidth,
-                resultImage.naturalHeight || resultImage.clientHeight, 
-                stageContainer);
-        }
+
 
         // Handle predicted annotations (enhanced from both versions)
         console.log("Predicted annotations full data:", JSON.stringify(data.predicted_annotations));
@@ -345,6 +330,8 @@ export function handleAnnotations() {
     });
 }
 
+// previously were used for interavity with konva, now it is unused 
+// delete this and its references later 
 function renderInteractiveRegions(resultImage, finalMask, width, height, stageContainer) {
     // Enhanced version combining both approaches
     resultImage.onload = () => {
@@ -987,7 +974,14 @@ export function loadSegmentationResultsAsAnnotations(segmentationData) {
     const img = document.getElementById("uploadedImage");
     const canvas = state.annotationCanvas;
 
+    console.log('Hiding contour predictions for editing mode');
+    state.scribbles = state.scribbles.filter(s => !s.isPrediction);
+    state.isEditingSegmentationResults = true;
+    state.showPredictions = false; // Explicitly hide predictions
+
+
     state.scribbles = state.scribbles.filter(s => !s.isSegmentationResult);
+   
     const layersContainer = document.getElementById('layersContainer');
     
     import('./layers.js').then(module => {
@@ -1037,7 +1031,8 @@ export function loadSegmentationResultsAsAnnotations(segmentationData) {
             });
             
         });
-        
+
+        showEditingModeIndicator();
         import('./canvas-tools.js').then(module => {
             const { redrawAnnotations } = module;
             redrawAnnotations();
@@ -1048,7 +1043,62 @@ export function loadSegmentationResultsAsAnnotations(segmentationData) {
     });
 }
 
+function showEditingModeIndicator() {
+    // Update the "Edit Results on Canvas" button to show active state
+    const loadBtn = document.getElementById('loadResultsAsAnnotationsBtn');
+    if (loadBtn) {
+        loadBtn.innerHTML = '<i class="fa-solid fa-edit me-2"></i> Editing Mode Active';
+        loadBtn.classList.remove('btn-outline-info');
+        loadBtn.classList.add('btn-info');
+        loadBtn.disabled = true; 
+    }
+    
+    const editingBanner = document.createElement('div');
+    editingBanner.id = 'editingModeBanner';
+    editingBanner.className = 'alert alert-info d-flex align-items-center';
+    editingBanner.style = 'margin: 10px 0; padding: 8px 12px;';
+    editingBanner.innerHTML = `
+        <i class="fa-solid fa-edit me-2"></i>
+        <strong>Editing Mode:</strong> Contours hidden for cleaner editing. 
+        Run segmentation again to see new contours.
+        <button class="btn btn-sm btn-outline-secondary ms-auto" onclick="exitEditingMode()">
+            <i class="fa-solid fa-times"></i> Exit Editing Mode
+        </button>
+    `;
+    
+    const segmentButtonsContainer = document.querySelector('.d-flex.justify-content-center.gap-3.mt-3');
+    if (segmentButtonsContainer) {
+        segmentButtonsContainer.insertAdjacentElement('afterend', editingBanner);
+    }
+}
+
+window.exitEditingMode = function() {
+    console.log('Exiting editing mode - restoring contours');
+    
+    state.isEditingSegmentationResults = false;
+    state.showPredictions = true; // Re-enable predictions
+    
+    const banner = document.getElementById('editingModeBanner');
+    if (banner) banner.remove();
+    
+    const loadBtn = document.getElementById('loadResultsAsAnnotationsBtn');
+    if (loadBtn) {
+        loadBtn.innerHTML = '<i class="fa-solid fa-edit me-2"></i> Edit Results on Canvas';
+        loadBtn.classList.remove('btn-info');
+        loadBtn.classList.add('btn-outline-info');
+        loadBtn.disabled = false;
+    }
+    
+    import('./canvas-tools.js').then(module => {
+        const { redrawAnnotations } = module;
+        redrawAnnotations();
+    });
+    };
+
+
 export function handleAnnotationsWithResultLoading() {
+    
+
     const existingPanel = document.getElementById('maskPreviewPanel');
     if (existingPanel) {
         existingPanel.remove();
@@ -1060,7 +1110,13 @@ export function handleAnnotationsWithResultLoading() {
     console.log('Using algorithm:', algorithm);
     console.log('Using segmentation method:', segmentationMethod);
 
-    state.scribbles = state.scribbles.filter(s => !s.isPrediction);
+
+    if (!state.isEditingSegmentationResults) {
+        state.scribbles = state.scribbles.filter(s => !s.isPrediction);
+    } else {
+        // In editing mode, clear predictions but keep them hidden
+        state.scribbles = state.scribbles.filter(s => !s.isPrediction);
+    }
     redrawAnnotations();
 
     const allPoints = state.scribbles.flatMap(s =>
@@ -1147,18 +1203,24 @@ export function handleAnnotationsWithResultLoading() {
             createMaskPreviewPanel(data.segmentation_masks);
         }
 
-        // I feel like we could delete this idk
-        if (data.final_mask && data.final_mask.length > 0 && stageContainer) {
-            renderInteractiveRegions(resultImage, data.final_mask, 
-                resultImage.naturalWidth || resultImage.clientWidth,
-                resultImage.naturalHeight || resultImage.clientHeight, 
-                stageContainer);
-        }
 
         if (data.final_mask && data.final_mask.length > 0) {
             const loadBtn = document.getElementById('loadResultsAsAnnotationsBtn');
             if (loadBtn) {
                 loadBtn.style.display = 'inline-block';
+                if (state.isEditingSegmentationResults) {
+                    //  editing mode, keep editing appearance
+                    loadBtn.innerHTML = '<i class="fa-solid fa-edit me-2"></i> Load New Results';
+                    loadBtn.classList.remove('btn-outline-info');
+                    loadBtn.classList.add('btn-warning'); 
+                    loadBtn.disabled = false; 
+                } else {
+                    // not in editing mode,  normal appearance
+                    loadBtn.innerHTML = '<i class="fa-solid fa-edit me-2"></i> Edit Results on Canvas';
+                    loadBtn.classList.remove('btn-info', 'btn-warning');
+                    loadBtn.classList.add('btn-outline-info');
+                    loadBtn.disabled = false;
+                }
             }
         }
 
@@ -1189,58 +1251,3 @@ export function handleAnnotationsWithResultLoading() {
                             isPrediction: true,
                             color: annotation.color ? `rgb(${annotation.color[0]}, ${annotation.color[1]}, ${annotation.color[2]})` : "cyan",
                             class_id: annotation.class_id || "fluid"
-                        });
-
-                    }
-                    else if (Array.isArray(annotation)) {
-                        if (Array.isArray(annotation[0])) {
-                            const [[x, y], color] = annotation;           
-                            const scaleX = state.originalImageDimensions.width / 512;  
-                            const scaleY = state.originalImageDimensions.height / 224; 
-                            
-                            const scaledX = x * scaleX;
-                            const scaledY = y * scaleY;                     
-                            processedPoints.push({ 
-                                x: scaledX, 
-                                y: scaledY, 
-                                color: color || "blue"
-                            });
-                        } else {
-                            const [x, y] = annotation;
-                            const scaleX = state.originalImageDimensions.width / 512;  
-                            const scaleY = state.originalImageDimensions.height / 224; 
-                            
-                            const scaledX = x * scaleX;
-                            const scaledY = y * scaleY;                     
-                            processedPoints.push({ 
-                                x: scaledX, 
-                                y: scaledY, 
-                                color: "blue" 
-                            });
-                        }
-                    }
-                });
-
-                if (processedPoints.length > 0) {
-                    state.scribbles.push({
-                        points: processedPoints,
-                        isPrediction: true,
-                        color: "blue"
-                    });
-                }
-
-                if (data.class_info) {
-                    createClassLegend(data.class_info);
-                }
-            }
-
-            redrawAnnotations();
-        } catch (err) {
-            console.error("Error processing annotations:", err);
-        }
-    })
-    .catch(error => {
-        console.error("Error in handleAnnotations:", error);
-        alert('Error processing segmentation: ' + error.message);
-    });
-}

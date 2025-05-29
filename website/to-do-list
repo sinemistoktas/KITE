@@ -20,3 +20,7 @@
 - traditional -> unet geçince 
     - aynı annotation için yeniden layer ekliyor
     - ilk geçişte unet annotation silinebilir oluyor 
+
+
+- site küçük boyutlarda da fixed hale getirilebilir
+- bug to fix: when i click download annotations after i edit the mask on canvas when uploading it it does not come to its places correctly
