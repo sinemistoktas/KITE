@@ -835,7 +835,6 @@ function displayLoadedAnnotations(annotations) {
         console.log(`Loaded ${annotations.length} annotation regions`);
     });
 }
-
 export function downloadAnnotations() {
     const userAnnotations = state.scribbles.filter(s => !s.isPrediction);
     
@@ -1095,7 +1094,6 @@ window.exitEditingMode = function() {
     });
     };
 
-
 export function handleAnnotationsWithResultLoading() {
     
 
@@ -1155,6 +1153,7 @@ export function handleAnnotationsWithResultLoading() {
         return res.json();
     })
     .then(data => {
+        
         console.log("Segmentation response:", data);
 
         resetZoom();
@@ -1171,7 +1170,7 @@ export function handleAnnotationsWithResultLoading() {
 
         resultImage.src = `data:image/png;base64,${data.segmented_image}`;
         document.getElementById("segmentationResult").style.display = "block";
-
+        
         const downloadBtn = document.getElementById("downloadSegmentedImage");
         downloadBtn.href = resultImage.src;
         downloadBtn.download = "segmented_result.png";
@@ -1250,76 +1249,4 @@ export function handleAnnotationsWithResultLoading() {
                             points: points,
                             isPrediction: true,
                             color: annotation.color ? `rgb(${annotation.color[0]}, ${annotation.color[1]}, ${annotation.color[2]})` : "cyan",
-                            class_id: annotation.class_id || "fluid"
-                        });
-
-                    }
-                    else if (Array.isArray(annotation)) {
-                        if (Array.isArray(annotation[0])) {
-                            const [[x, y], color] = annotation;           
-                            const scaleX = state.originalImageDimensions.width / 512;  
-                            const scaleY = state.originalImageDimensions.height / 224; 
-                            
-                            const scaledX = x * scaleX;
-                            const scaledY = y * scaleY;                     
-                            processedPoints.push({ 
-                                x: scaledX, 
-                                y: scaledY, 
-                                color: color || "blue"
-                            });
-                        } else {
-                            const [x, y] = annotation;
-                            const scaleX = state.originalImageDimensions.width / 512;  
-                            const scaleY = state.originalImageDimensions.height / 224; 
-                            
-                            const scaledX = x * scaleX;
-                            const scaledY = y * scaleY;                     
-                            processedPoints.push({ 
-                                x: scaledX, 
-                                y: scaledY, 
-                                color: "blue" 
-                            });
-                        }
-                    }
-                });
-
-                if (processedPoints.length > 0) {
-                    state.scribbles.push({
-                        points: processedPoints,
-                        isPrediction: true,
-                        color: "blue"
-                    });
-                }
-
-                if (data.class_info) {
-                    createClassLegend(data.class_info);
-                }
-            }
-            
-            if (state.isEditingSegmentationResults) {
-                
-                // Update editing banner to show new results available
-                const banner = document.getElementById('editingModeBanner');
-                if (banner) {
-                    banner.innerHTML = `
-                        <i class="fa-solid fa-edit me-2"></i>
-                        <strong>Editing Mode:</strong> New segmentation complete! Contours still hidden for editing.
-                        <button class="btn btn-sm btn-outline-secondary ms-auto" onclick="exitEditingMode()">
-                            <i class="fa-solid fa-eye"></i> Show New Contours
-                        </button>
-                    `;
-                    banner.classList.remove('alert-info');
-                    banner.classList.add('alert-success');
-                }
-            } 
-
-            redrawAnnotations();
-        } catch (err) {
-            console.error("Error processing annotations:", err);
-        }
-    })
-    .catch(error => {
-        console.error("Error in handleAnnotations:", error);
-        alert('Error processing segmentation: ' + error.message);
-    });
-}
+                            class_id: annotation.class
