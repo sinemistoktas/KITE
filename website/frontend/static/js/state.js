@@ -7,6 +7,11 @@ export const state = {
     isDrawing: false,
     isErasing: false,
 
+    lineThickness: 2,
+    dotRadius: 2,
+    eraserRadius: 10,
+
+
     // fill tool state variables
     isFillToolActive: false,
     isDrawingBoundary: false,
