@@ -189,7 +189,7 @@ function handleMouseUp(e) {
   // Update button text to reflect current state
   const toggleBoxesBtn = document.getElementById('toggleBoxesBtn');
   if (toggleBoxesBtn) {
-    toggleBoxesBtn.innerHTML = '<i class="fa-solid fa-eye-slash"></i> Show Boxes';
+    toggleBoxesBtn.innerHTML = '<i class="fa-solid fa-eye"></i> Show Boxes';
   }
   
   // Perform segmentation for every new box

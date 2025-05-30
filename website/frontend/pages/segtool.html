@@ -212,7 +212,7 @@
                 <i class="fa-solid fa-trash"></i> Reset All Boxes
               </button>
               <button type="button" class="btn btn-outline-primary rounded-pill px-3 w-100 mb-2" id="toggleBoxesBtn" disabled>
-                <i class="fa-solid fa-eye-slash"></i> Show Boxes
+                <i class="fa-solid fa-eye"></i> Show Boxes
               </button>
             </div>
 
@@ -637,8 +637,8 @@
         const isVisible = window.showBoxes !== false;
         window.toggleBoxVisibility(!isVisible);
         this.innerHTML = isVisible ? 
-          '<i class="fa-solid fa-eye-slash"></i> Show Boxes' : 
-          '<i class="fa-solid fa-eye"></i> Hide Boxes';
+          '<i class="fa-solid fa-eye"></i> Show Boxes' : 
+          '<i class="fa-solid fa-eye-slash"></i> Hide Boxes';
       });
     }
   });
