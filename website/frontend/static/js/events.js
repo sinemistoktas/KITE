@@ -638,15 +638,15 @@ function togglePredictionVisibility() {
         toggleBtn.classList.remove('btn-outline-secondary');
         toggleBtn.classList.add('btn-outline-light');
 
-        icon.classList.remove('fa-eye-slash');
-        icon.classList.add('fa-eye');
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
 
         text.textContent = 'Hide Contours';
     } else {
         toggleBtn.classList.add('btn-outline-light');
 
-        icon.classList.remove('fa-eye');
-        icon.classList.add('fa-eye-slash');
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
 
         text.textContent = 'Show Contours';
     }
