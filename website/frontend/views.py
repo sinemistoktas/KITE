@@ -717,10 +717,39 @@ def load_annotations(request):
                 annotation_data = np.load(annotation_file, allow_pickle=True)
                 print(f"Loaded annotation data with shape: {annotation_data.shape}")
                 print(f"Data type: {annotation_data.dtype}")
-                print(f"Unique values: {np.unique(annotation_data)}")
                 
-                # Process the annotation data and convert to colored overlay.
-                colored_annotations = process_annotation_data(annotation_data)
+                is_dict_format = False
+                
+                if isinstance(annotation_data, dict):
+                    is_dict_format = True
+                elif annotation_data.ndim == 0: 
+                    try:
+                        item_data = annotation_data.item()
+                        if isinstance(item_data, dict):
+                            is_dict_format = True
+                            annotation_data = item_data
+                    except (ValueError, AttributeError):
+                        is_dict_format = False
+                elif annotation_data.dtype == 'object' and annotation_data.size == 1:
+                    try:
+                        item_data = annotation_data.flat[0]
+                        if isinstance(item_data, dict):
+                            is_dict_format = True
+                            annotation_data = item_data
+                    except (ValueError, AttributeError, IndexError):
+                        is_dict_format = False
+                
+                if is_dict_format:
+                    print(f"Processing old format dictionary: {annotation_data.keys()}")
+                    colored_annotations = [{
+                        "regionId": annotation_data.get("regionId", "loaded_region_1"),
+                        "pixels": annotation_data.get("pixels", []),
+                        "color": annotation_data.get("color", "#FF0000"),
+                        "value": 1
+                    }]
+                else:
+                    print(f"Processing array format with unique values: {np.unique(annotation_data)}")
+                    colored_annotations = process_annotation_data(annotation_data)
                 
                 return JsonResponse({
                     "success": True,

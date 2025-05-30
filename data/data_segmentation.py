@@ -424,13 +424,13 @@ class SegmentationModel():
 
             npy_path = os.path.join(segmentation_dir, npy_filename)
             png_path = os.path.join(segmentation_dir, png_filename)
-
-            individual_mask_data = {
-                "regionId": region_id,
-                "pixels": pixels,
-                "color": color
-            }
-            np.save(npy_path, individual_mask_data)
+            binary_mask = np.zeros((max_y, max_x), dtype=np.uint8)
+            for pixel in pixels:
+                y, x = pixel[0], pixel[1]
+                if 0 <= y < max_y and 0 <= x < max_x:
+                    binary_mask[y, x] = 1
+            
+            np.save(npy_path, binary_mask)
 
             # Create visual mask image (RGBA with transparency for .png)
             mask_image = np.zeros((max_y, max_x, 4), dtype=np.uint8)  # RGBA
