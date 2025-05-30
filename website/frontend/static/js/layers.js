@@ -1,4 +1,5 @@
-// layers.js
+// website/frontend/static/js/layers.js
+
 import { state } from './state.js';
 import { redrawAnnotations } from './canvas-tools.js';
 

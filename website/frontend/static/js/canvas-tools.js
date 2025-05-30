@@ -1,3 +1,5 @@
+// website/frontend/static/js/canvas-tools.js
+
 import { state } from './state.js';
 import { distance } from './canvas-utils.js';
 import { drawBoxPreview } from './box-tool.js';

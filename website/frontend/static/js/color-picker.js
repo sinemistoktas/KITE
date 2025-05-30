@@ -1,3 +1,5 @@
+// website/frontend/static/js/color-picker.js
+
 import { state } from './state.js';
 
 export function initColorPicker() {

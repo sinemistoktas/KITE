@@ -1,3 +1,5 @@
+// website/frontend/static/js/events.js
+
 import { state } from './state.js';
 import { screenToImageCoords } from './canvas-utils.js';
 import { redrawAnnotations } from './canvas-tools.js';
@@ -217,6 +219,9 @@ export function bindUIEvents() {
 
     // Keyboard Shortcuts
     document.addEventListener('keydown', (e) => {
+        if (state.unetMode || window.algorithm === 'unet') return;
+        if (window.algorithm === 'medsam') return;
+
         if (["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) return;
         const key = e.key.toUpperCase();
 

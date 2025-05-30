@@ -15,4 +15,6 @@ urlpatterns = [
     
     # Health check
     path('health', views.health_check, name='health'),
+
+    path('download-npy/', views.download_npy_mask, name='download_npy_mask'),
 ]

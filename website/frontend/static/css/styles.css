@@ -1679,7 +1679,9 @@ input[type="file"] {
 #eraseAllMode,
 #fillToolBtn,
 #undoMedsamBtn,
-#resetMedsamBtn {
+#redoMedsamBtn,
+#resetMedsamBtn,
+#toggleBoxesBtn {
   background: transparent !important;
   border: 2px solid #fff !important;
   color: #fff !important;
@@ -1700,7 +1702,9 @@ input[type="file"] {
 #eraseAllMode.btn-danger,
 #fillToolBtn.btn-danger,
 #undoMedsamBtn.btn-danger,
-#resetMedsamBtn.btn-danger {
+#redoMedsamBtn.btn-danger,
+#resetMedsamBtn.btn-danger,
+#toggleBoxesBtn.btn-danger {
   background: #946a90 !important;
   border-color: #634260 !important;
   color: #fff !important;
@@ -1711,7 +1715,6 @@ input[type="file"] {
   text-align: center;
   transition: none !important;
   outline: none !important;
-
 }
 
 #scribbleMode:hover, #scribbleMode:active, #scribbleMode.active,
@@ -1721,7 +1724,9 @@ input[type="file"] {
 #eraseAllMode:hover, #eraseAllMode:active, #eraseAllMode.active,
 #fillToolBtn:hover, #fillToolBtn:active, #fillToolBtn.active,
 #undoMedsamBtn:hover, #undoMedsamBtn:active, #undoMedsamBtn.active,
-#resetMedsamBtn:hover, #resetMedsamBtn:active, #resetMedsamBtn.active{
+#redoMedsamBtn:hover, #redoMedsamBtn:active, #redoMedsamBtn.active,
+#resetMedsamBtn:hover, #resetMedsamBtn:active, #resetMedsamBtn.active,
+#toggleBoxesBtn:hover, #toggleBoxesBtn:active, #toggleBoxesBtn.active {
   background: #946a90 !important;
   border-color: #634260 !important;
   color: #fff !important;
@@ -1734,7 +1739,9 @@ input[type="file"] {
 #eraseAllMode:focus,
 #fillToolBtn:focus,
 #undoMedsamBtn:focus,
-#resetMedsamBtn:focus {
+#redoMedsamBtn:focus,
+#resetMedsamBtn:focus,
+#toggleBoxesBtn:focus {
   outline: none !important;
   box-shadow: none !important;
 }
@@ -2065,7 +2072,6 @@ input[type="file"] {
   display: none;
 }
 
-
 /* MedSAM aktifken */
 .medsam-controls {
   display: none;
@@ -2077,6 +2083,22 @@ input[type="file"] {
 
 .medsam-active .kite-controls {
   display: none;
+}
+
+/* Hide keyboard shortcuts and annotation controls in MedSAM mode */
+.medsam-active .keyboard-shortcuts-btn,
+.medsam-active .annotation-controls {
+  display: none !important;
+}
+
+/* Show keyboard shortcuts and annotation controls in KITE mode */
+.kite-active .keyboard-shortcuts-btn,
+.kite-active .annotation-controls {
+  display: block;
+}
+
+.kite-active .annotation-controls {
+  display: flex;
 }
 
 .loading-overlay {

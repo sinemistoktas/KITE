@@ -1,3 +1,5 @@
+//website/frontend/static/js/api-service.js
+
 import { state } from './state.js';
 import { redrawAnnotations, resetZoom } from './canvas-tools.js';
 

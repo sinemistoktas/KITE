@@ -57,7 +57,7 @@
   </a>
 </div>
 
-<div class="keyboard-shortcuts-btn" style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
+<div class="keyboard-shortcuts-btn {% if algorithm_name == 'unet' %}d-none{% endif %}" style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
   <button class="btn btn-outline-light rounded-circle" style="width: 40px; height: 40px; padding: 0; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.9); border: 1px solid rgba(0, 0, 0, 0.1); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
     <i class="fa-solid fa-keyboard" style="font-size: 1.2rem; color: #333;"></i>
   </button>
@@ -104,9 +104,14 @@
       <div>
         <h6 class="segtool-text">Upload an image</h6>
         <input id="file-upload" type="file" name="image" class="form-control" required style="display:none;" accept="image/*">
-        <button type="button" class="custom-upload-btn" style="height: 60px; text-align: center; display: flex; align-items: center; justify-content: center;" onclick="document.getElementById('file-upload').click()">
-          <i class="fa fa-cloud-upload me-2"></i> Upload Image
-        </button>
+        <div class="d-flex flex-column gap-2">
+          <button type="button" class="custom-upload-btn" style="height: 60px; text-align: center; display: flex; align-items: center; justify-content: center;" onclick="document.getElementById('file-upload').click()">
+            <i class="fa fa-cloud-upload me-2"></i> Upload Image
+          </button>
+          <button type="button" class="custom-upload-btn" style="height: 60px; text-align: center; display: flex; align-items: center; justify-content: center;" onclick="uploadDemoImage()">
+            <i class="fa fa-image me-2"></i> Upload Demo Image
+          </button>
+        </div>
         <span id="fileNameDisplay" class="file-name-display"></span>
       </div>
     </div>
@@ -142,35 +147,37 @@
       </button>
     </div>
 
-    <div class="algorithm-info" id="algorithmManual" style="display: none;">
-      {% if algorithm_name == 'kite' %}
-      <strong>KITE Instructions:</strong>
-      <ul>
-        <li>Use the Line tool to draw continuous strokes</li>
-        <li>Use the Dot tool for precise point annotations</li>
-        <li>Use the Box tool to create rectangular selections</li>
-        <li>Use the Fill tool to quickly annotate large areas</li>
-        <li>Use the Eraser to remove unwanted annotations</li>
-        <li>Click "Ready to Segment!" when finished</li>
-      </ul>
-      {% elif algorithm_name == 'medsam' %}
-      <strong>MedSAM Instructions:</strong>
-      <ul>
-        <li>Draw bounding boxes around areas you want to segment</li>
-        <li>Each box will be processed automatically</li>
-        <li>Draw multiple boxes for different structures</li>
-        <li>Use undo to remove last box</li>
-        <li>Use reset to clear all boxes</li>
-      </ul>
-      {% elif algorithm_name == 'unet' %}
-      <strong>Deep Learning Assisted Instructions:</strong>
-      <ul>
-        <li>The model will automatically segment fluid regions</li>
-        <li>There is no need for annotations</li>
-        <li>Click "Ready to Segment!" to see results</li>
-      </ul>
-      {% endif %}
-    </div>
+      <div class="algorithm-info" id="algorithmManual" style="display: none;">
+        {% if algorithm_name == 'kite' %}
+          <strong>KITE Instructions:</strong>
+          <ul>
+            <li>Use the Line tool to draw continuous strokes</li>
+            <li>Use the Dot tool for precise point annotations</li>
+            <li>Use the Box tool to create rectangular selections</li>
+            <li>Use the Fill tool to quickly annotate large areas</li>
+            <li>Use the Eraser to remove unwanted annotations</li>
+            <li>Click "Ready to Segment!" when finished</li>
+            <b style="color: #73bbc5"> General tip: Draw inside the selection not outside! </b>
+          </ul>
+        {% elif algorithm_name == 'medsam' %}
+          <strong>MedSAM Instructions:</strong>
+          <ul>
+            <li>Draw bounding boxes around areas you want to segment</li>
+            <li>Each box will be processed automatically</li>
+            <li>Multiple boxes will create combined segmentation masks</li>
+            <li>Use Undo to remove last box</li>
+            <li>Use Reset All to clear all boxes</li>
+            <li>Different colors are assigned to each box for easy identification</li>
+          </ul>
+        {% elif algorithm_name == 'unet' %}
+          <strong>Deep Learning Assisted Instructions:</strong>
+          <ul>
+            <li>The model will automatically segment fluid regions</li>
+            <li>There is no need for annotations</li>
+            <li>Click "Ready to Segment!" to see results</li>
+          </ul>
+        {% endif %}
+      </div>
     {% else %}
     <span class="uploaded-filename"><strong>Filename:</strong> {{ image_name }}</span>
     {% endif %}
@@ -182,27 +189,37 @@
     <!-- Segmentation Workspace Main Container Box -->
     <div class="segmentation-workspace d-flex flex-row justify-content-between" style="gap: 8px;">
       <!-- TOOLS BOX -->
-      <div class="tool-sidebar d-flex flex-column align-items-center gap-3" style="min-width: 180px; max-width: 200px;">
+      <div class="tool-sidebar d-flex flex-column align-items-center gap-3 {% if algorithm_name == 'medsam' %}medsam-tools{% endif %}" style="min-width: 180px; max-width: 200px;">
         <h6 class="mb-2" style="width: 100%; text-align: center;">Tools</h6>
 
         <!-- MedSAM specific instructions and controls -->
         <div class="medsam-controls" style="display: none;">
           <div class="d-flex flex-column align-items-center" style="width: 100%;">
-
+            <div class="alert alert-info text-center mb-3" style="font-size: 0.85rem;">
+              <i class="fa-solid fa-info-circle me-1"></i>
+              <strong>Draw bounding boxes</strong><br>
+              Each box adds to the segmentation
+            </div>
 
             <div class="d-flex flex-column align-items-center gap-2" style="width: 100%;">
-              <button type="button" class="btn btn-outline-primary rounded-pill px-3 w-100 mb-2" id="undoMedsamBtn" disabled>
+              <button type="button" class="btn btn-outline-danger rounded-pill px-3 w-100 mb-2" id="undoMedsamBtn" disabled>
                 <i class="fa-solid fa-undo"></i> Undo Last Box
+              </button>
+              <button type="button" class="btn btn-outline-danger rounded-pill px-3 w-100 mb-2" id="redoMedsamBtn" disabled>
+                <i class="fa-solid fa-redo"></i> Redo Last Box
               </button>
               <button type="button" class="btn btn-outline-danger rounded-pill px-3 w-100 mb-2" id="resetMedsamBtn" disabled>
                 <i class="fa-solid fa-trash"></i> Reset All Boxes
               </button>
+              <button type="button" class="btn btn-outline-primary rounded-pill px-3 w-100 mb-2" id="toggleBoxesBtn" disabled>
+                <i class="fa-solid fa-eye-slash"></i> Show Boxes
+              </button>
             </div>
 
-            <div class="medsam-stats" id="medsamStats" style="display: none;">
+            <div class="medsam-stats" id="medsamStats" style="display: block; width: 100%; text-align: center; font-size: 0.85rem; margin-top: 10px;">
               <strong>Current Session:</strong><br>
               <span id="boxCount">0 boxes drawn</span><br>
-              <span id="segmentedAreas">0 areas segmented</span>
+              <span id="segmentedAreas">0 pixels segmented</span>
             </div>
           </div>
         </div>
@@ -291,8 +308,28 @@
           <canvas id="annotationCanvas"></canvas>
           <canvas id="medsamCanvas"></canvas>
           <div class="zoom-info" id="zoomInfo">Zoom: 100%</div>
-        </div>
+          
+          <!-- Loading overlay for MedSAM -->
+          <div id="loadingOverlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 20; align-items: center; justify-content: center; color: white;">
+            <div class="text-center">
+              <div class="spinner-border text-light mb-2" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+              <div>Processing segmentation...</div>
+            </div>
+          </div>
 
+          <!-- Download waiting overlay -->
+          <div id="downloadWaitingOverlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 20; align-items: center; justify-content: center; color: white;">
+            <div class="text-center">
+              <div class="download-spinner mb-3">
+                <i class="fa-solid fa-download fa-bounce" style="font-size: 2rem;"></i>
+              </div>
+              <div class="download-status">Preparing mask for download...</div>
+              <div class="download-progress mt-2" style="font-size: 0.9rem; opacity: 0.8;">This may take a few moments</div>
+            </div>
+          </div>
+        </div>
 
         <!-- Zoom controls -->
         <div class="zoom-controls mt-3">
@@ -322,10 +359,16 @@
           <button class="ready-segment-btn px-4 py-2 rounded-pill shadow-sm" onclick="handleAnnotations()">
             <i class="fa-solid fa-hurricane me-2"></i> Ready to Segment!
           </button>
+          <button id="downloadMedsamMaskBtn" class="ready-segment-btn px-4 py-2 rounded-pill shadow-sm" style="display: none;">
+            <i class="fa-solid fa-download me-2"></i> Download PNG Mask
+          </button>
+          <button id="downloadMedsamNpyBtn" class="ready-segment-btn px-4 py-2 rounded-pill shadow-sm" onclick="downloadNpyMask()" style="display: none;">
+            <i class="fa-solid fa-download me-2"></i> Download NPY Mask
+          </button>
         </div>
 
         <!-- Annotation Controls Below -->
-        <div class="d-flex justify-content-center align-items-center flex-wrap gap-3 mt-4">
+        <div class="d-flex justify-content-center align-items-center flex-wrap gap-3 mt-4 annotation-controls">
 
   <div>
     <input type="file" id="annotationFileInput" accept=".npy" style="display: none;">
@@ -352,7 +395,7 @@
 </div>
 
       <!-- LAYERS PANEL -->
-      <div class="layers-panel tool-sidebar d-flex flex-column align-items-center gap-3" style="min-width: 260px; max-width: 280px;">
+      <div class="layers-panel tool-sidebar d-flex flex-column align-items-center gap-3 {% if algorithm_name == 'medsam' %}d-none{% endif %}" style="min-width: 260px; max-width: 280px;">
         <h6 class="mb-2" style="width: 100%; text-align: center;">Layers</h6>
         <div id="layersContainer" class="d-flex flex-column gap-2" style="width: 100%;">
           <!-- Layers will be dynamically added here -->
@@ -403,23 +446,90 @@
       console.log('Algorithm:', window.algorithm);
       console.log('Segmentation Method:', window.segmentationMethod);
 
-      const fileInput = document.getElementById('file-upload');
-      const fileNameDisplay = document.getElementById('fileNameDisplay');
-      const algorithmRadios = document.querySelectorAll('input[name="algorithm"]');
-      const workspace = document.getElementById('segmentationWorkspace');
-      const medsamControls = document.querySelector('.medsam-controls');
-      const kiteControls = document.querySelector('.kite-controls');
+    const fileInput = document.getElementById('file-upload');
+    const fileNameDisplay = document.getElementById('fileNameDisplay');
+    const algorithmRadios = document.querySelectorAll('input[name="algorithm"]');
+    const workspace = document.getElementById('segmentationWorkspace');
+    const medsamControls = document.querySelector('.medsam-controls');
+    const kiteControls = document.querySelector('.kite-controls');
+    const keyboardShortcuts = document.querySelector('.keyboard-shortcuts-btn');
+    const annotationControls = document.querySelector('.annotation-controls');
+
+    // Make uploadDemoImage function available globally
+    window.uploadDemoImage = function() {
+      // Check if algorithm is selected
+      const isAlgorithmSelected = [...algorithmRadios].some(r => r.checked);
+      if (!isAlgorithmSelected) {
+        alert('Please select an algorithm first');
+        return;
+      }
+
+      // Show loading state
+      const loadingOverlay = document.getElementById('loadingOverlay');
+      if (loadingOverlay) loadingOverlay.style.display = 'flex';
+      
+      // Fetch the demo image
+      fetch("{% static 'img/demo-image.png' %}")
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Failed to fetch demo image');
+          }
+          return response.blob();
+        })
+        .then(blob => {
+          // Create a file from the blob
+          const file = new File([blob], 'demo-image.png', { type: 'image/png' });
+          
+          // Create a new FileList-like object
+          const dataTransfer = new DataTransfer();
+          dataTransfer.items.add(file);
+          
+          // Set the file input's files
+          fileInput.files = dataTransfer.files;
+          
+          // Update filename display
+          if (fileNameDisplay) {
+            fileNameDisplay.textContent = 'demo-image.png';
+          }
+          
+          // Trigger the change event
+          const event = new Event('change', { bubbles: true });
+          fileInput.dispatchEvent(event);
+          
+          // Submit the form
+          fileInput.form.submit();
+        })
+        .catch(error => {
+          console.error('Error loading demo image:', error);
+          alert('Error loading demo image: ' + error.message);
+          if (loadingOverlay) loadingOverlay.style.display = 'none';
+        });
+    };
 
       // Initialize interface based on current algorithm/method
       if (workspace) {
         // Clear all classes first
         workspace.classList.remove('medsam-active', 'kite-active');
 
-        // Check if we're in MedSAM mode
-        if (window.algorithm === 'medsam') {
-          workspace.classList.add('medsam-active');
-          if (medsamControls) medsamControls.style.display = 'block';
-          if (kiteControls) kiteControls.style.display = 'none';
+      // Check if we're in MedSAM mode
+      if (window.algorithm === 'medsam') {
+        workspace.classList.add('medsam-active');
+        if (medsamControls) medsamControls.style.display = 'block';
+        if (kiteControls) kiteControls.style.display = 'none';
+        if (keyboardShortcuts) keyboardShortcuts.style.display = 'none';
+        if (annotationControls) annotationControls.style.display = 'none';
+        
+        // Hide layers panel in MedSAM mode
+        const layersPanel = document.querySelector('.layers-panel');
+        if (layersPanel) layersPanel.style.display = 'none';
+        
+        // Show download buttons and hide Ready to Segment button in MedSAM mode
+        const downloadMaskBtn = document.getElementById('downloadMedsamMaskBtn');
+        const downloadNpyBtn = document.getElementById('downloadMedsamNpyBtn');
+        const readySegmentBtn = document.querySelector('.ready-segment-btn');
+        if (downloadMaskBtn) downloadMaskBtn.style.display = 'inline-block';
+        if (downloadNpyBtn) downloadNpyBtn.style.display = 'inline-block';
+        if (readySegmentBtn) readySegmentBtn.style.display = 'none';
 
           // Load MedSAM JavaScript module
           const script = document.createElement('script');
@@ -432,13 +542,19 @@
           };
           document.head.appendChild(script);
 
-        } else if (window.algorithm === 'KITE' || window.segmentationMethod) {
-          // KITE mode or legacy segmentation method mode
-          workspace.classList.add('kite-active');
-          if (medsamControls) medsamControls.style.display = 'none';
-          if (kiteControls) kiteControls.style.display = 'block';
-        }
+      } else if (window.algorithm === 'kite' || window.segmentationMethod) {
+        // KITE mode or legacy segmentation method mode
+        workspace.classList.add('kite-active');
+        if (medsamControls) medsamControls.style.display = 'none';
+        if (kiteControls) kiteControls.style.display = 'block';
+        if (keyboardShortcuts) keyboardShortcuts.style.display = 'block';
+        if (annotationControls) annotationControls.style.display = 'flex';
+        
+        // Show layers panel in KITE mode
+        const layersPanel = document.querySelector('.layers-panel');
+        if (layersPanel) layersPanel.style.display = 'flex';
       }
+    }
 
       // File upload handler
       if (fileInput && fileNameDisplay) {
@@ -498,19 +614,77 @@
     }
   </script>
 
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      const shortcutsBtn = document.querySelector('.keyboard-shortcuts-btn');
-      const tooltip = document.querySelector('.shortcuts-tooltip');
-
-      shortcutsBtn.addEventListener('mouseenter', function() {
-        tooltip.style.display = 'block';
-      });
-
-      shortcutsBtn.addEventListener('mouseleave', function() {
-        tooltip.style.display = 'none';
-      });
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const shortcutsBtn = document.querySelector('.keyboard-shortcuts-btn');
+    const tooltip = document.querySelector('.shortcuts-tooltip');
+    
+    shortcutsBtn.addEventListener('mouseenter', function() {
+      tooltip.style.display = 'block';
     });
-  </script>
+    
+    shortcutsBtn.addEventListener('mouseleave', function() {
+      tooltip.style.display = 'none';
+    });
+  });
+</script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const toggleBoxesBtn = document.getElementById('toggleBoxesBtn');
+    if (toggleBoxesBtn) {
+      toggleBoxesBtn.addEventListener('click', function() {
+        const isVisible = window.showBoxes !== false;
+        window.toggleBoxVisibility(!isVisible);
+        this.innerHTML = isVisible ? 
+          '<i class="fa-solid fa-eye-slash"></i> Show Boxes' : 
+          '<i class="fa-solid fa-eye"></i> Hide Boxes';
+      });
+    }
+  });
+</script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const kiteControls = document.querySelector('.kite-controls');
+ 
+ 
+    if (window.algorithm === 'unet') {
+      // Only show eraser
+      const toolButtons = kiteControls.querySelectorAll('.tool-with-slider');
+      toolButtons.forEach(div => {
+        const eraser = div.querySelector('#eraserMode');
+        if (!eraser) div.style.display = 'none';
+      });
+    }
+  });
+ </script>
+
+<style>
+  /* Add this at the end of the file */
+  .medsam-tools {
+    min-width: 280px !important;
+    max-width: 300px !important;
+    margin-left: auto; /* This will push it more to the right */
+    margin-right: 20px; /* Add some space from the right edge */
+  }
+  
+  /* Remove the row-reverse since we want to keep left alignment */
+  .medsam-active .segmentation-workspace {
+    justify-content: flex-start;
+  }
+
+  /* Make MedSAM control buttons wider */
+  .medsam-tools .medsam-controls .btn {
+    min-width: 200px !important;
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
+  }
+
+  /* Make the alert box wider too */
+  .medsam-tools .medsam-controls .alert {
+    min-width: 200px !important;
+  }
+</style>
 </body>
 </html>
