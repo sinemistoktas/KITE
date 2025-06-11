@@ -3401,6 +3401,33 @@ body.kite-active #loadMaskBtn {
     opacity: 1 !important;
 }
 
+/* Hide load and download annotation buttons in MedSAM mode */
+.medsam-active button[onclick="loadAnnotations()"],
+.medsam-active button[onclick="downloadAnnotations()"],
+.medsam-active #downloadAnnotationsBtn {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+
+/* Show load and download annotation buttons in KITE mode */
+.kite-active button[onclick="loadAnnotations()"],
+.kite-active button[onclick="downloadAnnotations()"],
+.kite-active #downloadAnnotationsBtn {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Show load and download annotation buttons in UNet mode */
+.unet-active button[onclick="loadAnnotations()"],
+.unet-active button[onclick="downloadAnnotations()"],
+.unet-active #downloadAnnotationsBtn {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
 
 
 
