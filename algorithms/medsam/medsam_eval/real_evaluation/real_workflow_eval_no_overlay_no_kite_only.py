@@ -72,6 +72,36 @@ class RealWorkflowEvaluator:
         dice = (2 * intersection) / (pred_binary.sum() + gt_binary.sum() + 1e-8)
         return float(dice)
     
+    def calculate_iou(self, pred_mask: np.ndarray, gt_mask: np.ndarray, threshold: float = 0.5) -> float:
+        """Calculate Intersection over Union (IoU) / Jaccard Index"""
+    
+        # Handle MedSAM multi-class output (same logic as Dice)
+        if pred_mask.max() > 1.0 and pred_mask.dtype in [np.int32, np.int64, np.uint8]:
+            pred_binary = (pred_mask > 0).astype(np.uint8)
+            print(f"    ✓ Multi-class mask detected for IoU")
+        elif pred_mask.max() > 1.0:
+            if pred_mask.max() <= 255:
+                pred_binary = (pred_mask > threshold * 255).astype(np.uint8)
+            else:
+                pred_mask_norm = pred_mask / pred_mask.max()
+                pred_binary = (pred_mask_norm > threshold).astype(np.uint8)
+        else:
+            pred_binary = (pred_mask > threshold).astype(np.uint8)
+        
+        gt_binary = (gt_mask > 0).astype(np.uint8)
+        
+        # Ensure same shape
+        if pred_binary.shape != gt_binary.shape:
+            pred_binary = cv2.resize(pred_binary, (gt_binary.shape[1], gt_binary.shape[0]), 
+                                interpolation=cv2.INTER_NEAREST)
+        
+        # Calculate IoU = intersection / union
+        intersection = np.logical_and(pred_binary, gt_binary).sum()
+        union = np.logical_or(pred_binary, gt_binary).sum()
+        
+        iou = intersection / (union + 1e-8)
+        return float(iou)
+    
     def load_mask(self, mask_path: str) -> np.ndarray:
         """Load mask from NPY or PNG format"""
         try:
@@ -141,6 +171,7 @@ class RealWorkflowEvaluator:
             'gt_area': int(np.sum(gt_mask > 0)),
             'masks_loaded': {},
             'dice_scores': {},
+            'iou_scores': {},
             'pred_areas': {},
             'errors': []
         }
@@ -151,10 +182,12 @@ class RealWorkflowEvaluator:
                 medsam_mask = self.load_mask(medsam_annotation_mask)
                 if medsam_mask is not None:
                     dice_medsam = self.calculate_dice(medsam_mask, gt_mask)
+                    iou_medsam = self.calculate_iou(medsam_mask, gt_mask)
                     results['masks_loaded']['medsam_annotation'] = medsam_mask
                     results['dice_scores']['medsam_annotation'] = dice_medsam
+                    results['iou_scores']['medsam_annotation'] = iou_medsam
                     results['pred_areas']['medsam_annotation'] = int(np.sum(medsam_mask > 0.5))
-                    print(f"  ✓ MedSAM + Annotation: Dice = {dice_medsam:.3f}")
+                    print(f"  ✓ MedSAM + Annotation: Dice = {dice_medsam:.3f}, IoU = {iou_medsam:.3f}")
                 else:
                     results['errors'].append("Failed to load MedSAM annotation mask")
             except Exception as e:
@@ -173,10 +206,12 @@ class RealWorkflowEvaluator:
                 edit_mask = self.load_mask(edited_mask)
                 if edit_mask is not None:
                     dice_edited = self.calculate_dice(edit_mask, gt_mask)
+                    iou_edited = self.calculate_iou(edit_mask, gt_mask)
                     results['masks_loaded']['edited'] = edit_mask
                     results['dice_scores']['edited'] = dice_edited
+                    results['iou_scores']['edited'] = iou_edited
                     results['pred_areas']['edited'] = int(np.sum(edit_mask > 0.5))
-                    print(f"  ✓ MedSAM + Editing: Dice = {dice_edited:.3f}")
+                    print(f"  ✓ MedSAM + Editing: Dice = {dice_edited:.3f}, IoU = {iou_edited:.3f}") 
                 else:
                     results['errors'].append("Failed to load edited mask")
             except Exception as e:
@@ -195,10 +230,12 @@ class RealWorkflowEvaluator:
                 kite_mask = self.load_mask(kite_only_mask)
                 if kite_mask is not None:
                     dice_kite = self.calculate_dice(kite_mask, gt_mask)
+                    iou_kite = self.calculate_iou(kite_mask, gt_mask)
                     results['masks_loaded']['kite_only'] = kite_mask
                     results['dice_scores']['kite_only'] = dice_kite
+                    results['iou_scores']['kite_only'] = iou_kite
                     results['pred_areas']['kite_only'] = int(np.sum(kite_mask > 0.5))
-                    print(f"  ✓ KITE Only: Dice = {dice_kite:.3f}")
+                    print(f"  ✓ KITE Only: Dice = {dice_kite:.3f}, IoU = {iou_kite:.3f}")
                 else:
                     results['errors'].append("Failed to load KITE-only mask")
             except Exception as e:
@@ -322,34 +359,39 @@ class RealWorkflowEvaluator:
         
         # User annotation impact
         dice_scores = results['dice_scores']
+        iou_scores = results['iou_scores']
         pred_areas = results['pred_areas']
         
         if 'medsam_annotation' in dice_scores:
             metrics_text += f"📍 User Annotation Impact:\n"
-            # If we have a baseline (full image), show improvement
             if 'medsam_full' in dice_scores:
-                full_score = dice_scores['medsam_full']
-                annotation_score = dice_scores['medsam_annotation']
-                improvement = annotation_score - full_score
-                metrics_text += f"    Full Image: {full_score:.3f}\n"
-                metrics_text += f"    With Annotation: {annotation_score:.3f}\n"
-                metrics_text += f"    Improvement: +{improvement:.3f}\n"
+                full_dice = dice_scores['medsam_full']
+                full_iou = iou_scores.get('medsam_full', 'N/A')
+                annotation_dice = dice_scores['medsam_annotation']
+                annotation_iou = iou_scores['medsam_annotation']
+                dice_improvement = annotation_dice - full_dice
+                metrics_text += f"    Full Image: Dice {full_dice:.3f}, IoU {full_iou}\n"
+                metrics_text += f"    With Annotation: Dice {annotation_dice:.3f}, IoU {annotation_iou:.3f}\n"
+                metrics_text += f"    Improvement: +{dice_improvement:.3f} Dice\n"
             else:
-                metrics_text += f"    With Annotation: {dice_scores['medsam_annotation']:.3f}\n"
-        
+                metrics_text += f"    Dice: {dice_scores['medsam_annotation']:.3f}\n"
+                metrics_text += f"    IoU: {iou_scores['medsam_annotation']:.3f}\n"
+
         # Editing workflow
         if 'medsam_annotation' in dice_scores and 'edited' in dice_scores:
-            initial_score = dice_scores['medsam_annotation']
-            final_score = dice_scores['edited']
-            editing_improvement = final_score - initial_score
-            relative_improvement = (editing_improvement / initial_score) * 100 if initial_score > 0 else float('inf')
+            initial_dice = dice_scores['medsam_annotation']
+            initial_iou = iou_scores['medsam_annotation']
+            final_dice = dice_scores['edited']
+            final_iou = iou_scores['edited']
+            dice_improvement = final_dice - initial_dice
+            iou_improvement = final_iou - initial_iou
             
             metrics_text += f"\n🖌️ Interactive Editing:\n"
-            metrics_text += f"    Initial (MedSAM): {initial_score:.3f}\n"
-            metrics_text += f"    After Editing: {final_score:.3f}\n"
-            metrics_text += f"    Improvement: +{editing_improvement:.3f}\n"
-            if relative_improvement != float('inf'):
-                metrics_text += f"    Relative: +{relative_improvement:.1f}%\n"
+            metrics_text += f"    Initial: Dice {initial_dice:.3f}, IoU {initial_iou:.3f}\n"
+            metrics_text += f"    Final: Dice {final_dice:.3f}, IoU {final_iou:.3f}\n"
+            metrics_text += f"    Improvement: +{dice_improvement:.3f} Dice, +{iou_improvement:.3f} IoU\n"
+
+
         
         # Technical details
         metrics_text += f"\n📋 Technical Details:\n"
@@ -435,13 +477,21 @@ class RealWorkflowEvaluator:
             print("❌ No successful results to report")
             return None
         
-        # Calculate averages
+        # Calculate dice score averages
         medsam_scores = [r['dice_scores']['medsam_annotation'] for r in successful_results 
                         if 'medsam_annotation' in r['dice_scores']]
         edited_scores = [r['dice_scores']['edited'] for r in successful_results 
                         if 'edited' in r['dice_scores']]
         kite_scores = [r['dice_scores']['kite_only'] for r in successful_results 
                       if 'kite_only' in r['dice_scores']]
+        
+        # Calculate iou score averages
+        medsam_iou_scores = [r['iou_scores']['medsam_annotation'] for r in successful_results 
+                            if 'medsam_annotation' in r['iou_scores']]
+        edited_iou_scores = [r['iou_scores']['edited'] for r in successful_results 
+                            if 'edited' in r['iou_scores']]
+        kite_iou_scores = [r['iou_scores']['kite_only'] for r in successful_results 
+                        if 'kite_only' in r['iou_scores']]
         
         # Generate report
         report_path = os.path.join(self.results_dir, 'real_workflow_report.txt')
@@ -467,10 +517,18 @@ class RealWorkflowEvaluator:
             
             if medsam_scores:
                 f.write(f"🎯 MedSAM + Annotation: {np.mean(medsam_scores):.4f} ± {np.std(medsam_scores):.4f} Dice\n")
+                if medsam_iou_scores:
+                    f.write(f"    IoU: {np.mean(medsam_iou_scores):.4f} ± {np.std(medsam_iou_scores):.4f}\n")
+
             if edited_scores:
                 f.write(f"✏️ MedSAM + Editing: {np.mean(edited_scores):.4f} ± {np.std(edited_scores):.4f} Dice\n")
+                if edited_iou_scores:
+                    f.write(f"    IoU: {np.mean(edited_iou_scores):.4f} ± {np.std(edited_iou_scores):.4f}\n")
+
             if kite_scores:
                 f.write(f"⚒️ KITE Only: {np.mean(kite_scores):.4f} ± {np.std(kite_scores):.4f} Dice\n")
+                if kite_iou_scores:
+                    f.write(f"    IoU: {np.mean(kite_iou_scores):.4f} ± {np.std(kite_iou_scores):.4f}\n")
             
             if medsam_scores and edited_scores:
                 improvements = [edited_scores[i] - medsam_scores[i] 
