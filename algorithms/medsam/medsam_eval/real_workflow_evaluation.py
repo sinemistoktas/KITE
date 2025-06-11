@@ -14,10 +14,25 @@ MEDSAM_ANNOTATION_MASK = "downloaded_masks/medsam_annotation_Subject_04_25.npy"
 EDITED_MASK = "downloaded_masks/edited_Subject_04_25.npy"  
 KITE_ONLY_MASK = "downloaded_masks/kite_only_Subject_04_25.npy"
 ANNOTATION_COORDS = None  # e.g., [50, 30, 200, 150] or None
-DATASET_PATH = "../../../../data/duke_original"
+DATASET_PATH = "../../../data/duke_original"
 RESULTS_DIR = "evaluation_results"
 
+# NOTE : put necessary mask files in downloaded_masks folder
+# NOTE: put original image file in medsam_eval folder
 # ============================================================
+
+import os
+
+# Get the directory where this script is located
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Update paths to be relative to script location
+MEDSAM_ANNOTATION_MASK = os.path.join(SCRIPT_DIR, MEDSAM_ANNOTATION_MASK)
+EDITED_MASK = os.path.join(SCRIPT_DIR, EDITED_MASK)
+KITE_ONLY_MASK = os.path.join(SCRIPT_DIR, KITE_ONLY_MASK)
+DATASET_PATH = os.path.join(SCRIPT_DIR, DATASET_PATH)
+RESULTS_DIR = os.path.join(SCRIPT_DIR, RESULTS_DIR)
+
 
 import os
 import numpy as np
@@ -30,9 +45,9 @@ from typing import Dict, List, Tuple
 class RealWorkflowEvaluator:
     def __init__(self, 
                  dataset_path: str = "data/duke_original",
-                 results_base_dir: str = "real_workflow_results"):
+                 results_base_dir: str = "evaluation_results"):
         self.dataset_path = dataset_path
-        self.results_dir = os.path.join(results_base_dir, f"eval_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+        self.results_dir = os.path.join(results_base_dir, f"eval_{IMAGE_NAME}_{datetime.now().strftime('%d-%m-%Y_%H-%M-%S')}")
         os.makedirs(self.results_dir, exist_ok=True)
         os.makedirs(os.path.join(self.results_dir, 'visualizations'), exist_ok=True)
         
@@ -71,6 +86,36 @@ class RealWorkflowEvaluator:
         intersection = np.logical_and(pred_binary, gt_binary).sum()
         dice = (2 * intersection) / (pred_binary.sum() + gt_binary.sum() + 1e-8)
         return float(dice)
+    
+    def calculate_iou(self, pred_mask: np.ndarray, gt_mask: np.ndarray, threshold: float = 0.5) -> float:
+        """Calculate Intersection over Union (IoU) / Jaccard Index"""
+    
+        # Handle MedSAM multi-class output (same logic as Dice)
+        if pred_mask.max() > 1.0 and pred_mask.dtype in [np.int32, np.int64, np.uint8]:
+            pred_binary = (pred_mask > 0).astype(np.uint8)
+            print(f"    ✓ Multi-class mask detected for IoU")
+        elif pred_mask.max() > 1.0:
+            if pred_mask.max() <= 255:
+                pred_binary = (pred_mask > threshold * 255).astype(np.uint8)
+            else:
+                pred_mask_norm = pred_mask / pred_mask.max()
+                pred_binary = (pred_mask_norm > threshold).astype(np.uint8)
+        else:
+            pred_binary = (pred_mask > threshold).astype(np.uint8)
+        
+        gt_binary = (gt_mask > 0).astype(np.uint8)
+        
+        # Ensure same shape
+        if pred_binary.shape != gt_binary.shape:
+            pred_binary = cv2.resize(pred_binary, (gt_binary.shape[1], gt_binary.shape[0]), 
+                                interpolation=cv2.INTER_NEAREST)
+        
+        # Calculate IoU = intersection / union
+        intersection = np.logical_and(pred_binary, gt_binary).sum()
+        union = np.logical_or(pred_binary, gt_binary).sum()
+        
+        iou = intersection / (union + 1e-8)
+        return float(iou)
     
     def load_mask(self, mask_path: str) -> np.ndarray:
         """Load mask from NPY or PNG format"""
@@ -141,6 +186,7 @@ class RealWorkflowEvaluator:
             'gt_area': int(np.sum(gt_mask > 0)),
             'masks_loaded': {},
             'dice_scores': {},
+            'iou_scores': {},
             'pred_areas': {},
             'errors': []
         }
@@ -151,10 +197,12 @@ class RealWorkflowEvaluator:
                 medsam_mask = self.load_mask(medsam_annotation_mask)
                 if medsam_mask is not None:
                     dice_medsam = self.calculate_dice(medsam_mask, gt_mask)
+                    iou_medsam = self.calculate_iou(medsam_mask, gt_mask)
                     results['masks_loaded']['medsam_annotation'] = medsam_mask
                     results['dice_scores']['medsam_annotation'] = dice_medsam
+                    results['iou_scores']['medsam_annotation'] = iou_medsam
                     results['pred_areas']['medsam_annotation'] = int(np.sum(medsam_mask > 0.5))
-                    print(f"  ✓ MedSAM + Annotation: Dice = {dice_medsam:.3f}")
+                    print(f"  ✓ MedSAM + Annotation: Dice Score = {dice_medsam:.3f}, IoU Score = {iou_medsam:.3f}")
                 else:
                     results['errors'].append("Failed to load MedSAM annotation mask")
             except Exception as e:
@@ -173,10 +221,12 @@ class RealWorkflowEvaluator:
                 edit_mask = self.load_mask(edited_mask)
                 if edit_mask is not None:
                     dice_edited = self.calculate_dice(edit_mask, gt_mask)
+                    iou_edited = self.calculate_iou(edit_mask, gt_mask)
                     results['masks_loaded']['edited'] = edit_mask
                     results['dice_scores']['edited'] = dice_edited
+                    results['iou_scores']['edited'] = iou_edited
                     results['pred_areas']['edited'] = int(np.sum(edit_mask > 0.5))
-                    print(f"  ✓ MedSAM + Editing: Dice = {dice_edited:.3f}")
+                    print(f"  ✓ MedSAM + Editing: Dice Score = {dice_edited:.3f}, IoU Score = {iou_edited:.3f}") 
                 else:
                     results['errors'].append("Failed to load edited mask")
             except Exception as e:
@@ -195,10 +245,12 @@ class RealWorkflowEvaluator:
                 kite_mask = self.load_mask(kite_only_mask)
                 if kite_mask is not None:
                     dice_kite = self.calculate_dice(kite_mask, gt_mask)
+                    iou_kite = self.calculate_iou(kite_mask, gt_mask)
                     results['masks_loaded']['kite_only'] = kite_mask
                     results['dice_scores']['kite_only'] = dice_kite
+                    results['iou_scores']['kite_only'] = iou_kite
                     results['pred_areas']['kite_only'] = int(np.sum(kite_mask > 0.5))
-                    print(f"  ✓ KITE Only: Dice = {dice_kite:.3f}")
+                    print(f"  ✓ KITE Only: Dice Score = {dice_kite:.3f}, IoU Score = {iou_kite:.3f}")
                 else:
                     results['errors'].append("Failed to load KITE-only mask")
             except Exception as e:
@@ -219,11 +271,11 @@ class RealWorkflowEvaluator:
         
         return results
     
-    def create_comprehensive_visualization(self, 
-                                        image_name: str, 
-                                        results: Dict, 
-                                        save_path: str = None) -> str:
-        """Create clean visualization without overlays, similar to your preferred format"""
+    def create_comprehensive_visualization_no_kite(self, 
+                                                image_name: str, 
+                                                results: Dict, 
+                                                save_path: str = None) -> str:
+        """Create clean visualization focused on MedSAM workflow only (no KITE-only results)"""
         
         if not results or len(results['masks_loaded']) == 0:
             print(f"  ⚠️ No masks to visualize for {image_name}")
@@ -233,24 +285,17 @@ class RealWorkflowEvaluator:
         original_img = self.load_original_image(image_name)
         gt_mask = self.load_ground_truth(image_name)
         
-        # Determine layout based on available masks
-        masks = results['masks_loaded']
-        n_masks = len(masks)
+        # Filter out kite_only results for this visualization
+        masks = {k: v for k, v in results['masks_loaded'].items() if k != 'kite_only'}
         
-        # Create layout: top row for images, bottom row for one additional image and metrics
-        # Top row: Original + Annotation, Ground Truth, then available masks
-        # Bottom row: One more mask (if available) and metrics panel
+        if not masks:
+            print(f"  ⚠️ No MedSAM workflow masks to visualize for {image_name}")
+            return None
         
-        n_top_cols = min(4, n_masks + 2)  # +2 for original and GT
-        total_cols = max(n_top_cols, 2)  # Ensure at least 2 columns for bottom row
+        # Create layout: 2x2 grid
+        fig, axes = plt.subplots(2, 2, figsize=(12, 8))
         
-        fig, axes = plt.subplots(2, total_cols, figsize=(5*total_cols, 10))
-        if total_cols == 1:
-            axes = axes.reshape(-1, 1)
-        elif axes.ndim == 1:
-            axes = axes.reshape(1, -1)
-        
-        # Top row: Original with annotation, Ground Truth, and first few results
+        # Top row: Original with annotation, Ground Truth
         col = 0
         
         # Original image with annotation box
@@ -270,152 +315,81 @@ class RealWorkflowEvaluator:
         axes[0, col].imshow(gt_mask, cmap='gray')
         axes[0, col].set_title('Ground Truth', fontsize=12, fontweight='bold')
         axes[0, col].axis('off')
-        col += 1
         
-        # Show available masks
-        mask_titles = {
-            'medsam_annotation': 'MedSAM with Annotation',
-            'edited': 'After User Editing',
-            'kite_only': 'KITE Only'
-        }
-        
-        # Track which masks we've shown
-        masks_shown = []
-        masks_remaining = []
-        
-        # Show first few masks in top row
-        for mask_key, mask in masks.items():
-            if col < total_cols and len(masks_shown) < 2:  # Show max 2 masks in top row
-                # Convert probability mask to binary for visualization
-                if mask.max() <= 1.0:
-                    display_mask = (mask > 0.5).astype(np.uint8) * 255
-                else:
-                    display_mask = mask
-                
-                axes[0, col].imshow(display_mask, cmap='gray')
-                dice_score = results['dice_scores'].get(mask_key, 0)
-                title = f"{mask_titles.get(mask_key, mask_key)}\nDice: {dice_score:.3f}"
-                axes[0, col].set_title(title, fontsize=11, fontweight='bold')
-                axes[0, col].axis('off')
-                masks_shown.append(mask_key)
-                col += 1
-            else:
-                masks_remaining.append((mask_key, mask))
-        
-        # Hide unused top row axes
-        for i in range(col, total_cols):
-            axes[0, i].axis('off')
-        
-        # Bottom row: Remaining mask (if any) and metrics panel
+        # Bottom row: MedSAM result and edited result side by side
         col = 0
         
-        # Show one more mask if available
-        if masks_remaining:
-            mask_key, mask = masks_remaining[0]
-            
-            # Convert probability mask to binary for visualization
+        # MedSAM + Annotation result
+        if 'medsam_annotation' in masks:
+            mask = masks['medsam_annotation']
             if mask.max() <= 1.0:
                 display_mask = (mask > 0.5).astype(np.uint8) * 255
             else:
                 display_mask = mask
             
             axes[1, col].imshow(display_mask, cmap='gray')
-            dice_score = results['dice_scores'].get(mask_key, 0)
-            
-            # Special formatting for improvement
-            title = f"{mask_titles.get(mask_key, mask_key)}\nDice: {dice_score:.3f}"
-            if mask_key == 'edited' and 'medsam_annotation' in results['dice_scores']:
-                improvement = dice_score - results['dice_scores']['medsam_annotation']
-                title += f"\n(+{improvement:.3f})"
-                # Make title green if improvement
-                axes[1, col].set_title(title, fontsize=11, fontweight='bold', color='green')
-            else:
-                axes[1, col].set_title(title, fontsize=11, fontweight='bold')
-            
+            dice_score = results['dice_scores'].get('medsam_annotation', 0)
+            iou_score = results['iou_scores'].get('medsam_annotation', 0)
+            axes[1, col].set_title(f'MedSAM with Annotation\nDice Score: {dice_score:.3f}\nIoU Score: {iou_score:.3f}', 
+                                fontsize=12, fontweight='bold')
+            axes[1, col].axis('off')
+            col += 1
+        else:
             axes[1, col].axis('off')
             col += 1
         
-        # Metrics panel (always in the rightmost position)
-        metrics_col = total_cols - 1
-        axes[1, metrics_col].axis('off')
-        
-        # Create comprehensive metrics text in the style you liked
-        metrics_text = "📊 ANNOTATED EVALUATION:\n\n"
-        
-        # User annotation impact
-        if results['annotation_coords']:
-            x1, y1, x2, y2 = results['annotation_coords']
-            box_area = (x2 - x1) * (y2 - y1)
-            metrics_text += f"📍 User Annotation Impact:\n"
-            metrics_text += f"    Full Image: {results['dice_scores'].get('medsam_full', 'N/A')}\n"
-            metrics_text += f"    With Annotation: {results['dice_scores'].get('medsam_annotation', 'N/A')}\n"
-            if 'medsam_annotation' in results['dice_scores'] and 'medsam_full' in results['dice_scores']:
-                improvement = results['dice_scores']['medsam_annotation'] - results['dice_scores']['medsam_full']
-                metrics_text += f"    Improvement: +{improvement:.3f}\n"
-        
-        metrics_text += "\n📋 Complete Workflow:\n"
-        
-        # Show all dice scores
-        dice_scores = results['dice_scores']
-        pred_areas = results['pred_areas']
-        
-        step = 1
-        if 'medsam_annotation' in dice_scores:
-            metrics_text += f"    {step}. MedSAM + Annotation: {dice_scores['medsam_annotation']:.3f}\n"
-            step += 1
-        
-        if 'edited' in dice_scores:
-            metrics_text += f"    {step}. + User Editing: {dice_scores['edited']:.3f}\n"
-            step += 1
+        # Show edited result if available
+        if 'edited' in masks:
+            mask = masks['edited']
+            if mask.max() <= 1.0:
+                display_mask = (mask > 0.5).astype(np.uint8) * 255
+            else:
+                display_mask = mask
             
-        if 'kite_only' in dice_scores:
-            metrics_text += f"    {step}. Tool Only: {dice_scores['kite_only']:.3f}\n"
-        
-        # Details section
-        metrics_text += "\n📋 Details:\n"
-        if results['annotation_coords']:
-            x1, y1, x2, y2 = results['annotation_coords']
-            box_area = (x2 - x1) * (y2 - y1)
-            metrics_text += f"    Annotation Box: {box_area}px\n"
-        
-        metrics_text += f"    GT Area: {results['gt_area']} pixels\n"
-        if pred_areas:
-            # Show the main predicted area
-            main_pred_area = pred_areas.get('edited', pred_areas.get('medsam_annotation', list(pred_areas.values())[0]))
-            metrics_text += f"    Pred Area: {main_pred_area} pixels\n"
-        
-        # Best result highlight
-        if dice_scores:
-            best_method = max(dice_scores.keys(), key=lambda k: dice_scores[k])
-            best_score = dice_scores[best_method]
-            worst_method = min(dice_scores.keys(), key=lambda k: dice_scores[k])
+            axes[1, col].imshow(display_mask, cmap='gray')
+            dice_score = results['dice_scores'].get('edited', 0)
+            iou_score = results['iou_scores'].get('edited', 0)
             
-            metrics_text += f"\n📈 Best: {mask_titles.get(best_method, best_method)}\n"
-            metrics_text += f"    ({best_score:.3f}, better than {mask_titles.get(worst_method, worst_method)})\n"
+            # Calculate improvement
+            title = f'After User Editing\nDice Score: {dice_score:.3f}\nIoU Score: {iou_score:.3f}'
+            if 'medsam_annotation' in results['dice_scores']:
+                improvement_dice = dice_score - results['dice_scores']['medsam_annotation']
+                improvement_iou = iou_score - results['iou_scores']['medsam_annotation']
+                title += f'\n(+{improvement_dice:.3f} Dice Score, +{improvement_iou:.3f} IoU Score)'
+                # Green title if improvement
+                axes[1, col].set_title(title, fontsize=12, fontweight='bold', color='green')
+            else:
+                axes[1, col].set_title(title, fontsize=12, fontweight='bold')
+            axes[1, col].axis('off')
         
-        # Add the metrics text with the green background you liked
-        axes[1, metrics_col].text(0.02, 0.98, metrics_text, transform=axes[1, metrics_col].transAxes, 
-                                fontsize=9, verticalalignment='top', fontfamily='monospace',
-                                bbox=dict(boxstyle="round,pad=0.8", facecolor="lightgreen", alpha=0.9))
-        
-        # Hide any remaining axes
-        for i in range(col, metrics_col):
-            axes[1, i].axis('off')
-        
-        plt.suptitle(f'COMP 491 - Real Website Workflow Evaluation\n{image_name}', 
+        plt.suptitle(f'COMP 491 - MedSAM Interactive Workflow Evaluation\n{image_name}', 
                 fontsize=16, fontweight='bold')
         plt.tight_layout()
         
-        # Save
+        # Save with different name to distinguish from full workflow
         if save_path is None:
             save_path = os.path.join(self.results_dir, 'visualizations', 
-                                f'{os.path.splitext(image_name)[0]}_clean_workflow.png')
+                                f'{os.path.splitext(image_name)[0]}_medsam_workflow.png')
         
         plt.savefig(save_path, dpi=300, bbox_inches='tight', facecolor='white')
         plt.close()
         
-        print(f"  ✅ Clean visualization saved: {save_path}")
+        print(f"  ✅ MedSAM workflow visualization saved: {save_path}")
         return save_path
+
+
+    def create_both_visualizations(self, 
+                                image_name: str, 
+                                results: Dict) -> Tuple[str, str]:
+        """Create both full workflow and MedSAM-only visualizations"""
+        
+        # Create full workflow visualization
+        full_viz_path = self.create_comprehensive_visualization(image_name, results)
+        
+        # Create MedSAM-only workflow visualization
+        medsam_viz_path = self.create_comprehensive_visualization_no_kite(image_name, results)
+        
+        return full_viz_path, medsam_viz_path
     
     def generate_final_report(self, all_results: List[Dict]) -> str:
         """Generate final evaluation report"""
@@ -427,13 +401,21 @@ class RealWorkflowEvaluator:
             print("❌ No successful results to report")
             return None
         
-        # Calculate averages
+        # Calculate dice score averages
         medsam_scores = [r['dice_scores']['medsam_annotation'] for r in successful_results 
                         if 'medsam_annotation' in r['dice_scores']]
         edited_scores = [r['dice_scores']['edited'] for r in successful_results 
                         if 'edited' in r['dice_scores']]
         kite_scores = [r['dice_scores']['kite_only'] for r in successful_results 
                       if 'kite_only' in r['dice_scores']]
+        
+        # Calculate iou score averages
+        medsam_iou_scores = [r['iou_scores']['medsam_annotation'] for r in successful_results 
+                            if 'medsam_annotation' in r['iou_scores']]
+        edited_iou_scores = [r['iou_scores']['edited'] for r in successful_results 
+                            if 'edited' in r['iou_scores']]
+        kite_iou_scores = [r['iou_scores']['kite_only'] for r in successful_results 
+                        if 'kite_only' in r['iou_scores']]
         
         # Generate report
         report_path = os.path.join(self.results_dir, 'real_workflow_report.txt')
@@ -459,10 +441,18 @@ class RealWorkflowEvaluator:
             
             if medsam_scores:
                 f.write(f"🎯 MedSAM + Annotation: {np.mean(medsam_scores):.4f} ± {np.std(medsam_scores):.4f} Dice\n")
+                if medsam_iou_scores:
+                    f.write(f"    IoU: {np.mean(medsam_iou_scores):.4f} ± {np.std(medsam_iou_scores):.4f}\n")
+
             if edited_scores:
                 f.write(f"✏️ MedSAM + Editing: {np.mean(edited_scores):.4f} ± {np.std(edited_scores):.4f} Dice\n")
+                if edited_iou_scores:
+                    f.write(f"    IoU: {np.mean(edited_iou_scores):.4f} ± {np.std(edited_iou_scores):.4f}\n")
+
             if kite_scores:
                 f.write(f"⚒️ KITE Only: {np.mean(kite_scores):.4f} ± {np.std(kite_scores):.4f} Dice\n")
+                if kite_iou_scores:
+                    f.write(f"    IoU: {np.mean(kite_iou_scores):.4f} ± {np.std(kite_iou_scores):.4f}\n")
             
             if medsam_scores and edited_scores:
                 improvements = [edited_scores[i] - medsam_scores[i] 
@@ -477,10 +467,10 @@ class RealWorkflowEvaluator:
             f.write(f"\n🎓 CONCLUSIONS FOR COMP 491 REPORT\n")
             f.write("-" * 35 + "\n")
             f.write("✅ Real website workflow successfully evaluated\n")
-            f.write("✅ Actual user interaction results validated\n")
-            f.write("✅ Quantitative evidence of tool effectiveness\n")
-            f.write("✅ Demonstrates practical utility for medical professionals\n")
-            f.write("✅ Proves successful MedSAM integration and enhancement\n")
+            f.write("Actual user interaction results validated\n")
+            f.write("Quantitative evidence of tool effectiveness\n")
+            f.write("Demonstrates practical utility for medical professionals\n")
+            f.write("Proves successful MedSAM integration and enhancement\n")
         
         # Save detailed JSON (convert numpy arrays to lists)
         json_results = []
@@ -559,7 +549,7 @@ def main():
     
     if result:
         # Create visualization
-        evaluator.create_comprehensive_visualization(IMAGE_NAME, result)
+        evaluator.create_comprehensive_visualization_no_kite(IMAGE_NAME, result)
         
         # Generate report
         evaluator.generate_final_report([result])
