@@ -1,0 +1,6 @@
+Image Name	Dice Score	IoU
+Subject_01_16.png	0.0457	0.0234
+Subject_01_29.png	0.3599	0.2194
+
+Average Dice Score: 0.2028
+Average IoU: 0.1214
