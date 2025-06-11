@@ -23,6 +23,7 @@ from io import BytesIO
 import numpy as np
 import torch
 import cv2 as cv
+from django.views.decorators.http import require_http_methods
 
 preprocessor = Preprocessor()
 segmentation_model = SegmentationModel(preprocessor)
@@ -1028,3 +1029,63 @@ def draw_line(mask, x1, y1, x2, y2, layer_value, width, height, thickness=1):
         if e2 < dx:
             err += dx
             y += sy
+
+@require_http_methods(["POST"])
+def load_mask(request):
+    if request.method == "POST":
+        try:
+            if 'mask_file' in request.FILES:
+                mask_file = request.FILES['mask_file']
+                image_name = request.POST.get('image_name', '') 
+                
+                print(f"Loading mask file: {mask_file.name}")
+                print(f"For image: {image_name}")
+                
+                # Verify it's a .npy file
+                if not mask_file.name.endswith('.npy'):
+                    return JsonResponse({"error": "Only .npy files are supported"}, status=400)
+                
+                # Read the .npy file
+                mask_data = np.load(mask_file, allow_pickle=True)
+                print(f"Loaded mask data with shape: {mask_data.shape}")
+                print(f"Data type: {mask_data.dtype}")
+                print(f"Data min/max values: {mask_data.min()}/{mask_data.max()}")
+                
+                # Ensure mask is binary (0 or 1)
+                if mask_data.max() > 1:
+                    mask_data = (mask_data > 0).astype(np.uint8)
+                
+                # Convert mask data to list for JSON serialization
+                mask_list = mask_data.tolist()
+                
+                # Get image dimensions from the database or file system
+                try:
+                    image_path = os.path.join(settings.MEDIA_ROOT, 'uploads', image_name)
+                    if os.path.exists(image_path):
+                        img = cv2.imread(image_path)
+                        if img is not None:
+                            height, width = img.shape[:2]
+                            print(f"Original image dimensions: {width}x{height}")
+                            return JsonResponse({
+                                "success": True,
+                                "mask_data": mask_list,
+                                "image_dimensions": {
+                                    "width": width,
+                                    "height": height
+                                }
+                            })
+                except Exception as e:
+                    print(f"Error getting image dimensions: {str(e)}")
+                
+                return JsonResponse({
+                    "success": True,
+                    "mask_data": mask_list
+                })
+            else:
+                return JsonResponse({"error": "No mask file provided"}, status=400)
+                
+        except Exception as e:
+            print(f"Error loading mask: {str(e)}")
+            return JsonResponse({"error": str(e)}, status=500)
+    
+    return JsonResponse({"error": "Invalid request method"}, status=405)

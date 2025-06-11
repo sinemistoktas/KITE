@@ -368,20 +368,32 @@
         </div>
 
         <!-- Annotation Controls Below -->
-        <div class="d-flex justify-content-center align-items-center flex-wrap gap-3 mt-4 annotation-controls">
+        <div class="d-flex flex-column align-items-center gap-3 mt-4">
+          <!-- First Row -->
+          <div class="d-flex justify-content-center align-items-center gap-3">
+            <div>
+              <input type="file" id="annotationFileInput" accept=".npy" style="display: none;">
+              <button class="annotation-action-btn px-4 py-2 rounded-pill" onclick="loadAnnotations()">
+                <i class="fa-solid fa-upload me-2"></i> Load Annotations / Mask Layers (npy)
+              </button>
+            </div>
 
-  <div>
-    <input type="file" id="annotationFileInput" accept=".npy" style="display: none;">
-    <button class="annotation-action-btn px-4 py-2 rounded-pill" onclick="loadAnnotations()">
-      <i class="fa-solid fa-upload me-2"></i> Load Annotations
-    </button>
-  </div>
+            <div>
+              <button id="downloadAnnotationsBtn" class="annotation-action-btn px-4 py-2 rounded-pill" onclick="downloadAnnotations()">
+                <i class="fa-solid fa-download me-2"></i> Download Annotations / Mask Layers
+              </button>
+            </div>
+          </div>
 
-  <div>
-    <button id="downloadAnnotationsBtn" class="annotation-action-btn px-4 py-2 rounded-pill" onclick="downloadAnnotations()">
-      <i class="fa-solid fa-download me-2"></i> Download Annotations
-    </button>
-  </div>
+          <!-- Second Row -->
+          <div class="d-flex justify-content-center align-items-center gap-3">
+            <div>
+              <input type="file" id="maskFileInput" accept=".npy" style="display: none;">
+              <button id="loadMaskBtn" class="annotation-action-btn px-4 py-2 rounded-pill" onclick="console.log('Button clicked'); loadMask();">
+                <i class="fa-solid fa-upload me-2"></i> Load MedSAM Mask (npy)
+              </button>
+            </div>
+          </div>
 
           <div>
             <button id="downloadSegmentedImage"
@@ -390,9 +402,8 @@
               <i class="fa-solid fa-download me-2"></i> Download Segmented Image
             </button>
           </div>
-
-</div>
-</div>
+        </div>
+      </div>
 
       <!-- LAYERS PANEL -->
       <div class="layers-panel tool-sidebar d-flex flex-column align-items-center gap-3 {% if algorithm_name == 'medsam' %}d-none{% endif %}" style="min-width: 260px; max-width: 280px;">

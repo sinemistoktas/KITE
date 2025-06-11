@@ -1275,3 +1275,131 @@ function hidePredictionToggleButton() {
         toggleBtn.style.display = 'none';
     }
 }
+
+export function loadMask() {
+    console.log('loadMask function called');
+    const fileInput = document.getElementById('maskFileInput');
+    console.log('fileInput element:', fileInput);
+    
+    if (!fileInput) {
+        console.error('maskFileInput element not found');
+        return;
+    }
+    
+    fileInput.click();
+    
+    fileInput.onchange = function(event) {
+        console.log('File selected:', event.target.files[0]);
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        if (!file.name.endsWith('.npy')) {
+            alert('Please select a .npy file');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('mask_file', file);
+        formData.append('image_name', state.imageName);
+        
+        const csrfToken = getCSRFToken();
+        console.log('Sending request to /load-mask/');
+        
+        fetch('/load-mask/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken
+            },
+            credentials: 'same-origin',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Response from server:', data);
+            if (data.success && data.mask_data) {
+                displayLoadedMask(data.mask_data, data.image_dimensions);
+            } else {
+                alert('Error loading mask: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error loading mask:', error);
+            alert('Error loading mask: ' + error.message);
+        });
+    };
+}
+
+function displayLoadedMask(maskData, imageDimensions) {
+    console.log('Loading mask data:', maskData);
+    console.log('Image dimensions:', imageDimensions);
+    
+    // Clear existing annotations first
+    state.scribbles = state.scribbles.filter(s => s.isPrediction);
+    
+    const layersContainer = document.getElementById('layersContainer');
+    if (layersContainer) {
+        while (layersContainer.firstChild) {
+            layersContainer.removeChild(layersContainer.firstChild);
+        }
+    }
+    state.visibleLayerIds = [];
+    state.layerCounter = 0;
+    
+    import('./layers.js').then(module => {
+        const { createLayer } = module;
+        
+        // Create a new layer for the mask
+        const layerName = 'Loaded Mask';
+        const layerId = createLayer(layerName, '#ff0000'); // Default red color
+        
+        // Get the mask dimensions
+        const maskHeight = maskData.length;
+        const maskWidth = maskData[0].length;
+        
+        // Get the canvas dimensions
+        const canvas = state.annotationCanvas;
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        
+        console.log('Canvas dimensions:', { canvasWidth, canvasHeight });
+        console.log('Mask dimensions:', { maskWidth, maskHeight });
+        
+        // Calculate scaling factors based on canvas dimensions
+        const scaleX = canvasWidth / maskWidth;
+        const scaleY = canvasHeight / maskHeight;
+        
+        console.log('Scaling factors:', { scaleX, scaleY });
+        
+        // Convert mask data to points with proper scaling
+        const points = [];
+        for (let y = 0; y < maskData.length; y++) {
+            for (let x = 0; x < maskData[y].length; x++) {
+                if (maskData[y][x] > 0) {
+                    // Scale the coordinates to match canvas dimensions
+                    const scaledX = Math.round(x * scaleX);
+                    const scaledY = Math.round(y * scaleY);
+                    points.push({ x: scaledX, y: scaledY });
+                }
+            }
+        }
+        
+        // Add points as individual dot annotations
+        points.forEach(point => {
+            state.scribbles.push({
+                points: [point],
+                isPrediction: false,
+                color: '#ff0000',
+                layerId: layerId,
+                isLoadedMask: true,
+                isDot: true
+            });
+        });
+        
+        console.log(`Added ${points.length} dots for mask`);
+        
+        import('./canvas-tools.js').then(module => {
+            const { redrawAnnotations } = module;
+            redrawAnnotations();
+        });
+    });
+}

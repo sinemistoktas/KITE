@@ -10,7 +10,8 @@ import {
     loadSegmentationResultsAsAnnotations,
     handlePreprocessedImg,
     loadAnnotations,
-    downloadAnnotations
+    downloadAnnotations,
+    loadMask
 } from './api-service.js';
 import { initBoxTool } from './box-tool.js';
 
@@ -258,6 +259,9 @@ document.addEventListener('DOMContentLoaded', () => {
     window.handlePreprocessedImg = handlePreprocessedImg;
     window.loadAnnotations = loadAnnotations;
     window.downloadAnnotations = downloadAnnotations;
+    window.loadMask = loadMask;
+    
+    console.log('loadMask function added to window:', typeof window.loadMask);
 
     if (window.algorithm) {
         const normalizedAlgorithm = window.algorithm.toLowerCase();

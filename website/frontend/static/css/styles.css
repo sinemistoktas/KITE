@@ -3379,6 +3379,28 @@ h6.segtool-text {
   color: #333;
 }
 
+/* Show load mask button in KITE mode */
+.kite-active #loadMaskBtn {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Hide load mask button in other modes */
+.medsam-active #loadMaskBtn,
+.unet-active #loadMaskBtn {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+
+/* Ensure the button is visible when KITE mode is active */
+body.kite-active #loadMaskBtn {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
 
 
 
