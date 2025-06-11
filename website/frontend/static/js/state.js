@@ -1,3 +1,5 @@
+// website/frontend/static/js/state.js
+
 export const state = {
     // Interaction state
     mouseX: 0,
@@ -6,6 +8,11 @@ export const state = {
     showEraserCursor: false,
     isDrawing: false,
     isErasing: false,
+
+    lineThickness: 2,
+    dotRadius: 2,
+    eraserRadius: 10,
+
 
     // fill tool state variables
     isFillToolActive: false,
@@ -26,6 +33,7 @@ export const state = {
     currentLayerId: null,
     visibleLayerIds: [],
     showPredictions: true,
+    isEditingSegmentationResults: false, // Track if we're in editing mode
 
     // Zooming
     zoomLevel: 1,
@@ -40,11 +48,18 @@ export const state = {
     predictionCanvas: null,
     predictionCtx: null,
 
+    originalImageNaturalDimensions: { width: 0, height: 0 },
+    currentDisplayScale: 1,
+    resizeScale: 1,
+    resizeHistory: [],
+    currentResizeIndex: -1,
+    
     //UNet integration
     unetMode: false,
     imageName: null,
     predictedPoints: [],
     segmentationMethod: null,
+    coordinatesAlreadyScaled: false,
 };
 
 export const ERASE_RADIUS = 10;

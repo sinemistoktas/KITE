@@ -1,4 +1,5 @@
-// layers.js
+// website/frontend/static/js/layers.js
+
 import { state } from './state.js';
 import { redrawAnnotations } from './canvas-tools.js';
 
@@ -28,7 +29,7 @@ export function createLayer(type, color) {
     });
 
     const layerControls = document.createElement('div');
-    layerControls.className = 'd-flex align-items-center gap-2';
+    layerControls.className = 'd-flex align-items-center justify-content-end flex-wrap gap-1';
 
     const visibilityToggle = document.createElement('div');
     visibilityToggle.className = 'form-check form-switch';

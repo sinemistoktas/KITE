@@ -1,4 +1,4 @@
-# website/backend/medsam/urls.py
+# website/backend/segmentation/medsam/urls.py
 """
 MedSAM URL Configuration
 Simplified URL patterns with batch support as default.
@@ -15,4 +15,6 @@ urlpatterns = [
     
     # Health check
     path('health', views.health_check, name='health'),
+
+    path('download-npy/', views.download_npy_mask, name='download_npy_mask'),
 ]

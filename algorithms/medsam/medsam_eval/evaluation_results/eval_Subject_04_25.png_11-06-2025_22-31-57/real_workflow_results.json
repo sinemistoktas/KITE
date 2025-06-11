@@ -1,0 +1,36 @@
+{
+  "summary": {
+    "avg_medsam_dice": 0.8037383177564689,
+    "avg_edited_dice": 0.8323289613606293,
+    "avg_kite_dice": 0.026057088712532647,
+    "num_successful": 1
+  },
+  "detailed_results": [
+    {
+      "image_name": "Subject_04_25.png",
+      "annotation_coords": null,
+      "image_shape": [
+        224,
+        512
+      ],
+      "gt_area": 6983,
+      "dice_scores": {
+        "medsam_annotation": 0.8037383177564689,
+        "edited": 0.8323289613606293,
+        "kite_only": 0.026057088712532647
+      },
+      "iou_scores": {
+        "medsam_annotation": 0.6718749999992447,
+        "edited": 0.7128111718266996,
+        "kite_only": 0.013200528021115564
+      },
+      "pred_areas": {
+        "medsam_annotation": 7890,
+        "edited": 17358,
+        "kite_only": 11586
+      },
+      "errors": [],
+      "editing_improvement": 0.028590643604160415
+    }
+  ]
+}

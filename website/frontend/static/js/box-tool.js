@@ -1,3 +1,4 @@
+//website/frontend/static/js/box-tool.js
 
 import { state } from './state.js';
 import { redrawAnnotations } from './canvas-tools.js';
@@ -8,57 +9,11 @@ import { screenToImageCoords } from './canvas-utils.js';
 export function initBoxTool() {
     console.log('Box Tool: Initializing');
     
-    // Add button click handler
-    const boxButton = document.getElementById('boxMode');
-    if (boxButton) {
-        boxButton.addEventListener('click', handleBoxButtonClick);
-    }
-    
-    // Add keyboard shortcut
-    document.addEventListener('keydown', (e) => {
-        if (["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) return;
-        if (e.key.toUpperCase() === "B") {
-            handleBoxButtonClick();
-        }
-    });
     
     console.log('Box Tool: Initialized');
 }
 
-// Handle box button click
-function handleBoxButtonClick() {
-    console.log('Box Tool: Button clicked, current mode:', state.mode);
-    
-    // Toggle box mode following the same pattern as other tools
-    if (state.mode === 'box') {
-        state.mode = null;
-    } else {
-        state.mode = 'box';
-    }
-    
-    // Update button styles
-    updateBoxButtonStyle();
-    
-    console.log('Box Tool: Mode set to:', state.mode);
-}
-
-// Update box button style based on mode
-function updateBoxButtonStyle() {
-    const boxButton = document.getElementById('boxMode');
-    if (!boxButton) return;
-    
-    if (state.mode === 'box') {
-        boxButton.classList.remove('btn-outline-danger');
-        boxButton.classList.add('btn-danger');
-    } else {
-        boxButton.classList.remove('btn-danger');
-        boxButton.classList.add('btn-outline-danger');
-    }
-}
-
-// Mouse event handlers
 export function handleBoxMouseDown(e) {
-    // Only handle if we're actually in box mode
     if (state.mode !== 'box') return false;
     
     console.log('Box Tool: Mouse down');
@@ -67,11 +22,9 @@ export function handleBoxMouseDown(e) {
     state.mouseX = coords.x;
     state.mouseY = coords.y;
     
-    // Start box drawing
     state.isBoxDrawing = true;
     state.boxStartPoint = { ...coords };
     
-    // Create a new layer for the box
     const layerId = createLayer("Box", state.selectedColor);
     state.currentStrokeColor = state.selectedColor;
     state.currentLayerId = layerId;
@@ -81,7 +34,6 @@ export function handleBoxMouseDown(e) {
 }
 
 export function handleBoxMouseMove(e) {
-    // Only handle if we're actually in box mode and drawing a box
     if (state.mode !== 'box' || !state.isBoxDrawing) return false;
     
     const coords = screenToImageCoords(e.clientX, e.clientY);
@@ -93,7 +45,6 @@ export function handleBoxMouseMove(e) {
 }
 
 export function handleBoxMouseUp() {
-    // Only handle if we're actually in box mode and drawing a box
     if (state.mode !== 'box' || !state.isBoxDrawing || !state.boxStartPoint) return false;
     
     console.log('Box Tool: Mouse up - creating box');
@@ -142,7 +93,6 @@ export function handleBoxMouseUp() {
 }
 
 export function handleBoxMouseLeave() {
-    // Only handle if we're actually in box mode and drawing a box
     if (state.mode !== 'box' || !state.isBoxDrawing) return false;
     
     console.log('Box Tool: Mouse leave - canceling box');

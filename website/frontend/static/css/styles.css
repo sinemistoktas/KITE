@@ -168,6 +168,41 @@ p {
   margin-bottom: 1rem;
 }
 
+.home-page h1,
+.home-page h2,
+.home-page h3,
+.home-page .lead {
+  font-family: 'Georgia', serif;
+}
+
+.home-page body,
+.home-page p,
+.home-page li {
+  font-family: 'Georgia', sans-serif;
+}
+
+.home-page .subheading {
+  font-family: 'Georgia', sans-serif;
+  letter-spacing: 0px;
+}
+
+.home-page .title-2 {
+  font-size: 5rem;
+  font-family: 'Georgia', serif;
+}
+
+.home-page .contributor-link {
+  text-decoration: none;
+  transition: color 0.2s ease-in-out;
+}
+
+.home-page .contributor-link:hover {
+  color: #611661; /* hover color */
+  text-decoration: none; /* ensure underline doesn't reappear */
+}
+
+
+
 
 ul {
   padding-left: 2rem;
@@ -1579,7 +1614,11 @@ input[type="file"] {
 
 /* Upload, Ready To Segment & Show-Preprocessed Image Buttons*/
 .custom-upload-btn,
-.ready-segment-btn {
+.show-pre-btn,
+.ready-segment-btn,
+.load-annotations-btn,
+.download-annotations-btn,
+.results-annotations-btn {
   background: var(--accent) !important;
   color: var(--text-dark) !important;
   font-weight: 500 !important;
@@ -1594,31 +1633,22 @@ input[type="file"] {
 }
 
 .custom-upload-btn:hover,
+.show-pre-btn:hover,
+.load-annotations-btn:hover,
 .ready-segment-btn:hover,
+.download-annotations-btn:hover,
+.results-annotations-btn:hover,
 .custom-upload-btn:focus,
-.ready-segment-btn:focus {
+.show-pre-btn:focus,
+.ready-segment-btn:focus,
+.load-annotations-btn:focus,
+.download-annotations-btn:focus,
+.results-annotations-btn:focus {
   background: var(--accent-light) !important;
   box-shadow: 0 6px 16px rgba(22, 183, 142, 0.35) !important;
   transform: translateY(-2px) !important;
   color: var(--text-dark) !important;
   text-decoration: none;
-}
-
-.show-pre-btn {
-  background: transparent;
-  border: 2px solid #fff;
-  color: #f3f6f9;
-  border-radius: 2rem;
-  padding: 10px 28px;
-  font-size: 1rem;
-  transition: background 0.2s, color 0.2s, border 0.2s;
-  outline: none;
-}
-.show-pre-btn:hover,
-.show-pre-btn:focus {
-  background: #529aa3;
-  border-color: #2a5053;
-  color: #f3f6f9;
 }
 
 /* Zoom Buttons */
@@ -1649,7 +1679,9 @@ input[type="file"] {
 #eraseAllMode,
 #fillToolBtn,
 #undoMedsamBtn,
-#resetMedsamBtn {
+#redoMedsamBtn,
+#resetMedsamBtn,
+#toggleBoxesBtn {
   background: transparent !important;
   border: 2px solid #fff !important;
   color: #fff !important;
@@ -1670,7 +1702,9 @@ input[type="file"] {
 #eraseAllMode.btn-danger,
 #fillToolBtn.btn-danger,
 #undoMedsamBtn.btn-danger,
-#resetMedsamBtn.btn-danger {
+#redoMedsamBtn.btn-danger,
+#resetMedsamBtn.btn-danger,
+#toggleBoxesBtn.btn-danger {
   background: #946a90 !important;
   border-color: #634260 !important;
   color: #fff !important;
@@ -1681,7 +1715,6 @@ input[type="file"] {
   text-align: center;
   transition: none !important;
   outline: none !important;
-
 }
 
 #scribbleMode:hover, #scribbleMode:active, #scribbleMode.active,
@@ -1691,7 +1724,9 @@ input[type="file"] {
 #eraseAllMode:hover, #eraseAllMode:active, #eraseAllMode.active,
 #fillToolBtn:hover, #fillToolBtn:active, #fillToolBtn.active,
 #undoMedsamBtn:hover, #undoMedsamBtn:active, #undoMedsamBtn.active,
-#resetMedsamBtn:hover, #resetMedsamBtn:active, #resetMedsamBtn.active{
+#redoMedsamBtn:hover, #redoMedsamBtn:active, #redoMedsamBtn.active,
+#resetMedsamBtn:hover, #resetMedsamBtn:active, #resetMedsamBtn.active,
+#toggleBoxesBtn:hover, #toggleBoxesBtn:active, #toggleBoxesBtn.active {
   background: #946a90 !important;
   border-color: #634260 !important;
   color: #fff !important;
@@ -1704,7 +1739,9 @@ input[type="file"] {
 #eraseAllMode:focus,
 #fillToolBtn:focus,
 #undoMedsamBtn:focus,
-#resetMedsamBtn:focus {
+#redoMedsamBtn:focus,
+#resetMedsamBtn:focus,
+#toggleBoxesBtn:focus {
   outline: none !important;
   box-shadow: none !important;
 }
@@ -1746,10 +1783,43 @@ input[type="file"] {
   flex-shrink: 0;
 }
 
+.tool-sidebar h6,
+.layers-panel h6 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-size: larger;
+  font-family: "Saira Extra Condensed", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  font-weight: 700;
+  line-height: 1.2;
+  color: #e7e9eb;
+  background: linear-gradient(45deg, #ffffff, rgb(164, 203, 239));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  letter-spacing: 0.5px;
+  position: relative;
+  padding-bottom: 8px;
+}
+
+.tool-sidebar h6::after,
+.layers-panel h6::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+}
+
 .tool-sidebar label, .tool-sidebar p {
   color: var(--text-light);
   margin-bottom: 0.35rem;
   font-size: 1rem;
+  font-family: "Saira Extra Condensed", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  font-weight: 500;
 }
 
 .tool-sidebar button {
@@ -1767,15 +1837,113 @@ input[type="file"] {
   cursor: pointer;
 }
 .uploaded-filename {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   color: #f3f6f9;
   font-size: 1.02rem;
-  margin-left: 4px;
-  margin-bottom: 8px;
-  padding-left: 4px;
-  font-style: italic;
+  margin: 0.5rem 0;
+  padding: 0.75rem 1.25rem;
   letter-spacing: 0.03em;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  backdrop-filter: blur(5px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
 }
+
+.uploaded-filename strong {
+  color: rgb(115, 187, 197);
+  /*color: rgb(85, 180, 144);*/
+  margin-right: 0.5rem;
+  font-weight: 600;
+}
+
+.uploaded-filename:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.uploaded-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  margin: 1rem auto;
+  width: 100%;
+}
+
+.info-row {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.info-row .uploaded-filename {
+  flex: 0 1 auto;
+  margin: 0;
+  max-width: 400px;
+  min-width: 300px;
+}
+
+.info-row .algorithm-brief {
+  flex: 0 1 auto;
+  margin: 0;
+  max-width: 500px;
+  min-width: 300px;
+}
+
+.info-row .manual-btn {
+  margin: 0;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.algorithm-info {
+  width: calc(500px + 120px + 1rem);
+  margin: 0.5rem auto 0;
+  padding: 0.75rem 1.25rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #e7e9eb;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  transition: all 0.3s ease;
+}
+
+.algorithm-info strong {
+  color: rgb(115, 187, 197);
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
+
+.algorithm-info ul {
+  margin: 0.5rem 0 0 1.5rem;
+  padding: 0;
+  list-style-type: none;
+}
+
+.algorithm-info ul li {
+  position: relative;
+  margin-bottom: 0.5rem;
+  padding-left: 1.5rem;
+}
+
+.algorithm-info ul li::before {
+  content: "•";
+  color: rgb(115, 187, 197);
+  position: absolute;
+  left: 0;
+  font-size: 1.2rem;
+}
+
 .btn-outline-danger {
   min-width: 110px; 
   max-width: 130px;
@@ -1904,7 +2072,6 @@ input[type="file"] {
   display: none;
 }
 
-
 /* MedSAM aktifken */
 .medsam-controls {
   display: none;
@@ -1916,6 +2083,22 @@ input[type="file"] {
 
 .medsam-active .kite-controls {
   display: none;
+}
+
+/* Hide keyboard shortcuts and annotation controls in MedSAM mode */
+.medsam-active .keyboard-shortcuts-btn,
+.medsam-active .annotation-controls {
+  display: none !important;
+}
+
+/* Show keyboard shortcuts and annotation controls in KITE mode */
+.kite-active .keyboard-shortcuts-btn,
+.kite-active .annotation-controls {
+  display: block;
+}
+
+.kite-active .annotation-controls {
+  display: flex;
 }
 
 .loading-overlay {
@@ -2473,3 +2656,778 @@ input[type="file"] {
 .bulk-download-btn:disabled .fa-spinner {
   animation: pulse 1.5s ease-in-out infinite;
 }
+
+.medsam-active .load-annotations-btn,
+.unet-active .load-annotations-btn {
+    display: none !important;
+}
+
+.img-oct {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 8px;
+}
+
+#zoomContainer {
+  max-width: 1000px;
+}
+
+#zoomContainer img,
+#zoomContainer canvas {
+  max-width: 1000px;
+  width: 100%;
+}
+
+#zoomContainer {
+  max-width: 1000px;
+}
+
+#zoomContainer canvas {
+  width: 100% !important;
+  height: auto;
+}
+.layers-panel input[type="checkbox"] {
+  transform: scale(1.4);
+  accent-color: #78dae6;
+  cursor: pointer;
+}
+
+.layers-panel .fa-trash {
+  color: #78dae6;
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.layers-panel .fa-trash:hover {
+  color: #5097a3;
+}
+
+.annotation-action-btn {
+  background-color: #946a90 !important;
+  color: white !important;
+  border: none !important;
+  font-weight: 500;
+  border-radius: 2rem !important;
+  padding: 10px 28px !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.25s ease, transform 0.2s ease !important;
+  margin-right: 10px;
+  margin-bottom: 10px;
+  outline: none;
+}
+
+/* STRONG OVERRIDE FOR ANNOTATION BUTTONS - Add this at the very end of your CSS file */
+
+/* Target by onclick attribute - most specific */
+button[onclick="loadAnnotations()"],
+button[onclick="downloadAnnotations()"] {
+  background-color: #946a90 !important;
+  background: #946a90 !important;
+  color: white !important;
+  border: none !important;
+  font-weight: 500 !important;
+  border-radius: 2rem !important;
+  padding: 10px 28px !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+  transition: all 0.25s ease !important;
+  margin-right: 10px !important;
+  margin-bottom: 10px !important;
+  outline: none !important;
+}
+
+button[onclick="loadAnnotations()"]:hover,
+button[onclick="downloadAnnotations()"]:hover,
+button[onclick="loadAnnotations()"]:focus,
+button[onclick="downloadAnnotations()"]:focus {
+  background-color: #8a3e85 !important;
+  background: #8a3e85 !important;
+  color: white !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(138, 62, 133, 0.35) !important;
+}
+
+/* Also target by class name */
+.annotation-action-btn {
+  background-color: #946a90 !important;
+  background: #946a90 !important;
+  color: white !important;
+  border: none !important;
+  font-weight: 500 !important;
+  border-radius: 2rem !important;
+  padding: 10px 28px !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+  transition: all 0.25s ease !important;
+  margin-right: 10px !important;
+  margin-bottom: 10px !important;
+  outline: none !important;
+}
+
+.annotation-action-btn:hover,
+.annotation-action-btn:focus,
+.annotation-action-btn:active {
+  background-color: #8a3e85 !important;
+  background: #8a3e85 !important;
+  color: white !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(138, 62, 133, 0.35) !important;
+}
+
+/* Target the specific ID if it exists */
+#downloadAnnotationsBtn {
+  background-color: #946a90 !important;
+  background: #946a90 !important;
+  color: white !important;
+  border: none !important;
+  font-weight: 500 !important;
+  border-radius: 2rem !important;
+  padding: 10px 28px !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+  transition: all 0.25s ease !important;
+  margin-right: 10px !important;
+  margin-bottom: 10px !important;
+  outline: none !important;
+}
+
+#downloadAnnotationsBtn:hover,
+#downloadAnnotationsBtn:focus,
+#downloadAnnotationsBtn:active {
+  background-color: #8a3e85 !important;
+  background: #8a3e85 !important;
+  color: white !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(138, 62, 133, 0.35) !important;
+}
+
+/* ===== RESIZE SYSTEM CSS STYLES ===== */
+
+/* Resize Controls Styling */
+.resize-controls {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.05);
+  margin-top: 1rem;
+}
+
+.resize-controls h6 {
+  color: #ecf0f1;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.resize-controls .btn {
+  font-size: 0.75rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 20px;
+  transition: all 0.2s ease;
+}
+
+.resize-controls .btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.resize-controls .form-range {
+  accent-color: #3498db;
+}
+
+.resize-controls .form-control {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ecf0f1;
+  font-size: 0.75rem;
+}
+
+.resize-controls .form-control:focus {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #3498db;
+  box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+  color: #ecf0f1;
+}
+
+.resize-controls .form-control::placeholder {
+  color: rgba(236, 240, 241, 0.5);
+}
+
+.resize-controls .form-check-input {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.resize-controls .form-check-input:checked {
+  background-color: #3498db;
+  border-color: #3498db;
+}
+
+.resize-controls .form-check-label {
+  color: #bdc3c7;
+  font-size: 0.75rem;
+}
+
+.resize-controls .text-muted {
+  color: #95a5a6 !important;
+  line-height: 1.2;
+}
+
+.resize-controls #resizeInfo {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  padding: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Custom dimensions panel */
+.custom-dimensions {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-top: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.3s ease;
+}
+
+.custom-dimensions.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Enhanced zoom container for better resizing */
+#zoomContainer {
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+#zoomContainer:hover {
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Image resize animation */
+#uploadedImage {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Canvas resize smoothing */
+#annotationCanvas,
+#predictionCanvas,
+#medsamCanvas {
+  transition: all 0.3s ease;
+}
+
+/* Resize info display styling */
+#resizeInfo div {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.2rem;
+}
+
+#resizeInfo div:last-child {
+  margin-bottom: 0;
+}
+
+/* Enhanced button states for resize controls */
+.resize-controls .btn-outline-info:hover {
+  background-color: #3498db;
+  border-color: #3498db;
+  color: white;
+}
+
+.resize-controls .btn-outline-success:hover {
+  background-color: #27ae60;
+  border-color: #27ae60;
+  color: white;
+}
+
+.resize-controls .btn-outline-warning:hover {
+  background-color: #f39c12;
+  border-color: #f39c12;
+  color: white;
+}
+
+.resize-controls .btn-outline-primary:hover {
+  background-color: #3498db;
+  border-color: #3498db;
+  color: white;
+}
+
+.resize-controls .btn-outline-secondary:hover {
+  background-color: #95a5a6;
+  border-color: #95a5a6;
+  color: white;
+}
+
+/* Loading state for resize operations */
+.resizing {
+  opacity: 0.7;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.resizing::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 2px solid #3498db;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Improved form range slider styling */
+.resize-controls .form-range {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  outline: none;
+}
+
+.resize-controls .form-range::-webkit-slider-thumb {
+  appearance: none;
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  background: #3498db;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+}
+
+.resize-controls .form-range::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+.resize-controls .form-range::-moz-range-thumb {
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  background: #3498db;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Responsive design for resize controls */
+@media (max-width: 768px) {
+  .resize-controls {
+    padding: 0.75rem;
+  }
+
+  .resize-controls .btn {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  .tool-sidebar {
+    min-width: 150px;
+    max-width: 170px;
+  }
+}
+
+/* Enhanced layer panel to accommodate resize controls */
+.layers-panel {
+  max-height: 70vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.layers-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.layers-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.layers-panel::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.layers-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Smooth transitions for resize operations */
+.resize-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Better visual feedback for resize controls */
+.resize-controls .btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.resize-controls .form-label {
+  color: #bdc3c7;
+  font-weight: 500;
+}
+
+/* Ensure proper spacing */
+.resize-controls .gap-2 > *:not(:last-child) {
+  margin-bottom: 0.5rem;
+}
+
+.resize-controls .mb-3:last-child {
+  margin-bottom: 1rem !important;
+}
+
+/* NPY and PNG Download Button Colors */
+
+/* NPY and PNG Buttons - Both Green/Success style */
+.download-btn[data-type="npy"],
+button[data-type="npy"],
+.mask-download-buttons button[data-filename*=".npy"],
+.download-btn[data-type="png"],
+button[data-type="png"],
+.mask-download-buttons button[data-filename*=".png"] {
+  background-color: #2acf7e !important;
+  border-color: #1a8855 !important;
+  color: white !important;
+  transition: all 0.25s ease !important;
+}
+
+.download-btn[data-type="npy"]:hover,
+button[data-type="npy"]:hover,
+.mask-download-buttons button[data-filename*=".npy"]:hover,
+.download-btn[data-type="npy"]:focus,
+button[data-type="npy"]:focus,
+.mask-download-buttons button[data-filename*=".npy"]:focus,
+.download-btn[data-type="png"]:hover,
+button[data-type="png"]:hover,
+.mask-download-buttons button[data-filename*=".png"]:hover,
+.download-btn[data-type="png"]:focus,
+button[data-type="png"]:focus,
+.mask-download-buttons button[data-filename*=".png"]:focus {
+  background-color: #2acf7e !important;
+  border-color: #1a8855 !important;
+  color: white !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 8px rgba(25, 135, 84, 0.3) !important;
+}
+
+/* Alternative targeting by button content */
+.mask-download-buttons button:contains("NPY"),
+.download-btn:contains("NPY"),
+.mask-download-buttons button:contains("PNG"),
+.download-btn:contains("PNG") {
+  background-color: #2acf7e !important;
+  border-color: #1a8855 !important;
+  color: white !important;
+}
+
+.mask-download-buttons button:contains("NPY"):hover,
+.download-btn:contains("NPY"):hover,
+.mask-download-buttons button:contains("PNG"):hover,
+.download-btn:contains("PNG"):hover {
+  background-color: #2acf7e !important;
+  border-color: #1a8855 !important;
+  color: white !important;
+}
+
+/* More specific targeting using the exact HTML structure */
+.mask-list-item .mask-download-buttons .btn {
+  background-color: #2acf7e !important;
+  border-color: #1a8855 !important;
+  color: white !important;
+  transition: all 0.25s ease !important;
+  font-weight: 500 !important;
+}
+
+.mask-list-item .mask-download-buttons .btn:hover,
+.mask-list-item .mask-download-buttons .btn:focus {
+  background-color: #2acf7e !important;
+  border-color: #1a8855 !important;
+  color: white !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 8px rgba(25, 135, 84, 0.3) !important;
+}
+
+/* Nuclear option - target all buttons in the mask download area */
+.mask-preview-panel .btn,
+.mask-preview-panel button:not(.bulk-download-btn):not(.select-toggle) {
+  background-color: #2acf7e !important;
+  border-color: #1a8855 !important;
+  color: white !important;
+  transition: all 0.25s ease !important;
+}
+
+.mask-preview-panel .btn:hover,
+.mask-preview-panel button:not(.bulk-download-btn):not(.select-toggle):hover,
+.mask-preview-panel .btn:focus,
+.mask-preview-panel button:not(.bulk-download-btn):not(.select-toggle):focus {
+  background-color: #2acf7e !important;
+  border-color: #1a8855 !important;
+  color: white !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 8px rgba(25, 135, 84, 0.3) !important;
+}
+
+/* Ensure the bulk download button keeps its original styling */
+.bulk-download-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: white !important;
+  border: none !important;
+}
+
+.bulk-download-btn:hover {
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%) !important;
+}
+
+h6.segtool-text {
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin-bottom: 1.5rem;
+  text-transform: none;
+  font-family: "Inter", serif;
+}
+
+/* Upload and Segmentation Method Blocks Styling */
+.algorithm-selection {
+  flex: 1;
+  margin: 0;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.algorithm-selection .form-check-inline {
+  margin: 0;
+  padding: 0;
+  background: none;
+  border-radius: 0;
+  transition: none;
+}
+
+.algorithm-selection .form-check-inline:hover {
+  background: none;
+  transform: none;
+}
+
+.algorithm-selection .form-check-input {
+  display: none;
+}
+
+.algorithm-selection .form-check-label {
+  color: white;
+  cursor: pointer;
+  font-weight: 500;
+  padding: 12px 24px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 2rem;
+  transition: all 0.3s ease;
+  display: block;
+  text-align: center;
+  min-width: 200px;
+  margin: 4px 0;
+}
+
+.algorithm-selection .form-check-label:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.algorithm-selection .form-check-input:checked + .form-check-label {
+  background: linear-gradient(145deg, #2d6971, #1a4a50);
+  border-color: #3d8a93;
+  color: white;
+  box-shadow: 0 4px 15px rgba(45, 105, 113, 0.3);
+  transform: translateY(-2px);
+  border-radius: 2rem;
+}
+
+.algorithm-selection {
+  margin: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Container for upload section */
+.segtool-page-top {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 10px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  align-items: stretch;
+}
+
+.segtool-page-top > div {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+}
+
+.algorithm-selection {
+  margin: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.algorithm-selection .form-check-inline {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.algorithm-selection .form-check-label {
+  width: 100%;
+  max-width: 250px;
+  text-align: center;
+}
+
+.algorithm-brief {
+  color: #e7e9eb;
+  font-size: 0.95rem;
+  font-style: italic;
+  margin: 0.5rem 0;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.manual-btn {
+  background: transparent;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  color: #e7e9eb;
+  padding: 0.5rem 1rem;
+  border-radius: 2rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin: 0.5rem 0;
+}
+
+.manual-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.manual-btn i {
+  color: rgb(115, 187, 197);
+}
+
+#togglePredictionsBtn {
+  border: 2px solid white !important;
+  color: white !important;
+  background-color: transparent !important;
+}
+
+#togglePredictionsBtn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+.annotation-action-btn {
+  background-color: #333;
+  color: white;
+  border: 1px solid white;
+}
+.annotation-action-btn:hover {
+  background-color: white;
+  color: #333;
+}
+
+/* Show load mask button in KITE mode */
+.kite-active #loadMaskBtn {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Hide load mask button in other modes */
+.medsam-active #loadMaskBtn,
+.unet-active #loadMaskBtn {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+
+/* Ensure the button is visible when KITE mode is active */
+body.kite-active #loadMaskBtn {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Hide load and download annotation buttons in MedSAM mode */
+.medsam-active button[onclick="loadAnnotations()"],
+.medsam-active button[onclick="downloadAnnotations()"],
+.medsam-active #downloadAnnotationsBtn {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+
+/* Show load and download annotation buttons in KITE mode */
+.kite-active button[onclick="loadAnnotations()"],
+.kite-active button[onclick="downloadAnnotations()"],
+.kite-active #downloadAnnotationsBtn {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Show load and download annotation buttons in UNet mode */
+.unet-active button[onclick="loadAnnotations()"],
+.unet-active button[onclick="downloadAnnotations()"],
+.unet-active #downloadAnnotationsBtn {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+
+
+

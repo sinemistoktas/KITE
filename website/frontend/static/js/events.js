@@ -1,3 +1,5 @@
+// website/frontend/static/js/events.js
+
 import { state } from './state.js';
 import { screenToImageCoords } from './canvas-utils.js';
 import { redrawAnnotations } from './canvas-tools.js';
@@ -15,12 +17,29 @@ export function bindUIEvents() {
     document.getElementById('dotMode')?.addEventListener('click', () => setMode('dot'));
     document.getElementById('eraserMode')?.addEventListener('click', () => setMode('eraser'));
     document.getElementById('eraseAllMode')?.addEventListener('click', () => setMode('eraseAll'));
+    document.getElementById('togglePredictionsBtn')?.addEventListener('click', togglePredictionVisibility);
     document.getElementById('fillToolBtn')?.addEventListener('click', () => {
         setMode(state.mode === "fill" ? null : "fill");
     });
-    
+    document.getElementById("lineSizeSlider").value = state.lineThickness || 2;
+    document.getElementById("dotSizeSlider").value = state.dotRadius || 2;
+    document.getElementById("eraserSizeSlider").value = state.eraserRadius || 10;
+
+    document.getElementById("lineSizeSlider").addEventListener("input", (e) => {
+        state.lineThickness = parseInt(e.target.value);
+    });
+    document.getElementById("dotSizeSlider").addEventListener("input", (e) => {
+        state.dotRadius = parseInt(e.target.value);
+    });
+    document.getElementById("eraserSizeSlider").addEventListener("input", (e) => {
+        state.eraserRadius = parseInt(e.target.value);
+    });
+
     // Box mode button - let the box-tool.js handle this directly
-    // document.getElementById('boxMode')?.addEventListener('click', () => setMode('box'));
+    document.getElementById('boxMode')?.addEventListener('click', () => setMode('box'));
+    document.addEventListener('modeChanged', (e) => {
+        updateButtonStyles();
+    });
 
     document.getElementById('zoomInBtn')?.addEventListener('click', () => {
         if (state.zoomMode) {
@@ -95,7 +114,9 @@ export function bindUIEvents() {
                 points: [coords],
                 isPrediction: false,
                 color: state.selectedColor,
-                layerId
+                layerId,
+                isDot: true,
+                radius: state.dotRadius
             });
             redrawAnnotations();
         } else if (state.mode === 'line') {
@@ -139,7 +160,6 @@ export function bindUIEvents() {
 
     annotationCanvas.addEventListener('mouseup', () => {
         // First check if box tool handles this event
-        // IMPORTANT: Only let the box tool handle it if we're in box mode
         if (state.mode === 'box' && handleBoxMouseUp()) {
             return; // Box tool handled it, stop processing
         }
@@ -150,7 +170,8 @@ export function bindUIEvents() {
                 points: state.currentStroke,
                 isPrediction: false,
                 color: state.currentStrokeColor,
-                layerId: state.currentLayerId
+                layerId: state.currentLayerId,
+                thickness: state.lineThickness
             });
             state.currentStroke = [];
             redrawAnnotations();
@@ -176,9 +197,8 @@ export function bindUIEvents() {
 
     annotationCanvas.addEventListener('mouseleave', () => {
         // First check if box tool handles this event
-        // IMPORTANT: Only let the box tool handle it if we're in box mode
         if (state.mode === 'box' && handleBoxMouseLeave()) {
-            return; // Box tool handled it, stop processing
+            return;
         }
 
         // Handle line drawing
@@ -199,6 +219,9 @@ export function bindUIEvents() {
 
     // Keyboard Shortcuts
     document.addEventListener('keydown', (e) => {
+        if (state.unetMode || window.algorithm === 'unet') return;
+        if (window.algorithm === 'medsam') return;
+
         if (["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) return;
         const key = e.key.toUpperCase();
 
@@ -208,7 +231,7 @@ export function bindUIEvents() {
         else if (key === "A") setMode(state.mode === "eraseAll" ? null : "eraseAll");
         else if (key === "Z") toggleZoomMode();
         else if (key === "F") toggleFillTool();
-        // Note: Box keyboard shortcut "B" is handled in box-tool.js
+        else if (key === "B") setMode(state.mode === "box" ? null : "box");
     });
 
     // Segmentation mode form handling (for legacy system)
@@ -253,15 +276,14 @@ function setMode(newMode) {
     const zoomBtn = document.getElementById('zoomInBtn');
 
     // Exit zoom mode if switching to a drawing mode
-    if (state.zoomMode) {
+    if (state.zoomMode && newMode !== null) {
         state.zoomMode = false;
         zoomBtn?.classList.remove('btn-primary');
         zoomBtn?.classList.add('btn-outline-primary');
         state.annotationCanvas.classList.remove("zoom-cursor");
-        state.annotationCanvas.style.cursor = "crosshair"; // reset
     }
 
-    if (state.isFillToolActive) {
+    if (state.isFillToolActive && newMode !== "fill") {
         state.isFillToolActive = false;
         document.getElementById('fillToolBtn')?.classList.remove('btn-danger');
         document.getElementById('fillToolBtn')?.classList.add('btn-outline-danger');
@@ -271,14 +293,10 @@ function setMode(newMode) {
 
     if (newMode === "eraseAll") {
         eraseAllAnnotations();
-        updateButtonStyles(); 
+        state.mode = null; // Clear mode after erasing all.
+        updateButtonStyles();
+        setCursor();
         return; 
-    }
-
-    if (state.showEraserCursor && state.mode === "eraser") {
-        state.annotationCanvas.style.cursor = "none"; // ✅ invisible cursor
-    } else if (!state.zoomMode && !state.isFillToolActive) {
-        state.annotationCanvas.style.cursor = "crosshair";
     }
 
     if (newMode === "fill") {
@@ -288,20 +306,25 @@ function setMode(newMode) {
             document.getElementById("zoomInBtn")?.classList.add("btn-outline-primary");
             state.annotationCanvas.classList.remove("zoom-cursor");
         }
-    
+
         state.isFillToolActive = !state.isFillToolActive;
     
+        const fillBtn = document.getElementById('fillToolBtn');
         if (state.isFillToolActive) {
+            fillBtn?.classList.add('btn-danger');
+            fillBtn?.classList.remove('btn-outline-danger');
             resetFillTool();
             updateFillToolStatus("Draw a closed boundary around the area you want to fill");
         } else {
-            document.getElementById("fillToolStatus")?.style.setProperty("display", "none");
+            fillBtn?.classList.remove('btn-danger');
+            fillBtn?.classList.add('btn-outline-danger');
+            document.getElementById('fillToolStatus')?.style.setProperty('display', 'none');
         }
     
         state.mode = state.isFillToolActive ? "fill" : null;
-        state.annotationCanvas.style.cursor = state.isFillToolActive ? "crosshair" : "crosshair";
-    
+        
         updateButtonStyles();
+        setCursor();
         redrawAnnotations();
         return;
     }
@@ -314,13 +337,9 @@ function setMode(newMode) {
         state.showEraserCursor = (newMode === 'eraser');
     }
     
-    if (state.mode === 'eraser' && state.showEraserCursor) {
-        state.annotationCanvas.style.cursor = "none";
-    } else if (!state.zoomMode && !state.isFillToolActive) {
-        state.annotationCanvas.style.cursor = "crosshair";
-    }
-    
+
     updateButtonStyles();
+    setCursor();
     redrawAnnotations();
 }
 
@@ -331,24 +350,76 @@ function toggleZoomMode() {
     if (state.zoomMode) {
         state.mode = null;
         state.showEraserCursor = false;
+        state.isFillToolActive = false;
+
+        document.getElementById('fillToolBtn')?.classList.remove('btn-danger');
+        document.getElementById('fillToolBtn')?.classList.add('btn-outline-danger');
+        document.getElementById('fillToolStatus')?.style.setProperty('display', 'none');
+        resetFillTool();
+        
         state.annotationCanvas.style.cursor = "zoom-in";
         zoomBtn?.classList.add("btn-primary");
         zoomBtn?.classList.remove("btn-outline-primary");
     } else {
-        state.annotationCanvas.style.cursor = "crosshair";
         zoomBtn?.classList.remove("btn-primary");
         zoomBtn?.classList.add("btn-outline-primary");
     }
 
+    updateButtonStyles();
+    setCursor();
     redrawAnnotations();
 }
+// Helper function to set the cursor.
+function setCursor() {
+    if (state.zoomMode) {
+        state.annotationCanvas.style.cursor = "zoom-in";
+    } else if (state.mode === 'eraser' && state.showEraserCursor) {
+        state.annotationCanvas.style.cursor = "none";
+    } else {
+        state.annotationCanvas.style.cursor = "crosshair";
+    }
+}
+
+function updateButtonStyles() {
+    const buttons = {
+        line: document.getElementById("scribbleMode"),
+        dot: document.getElementById("dotMode"),
+        eraser: document.getElementById("eraserMode"),
+        eraseAll: document.getElementById("eraseAllMode"),
+        fill: document.getElementById("fillToolBtn"),
+        zoom: document.getElementById("zoomInBtn"),
+        box: document.getElementById("boxMode")
+    };
+    
+    for (const [tool, btn] of Object.entries(buttons)) {
+        if (!btn) continue;
+        
+        const isActive =
+            (tool === state.mode) ||
+            (tool === "fill" && state.isFillToolActive) ||
+            (tool === "zoom" && state.zoomMode);
+        //TODO: the zoom in button should be selected.
+        if (tool === "zoom") {
+            btn.classList.toggle("btn-primary", isActive);
+            btn.classList.toggle("btn-outline-primary", !isActive);
+        } 
+        else {
+            btn.classList.toggle("btn-danger", isActive);
+            btn.classList.toggle("btn-outline-danger", !isActive);
+        }
+    }
+}
+
+window.updateButtonStyles = updateButtonStyles;
+
+// In your events.js file, replace the existing eraseAt function with this:
 
 function eraseAt(x, y) {
     const newScribbles = [];
-    const existingLayerIds = new Set(); // Track all layers
-    const remainingLayerIds = new Set(); // Track layers that survive
+    const existingLayerIds = new Set();
+    const remainingLayerIds = new Set();
+    const eraseRadius = state.eraserRadius || 10;
 
-    // Track existing layers first
     for (const stroke of state.scribbles) {
         if (stroke.layerId) {
             existingLayerIds.add(stroke.layerId);
@@ -361,50 +432,67 @@ function eraseAt(x, y) {
             continue;
         }
 
-        const hasPointInEraser = stroke.points.some(p => Math.hypot(p.x - x, p.y - y) < 10);
-        if (!hasPointInEraser) {
+        const isLayerVisible = !stroke.layerId || state.visibleLayerIds.includes(stroke.layerId);
+        if (!isLayerVisible) {
             newScribbles.push(stroke);
             if (stroke.layerId) remainingLayerIds.add(stroke.layerId);
             continue;
         }
 
-        // Try splitting stroke into partials
-        let segment = [];
-        for (const point of stroke.points) {
-            const within = Math.hypot(point.x - x, point.y - y) < 10;
-            if (!within) {
-                segment.push(point);
-            } else {
-                if (segment.length > 1) {
+        // Handle single point strokes (dots, loaded annotations, segmentation results)
+        if (stroke.isDot || stroke.isLoadedAnnotation || stroke.isSegmentationResult || stroke.points.length === 1) {
+            const pointsToKeep = stroke.points.filter(p => Math.hypot(p.x - x, p.y - y) >= eraseRadius);
+
+            if (pointsToKeep.length === stroke.points.length) {
+                newScribbles.push(stroke);
+                if (stroke.layerId) remainingLayerIds.add(stroke.layerId);
+            } else if (pointsToKeep.length > 0) {
+                newScribbles.push({
+                    ...stroke,
+                    points: pointsToKeep
+                });
+                if (stroke.layerId) remainingLayerIds.add(stroke.layerId);
+            }
+            continue;
+        }
+
+        // Handle multi-point strokes (lines, fills, boxes) - SPLIT LOGIC
+        const segments = splitStrokeAtErasedPoints(stroke.points, x, y, eraseRadius);
+
+        segments.forEach(segment => {
+            if (segment.length > 0) {
+                // Determine minimum points needed based on stroke type
+                let minPoints = 1;
+                if (stroke.isFilled || stroke.type === 'fill') {
+                    minPoints = 3; // Need at least 3 points for a fill area
+                } else if (stroke.isBox) {
+                    minPoints = 4; // Need 4 points for a box
+                } else if (!stroke.isDot && stroke.points.length > 1) {
+                    minPoints = 2; // Need at least 2 points for a line
+                }
+
+                if (segment.length >= minPoints) {
                     newScribbles.push({
-                        points: segment,
-                        isPrediction: false,
-                        color: stroke.color,
-                        layerId: stroke.layerId
+                        ...stroke,
+                        points: segment
                     });
                     if (stroke.layerId) remainingLayerIds.add(stroke.layerId);
                 }
-                segment = [];
             }
-        }
-
-        if (segment.length > 1) {
-            newScribbles.push({
-                points: segment,
-                isPrediction: false,
-                color: stroke.color,
-                layerId: stroke.layerId
-            });
-            if (stroke.layerId) remainingLayerIds.add(stroke.layerId);
-        }
+        });
     }
 
-    // Remove layers that no longer have any strokes
+    // Clean up empty layers
     for (const layerId of existingLayerIds) {
         if (!remainingLayerIds.has(layerId)) {
-            const el = document.getElementById(layerId);
-            if (el) el.remove();
-            state.visibleLayerIds = state.visibleLayerIds.filter(id => id !== layerId);
+            const wasVisible = state.visibleLayerIds.includes(layerId);
+            if (wasVisible) {
+                const layerElement = document.getElementById(layerId);
+                if (layerElement) {
+                    layerElement.remove();
+                }
+                state.visibleLayerIds = state.visibleLayerIds.filter(id => id !== layerId);
+            }
         }
     }
 
@@ -412,50 +500,54 @@ function eraseAt(x, y) {
     redrawAnnotations();
 }
 
+// ADD this new helper function to your events.js file:
+function splitStrokeAtErasedPoints(points, eraseX, eraseY, eraseRadius) {
+    if (points.length === 0) return [];
+
+    const segments = [];
+    let currentSegment = [];
+
+    for (let i = 0; i < points.length; i++) {
+        const point = points[i];
+        const distanceToEraser = Math.hypot(point.x - eraseX, point.y - eraseY);
+
+        if (distanceToEraser >= eraseRadius) {
+            // Point is outside erase radius, keep it
+            currentSegment.push(point);
+        } else {
+            // Point is within erase radius, should be removed
+            if (currentSegment.length > 0) {
+                // Save current segment and start a new one
+                segments.push([...currentSegment]);
+                currentSegment = [];
+            }
+        }
+    }
+
+    // Don't forget the last segment
+    if (currentSegment.length > 0) {
+        segments.push(currentSegment);
+    }
+
+    return segments;
+}
 function eraseAllAnnotations() {
-    state.scribbles = state.scribbles.filter(s => s.isPrediction); // Keep predictions
+    state.scribbles = state.scribbles.filter(s => s.isPrediction);
     state.layerCounter = 0;
     state.visibleLayerIds = [];
     state.currentLayerId = null;
 
     const layersContainer = document.getElementById('layersContainer');
-    while (layersContainer.firstChild) {
-        layersContainer.removeChild(layersContainer.firstChild);
+    if (layersContainer) {
+        while (layersContainer.firstChild) {
+            layersContainer.removeChild(layersContainer.firstChild);
+        }
     }
 
     redrawAnnotations();
 }
 
-function updateButtonStyles() {
-    const buttons = {
-        line: document.getElementById("scribbleMode"),
-        dot: document.getElementById("dotMode"),
-        eraser: document.getElementById("eraserMode"),
-        eraseAll: document.getElementById("eraseAllMode"),
-        fill: document.getElementById("fillToolBtn"),
-        zoom: document.getElementById("zoomInBtn"),
-        box: document.getElementById("boxMode") // Add box mode button
-    };
-    
-    for (const [tool, btn] of Object.entries(buttons)) {
-        if (!btn) continue;
-        const isActive =
-            (tool === state.mode) ||
-            (tool === "fill" && state.isFillToolActive) ||
-            (tool === "zoom" && state.zoomMode);
-    
-        btn.classList.toggle("btn-danger", isActive && tool !== "zoom");
-        btn.classList.toggle("btn-outline-danger", !isActive && tool !== "zoom");
-    
-        if (tool === "zoom") {
-            btn.classList.toggle("btn-primary", isActive);
-            btn.classList.toggle("btn-outline-primary", !isActive);
-        }
-    }
-}
-
 export function initializeAnnotationsFromPredictions(predictions) {
-    
     if (!predictions || !predictions.length) return;
 
     import('./layers.js').then(module => {
@@ -473,7 +565,6 @@ export function initializeAnnotationsFromPredictions(predictions) {
             }
         });
         
-        // Create a layer for each class
         Object.entries(predictionsByClass).forEach(([classId, shapes]) => {
             const layerName = `Layer ${classId}`;
             const color = shapes[0].color ? 
@@ -504,7 +595,6 @@ export function initializeAnnotationsFromPredictions(predictions) {
         });
     });
 }
-
 
 export function processUNetPredictions(predictedPoints) {
     if (!predictedPoints || predictedPoints.length === 0) return [];
@@ -537,3 +627,45 @@ export function processUNetPredictions(predictedPoints) {
         return null;
     }).filter(Boolean);
 }
+function togglePredictionVisibility() {
+    state.showPredictions = !state.showPredictions;
+
+    const toggleBtn = document.getElementById('togglePredictionsBtn');
+    const icon = document.getElementById('predictionToggleIcon');
+    const text = document.getElementById('predictionToggleText');
+
+    if (state.showPredictions) {
+        toggleBtn.classList.remove('btn-outline-secondary');
+        toggleBtn.classList.add('btn-outline-light');
+
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+
+        text.textContent = 'Hide Contours';
+    } else {
+        toggleBtn.classList.add('btn-outline-light');
+
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+
+        text.textContent = 'Show Contours';
+    }
+
+    redrawAnnotations();
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    const downloadSegmentedBtn = document.getElementById("downloadSegmentedImage");
+
+    if (downloadSegmentedBtn) {
+        downloadSegmentedBtn.addEventListener("click", function () {
+            const segmentedImg = document.getElementById("segmentedResultImage");
+            if (!segmentedImg || !segmentedImg.src) return;
+
+            const link = document.createElement("a");
+            link.href = segmentedImg.src;
+            link.download = "segmented_result.png";
+            link.click();
+        });
+    }
+});

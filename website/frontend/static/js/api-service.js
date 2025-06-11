@@ -1,3 +1,5 @@
+//website/frontend/static/js/api-service.js
+
 import { state } from './state.js';
 import { redrawAnnotations, resetZoom } from './canvas-tools.js';
 
@@ -62,14 +64,89 @@ export function handleAnnotations() {
     }
 
     // Get the selected algorithm or method
-    const algorithm = document.getElementById('algorithm')?.value || window.algorithm || 'kite';
+    const algorithmRadio = document.querySelector('input[name="algorithm"]:checked');
+    const algorithm = algorithmRadio?.value || window.algorithm || 'kite';
     const segmentationMethod = state.segmentationMethod || 'traditional';
     
     console.log('Using algorithm:', algorithm);
     console.log('Using segmentation method:', segmentationMethod);
 
+    if (algorithm === 'unet') {
+        console.log("UNet selected, using processWithUNet()");
+        return processWithUNet(state.imageName)
+            .then(data => {
+                console.log("UNet segmentation response:", data);
+                resetZoom();
+
+                window.lastSegmentationData = data;
+
+                const resultImage = document.getElementById("segmentedResultImage");
+                if (!data.segmented_image) {
+                    console.error("No segmented_image returned!");
+                    return;
+                }
+
+                resultImage.src = `data:image/png;base64,${data.segmented_image}`;
+                document.getElementById("segmentationResult").style.display = "block";
+
+                const downloadBtn = document.getElementById("downloadSegmentedImage");
+                downloadBtn.href = resultImage.src;
+                downloadBtn.download = "segmented_result.png";
+                downloadBtn.style.display = "inline-block";
+
+                if (data.segmentation_map) {
+                    segmentationMapData = data.segmentation_map;
+                    const showSegMapBtn = document.getElementById("showSegMapBtn");
+                    if (showSegMapBtn) showSegMapBtn.style.display = "inline-block";
+                }
+
+                const stageContainer = document.getElementById("segmentationStage");
+                if (stageContainer) {
+                    stageContainer.innerHTML = "";
+                    stageContainer.style.width = resultImage.naturalWidth + "px";
+                    stageContainer.style.height = resultImage.naturalHeight + "px";
+                }
+
+                if (data.final_mask && data.final_mask.length > 0 && stageContainer) {
+                    renderInteractiveRegions(resultImage, data.final_mask,
+                        resultImage.naturalWidth || resultImage.clientWidth,
+                        resultImage.naturalHeight || resultImage.clientHeight,
+                        stageContainer);
+                }
+
+                if (data.predicted_annotations && data.predicted_annotations.length > 0) {
+                    try {
+                        const predictedAnnotations = data.predicted_annotations;
+                        state.scribbles = state.scribbles.filter(s => !s.isPrediction);
+
+                        predictedAnnotations.forEach(annotation => {
+                            if (annotation.shape_type === "polygon") {
+                                const points = annotation.points.map(p => ({ x: p[0], y: p[1], color: "cyan" }));
+                                state.scribbles.push({
+                                    points: points,
+                                    isPrediction: true,
+                                    color: "cyan",
+                                    class_id: annotation.class_id || "fluid"
+                                });
+                            }
+                        });
+
+                        if (data.class_info) createClassLegend(data.class_info);
+                        redrawAnnotations();
+                    } catch (err) {
+                        console.error("Error parsing UNet annotations:", err);
+                    }
+                }
+            })
+            .catch(err => {
+                console.error("UNet segmentation failed:", err);
+                alert("UNet segmentation failed. Check the console for more details.");
+            });
+    }
+
+
+    const originalScribbles = state.scribbles;
     state.scribbles = state.scribbles.filter(s => !s.isPrediction);
-    redrawAnnotations();
 
     const allPoints = state.scribbles.flatMap(s =>
         s.points.map(p => ({
@@ -93,12 +170,11 @@ export function handleAnnotations() {
         }]
     };
 
-    fetchWithCSRF("/segment/", {
+    return fetchWithCSRF("/segment/", {
         method: "POST",
         body: JSON.stringify(payload)
     })
     .then(res => {
-        console.log('Response status:', res.status);
         if (!res.ok) {
             return res.text().then(text => {
                 throw new Error(`HTTP error! status: ${res.status}, message: ${text}`);
@@ -108,10 +184,7 @@ export function handleAnnotations() {
     })
     .then(data => {
         console.log("Segmentation response:", data);
-
         resetZoom();
-
-        // Store segmentation data globally for bulk download
         window.lastSegmentationData = data;
 
         console.log(data.segmentation_mask_npy);
@@ -120,19 +193,21 @@ export function handleAnnotations() {
         const resultImage = document.getElementById("segmentedResultImage");
         console.log("resultImage element:", resultImage);
 
+        if (data.segmented_image) {
+            resultImage.src = `data:image/png;base64,${data.segmented_image}`;
+            document.getElementById("segmentationResult").style.display = "block";
+            
+            const downloadBtn = document.getElementById("downloadSegmentedImage");
+            downloadBtn.href = resultImage.src;
+            downloadBtn.download = "segmented_result.png";
+            downloadBtn.style.display = "inline-block";
+        }
+
+
         if (!data.segmented_image) {
             console.error("No segmented_image returned!");
             return;
         }
-
-        resultImage.src = `data:image/png;base64,${data.segmented_image}`;
-        document.getElementById("segmentationResult").style.display = "block";
-
-        const downloadBtn = document.getElementById("downloadSegmentedImage");
-        downloadBtn.href = resultImage.src;
-        downloadBtn.download = "segmented_result.png";
-        downloadBtn.style.display = "inline-block";
-
         // Handle segmentation map display (for UNet)
         if (data.segmentation_map) {
             segmentationMapData = data.segmentation_map;
@@ -148,29 +223,14 @@ export function handleAnnotations() {
             }
         }
 
-        // Setup stage container
-        const stageContainer = document.getElementById("segmentationStage");
-        if (stageContainer) {
-            stageContainer.innerHTML = ""; // Clear previous content
-
-            const width = resultImage.naturalWidth || resultImage.clientWidth;
-            const height = resultImage.naturalHeight || resultImage.clientHeight;
-            stageContainer.style.width = width + "px";
-            stageContainer.style.height = height + "px";
-        }
+     
 
         // Create mask preview panel if individual masks are available
         if (data.segmentation_masks && data.segmentation_masks.individual_masks && data.segmentation_masks.individual_masks.length > 0) {
             createMaskPreviewPanel(data.segmentation_masks);
         }
 
-        // Handle Konva stage rendering for interactive regions
-        if (data.final_mask && data.final_mask.length > 0 && stageContainer) {
-            renderInteractiveRegions(resultImage, data.final_mask, 
-                resultImage.naturalWidth || resultImage.clientWidth,
-                resultImage.naturalHeight || resultImage.clientHeight, 
-                stageContainer);
-        }
+
 
         // Handle predicted annotations (enhanced from both versions)
         console.log("Predicted annotations full data:", JSON.stringify(data.predicted_annotations));
@@ -179,7 +239,6 @@ export function handleAnnotations() {
             console.log("No predicted annotations found");
             return;
         }
-
         try {
             // Clear previous predictions
             state.scribbles = state.scribbles.filter(s => !s.isPrediction);
@@ -192,9 +251,7 @@ export function handleAnnotations() {
                 // Handle different annotation formats
                 const processedPoints = [];
 
-                predictedAnnotations.forEach((annotation, index) => {
-                    console.log(`Annotation ${index} type:`, typeof annotation);
-                    console.log(`Annotation ${index} value:`, annotation);
+                 predictedAnnotations.forEach((annotation, index) => {
 
                     // Handle polygon annotations (from UNet/advanced algorithms)
                     if (annotation && annotation.shape_type === "polygon" && Array.isArray(annotation.points)) {
@@ -217,12 +274,45 @@ export function handleAnnotations() {
                     else if (Array.isArray(annotation)) {
                         if (Array.isArray(annotation[0])) {
                             // Format: [[x, y], color]
-                            const [[x, y], color] = annotation;
-                            processedPoints.push({ x, y, color: color || "blue" });
+                            const [[x, y], color] = annotation;           
+                            
+                            let scaledX, scaledY;
+                            // Scale fix to ensure that the coordinates are NOT scaled again!
+                            if (state.coordinatesAlreadyScaled) {
+                                scaledX = x * state.displayScale;
+                                scaledY = y * state.displayScale;
+                            } else {
+                                const scaleX = state.originalImageDimensions.width / 512;  
+                                const scaleY = state.originalImageDimensions.height / 224; 
+                                scaledX = x * scaleX;
+                                scaledY = y * scaleY;
+                            }
+                            
+                            processedPoints.push({ 
+                                x: scaledX, 
+                                y: scaledY, 
+                                color: color || "blue"
+                            });
                         } else {
                             // Format: [x, y]
                             const [x, y] = annotation;
-                            processedPoints.push({ x, y, color: "blue" });
+                            
+                            let scaledX, scaledY;
+                            if (state.coordinatesAlreadyScaled) {
+                                scaledX = x * state.displayScale;
+                                scaledY = y * state.displayScale;
+                            } else {
+                                const scaleX = state.originalImageDimensions.width / 512;  
+                                const scaleY = state.originalImageDimensions.height / 224; 
+                                scaledX = x * scaleX;
+                                scaledY = y * scaleY;
+                            }
+                            
+                            processedPoints.push({ 
+                                x: scaledX, 
+                                y: scaledY, 
+                                color: "blue" 
+                            });
                         }
                     }
                 });
@@ -253,6 +343,8 @@ export function handleAnnotations() {
     });
 }
 
+// previously were used for interavity with konva, now it is unused 
+// delete this and its references later 
 function renderInteractiveRegions(resultImage, finalMask, width, height, stageContainer) {
     // Enhanced version combining both approaches
     resultImage.onload = () => {
@@ -285,8 +377,8 @@ function renderInteractiveRegions(resultImage, finalMask, width, height, stageCo
 
             pixels.forEach(([y, x]) => {
                 const rect = new Konva.Rect({
-                    x: x,
-                    y: y,
+                    x: x * state.displayScale,
+                    y: y * state.displayScale,
                     width: 1,
                     height: 1,
                     fill: color || "rgba(233, 37, 37, 0.98)"
@@ -628,5 +720,738 @@ export function handlePreprocessedImg() {
 
         popup.append(img, close);
         document.body.appendChild(popup);
+    });
+}
+
+export function loadAnnotations() {
+    const fileInput = document.getElementById('annotationFileInput');
+    fileInput.click();
+    
+    fileInput.onchange = function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        if (!file.name.endsWith('.npy')) {
+            alert('Please select a .npy file');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('annotation_file', file);
+        formData.append('image_name', state.imageName);
+        
+        const csrfToken = getCSRFToken();
+        
+        fetch('/load-annotations/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken
+            },
+            credentials: 'same-origin',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.annotations) {
+                displayLoadedAnnotations(data.annotations);
+            } else {
+                alert('Error loading annotations: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error loading annotations:', error);
+            alert('Error loading annotations: ' + error.message);
+        });
+    };
+}
+
+function displayLoadedAnnotations(annotations) {
+    console.log('Loading annotations:', annotations);
+    
+    // FOR DEBUGGING!!
+    const img = document.getElementById("uploadedImage");
+    const canvas = state.annotationCanvas;
+    
+    // Clear existing annotations first.
+    state.scribbles = state.scribbles.filter(s => s.isPrediction);
+    
+    const layersContainer = document.getElementById('layersContainer');
+    if (layersContainer) {
+        while (layersContainer.firstChild) {
+            layersContainer.removeChild(layersContainer.firstChild);
+        }
+    }
+    state.visibleLayerIds = [];
+    state.layerCounter = 0;
+    
+    import('./layers.js').then(module => {
+        const { createLayer } = module;
+        
+        // Create layers and annotations for each loaded region.
+        annotations.forEach((annotation, index) => {
+            const layerName = `Loaded Layer ${annotation.value}`;
+            const layerId = createLayer(layerName, annotation.color);
+            console.log(`Processing annotation ${annotation.value} with ${annotation.pixels.length} pixels`);
+            if (annotation.pixels.length > 0) {
+                const rawXs = annotation.pixels.map(p => p[1]);
+                const rawYs = annotation.pixels.map(p => p[0]);
+            }
+            
+            const points = annotation.pixels.map(pixel => {
+                let x = pixel[1];
+                let y = pixel[0];
+
+                
+                return { x, y };
+            });
+            
+            
+            // Add each pixel as an individual dot annotation.
+            points.forEach(point => {
+                state.scribbles.push({
+                    points: [point],
+                    isPrediction: false,
+                    color: annotation.color,
+                    layerId: layerId,
+                    isLoadedAnnotation: true,
+                    isDot: true
+                });
+            });
+            
+            console.log(`Added ${points.length} dots for region ${annotation.value}`);
+        });
+        
+        import('./canvas-tools.js').then(module => {
+            const { redrawAnnotations } = module;
+            redrawAnnotations();
+        });
+        
+        console.log(`Loaded ${annotations.length} annotation regions`);
+    });
+}
+export function downloadAnnotations() {
+    const userAnnotations = state.scribbles.filter(s => !s.isPrediction);
+    
+    if (userAnnotations.length === 0) {
+        alert('No annotations to download. Please add some annotations first.');
+        return;
+    }
+    
+    const layerGroups = {};
+    const layerOrder = {};
+    
+    userAnnotations.forEach(stroke => {
+        const layerId = stroke.layerId || 'default';
+        
+        if (!layerGroups[layerId]) {
+            layerGroups[layerId] = [];
+            const layerElement = document.getElementById(layerId);
+            const layerName = layerElement ? 
+                layerElement.querySelector('input[type="text"]').value : 
+                'Unknown Layer';
+            layerOrder[layerId] = {
+                name: layerName,
+                order: Object.keys(layerGroups).length
+            };
+        }
+        
+        // Determine stroke type!!!! This is important for the backend to find the perfect array.
+        let strokeType = 'line';
+
+        if (stroke.isDot || stroke.points.length === 1) {
+            strokeType = 'dot';
+        } else if (stroke.isBox) {
+            strokeType = 'box';
+        } else if (stroke.isFilled || stroke.type === 'fill') {
+            strokeType = 'fill';
+        } else if (stroke.isLoadedAnnotation) {
+            strokeType = 'dot';
+        } else if (stroke.layerId) {
+            // Check layer type from the DOM to determine if it's a fill.
+            const layerElement = document.getElementById(stroke.layerId);
+            if (layerElement) {
+                const layerType = layerElement.getAttribute('data-layer-type');
+                if (layerType && layerType.toLowerCase().includes('fill')) {
+                    strokeType = 'fill';
+                }
+            }
+        }
+        
+        // Add stroke with its TYPE and points.
+        layerGroups[layerId].push({
+            type: strokeType,
+            points: stroke.points.map(point => ({
+                x: point.x,
+                y: point.y
+            }))
+        });
+    });
+    
+    const annotationsData = Object.keys(layerGroups).map((layerId, index) => ({
+        layer_id: layerId,
+        layer_name: layerOrder[layerId].name,
+        layer_order: layerOrder[layerId].order,
+        strokes: layerGroups[layerId]
+    }));
+    
+    console.log('Preparing to download annotations with stroke types:', annotationsData);
+    
+    const payload = {
+        annotations: annotationsData,
+        image_dimensions: state.originalImageDimensions,
+        image_name: state.imageName
+    };
+    
+    const downloadBtn = document.getElementById('downloadAnnotationsBtn');
+    const originalText = downloadBtn.innerHTML;
+    downloadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating Annotation File...';
+    downloadBtn.disabled = true;
+    
+    fetchWithCSRF("/download-annotations/", {
+        method: "POST",
+        body: JSON.stringify(payload)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Download response:', data);
+        
+        if (data.download_url) {
+            const link = document.createElement('a');
+            link.href = data.download_url;
+            link.download = data.filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            downloadBtn.innerHTML = '<i class="fa-solid fa-check"></i> Downloaded!';
+            downloadBtn.style.backgroundColor = '#28a745';
+            downloadBtn.style.borderColor = '#28a745';
+            
+            const layerCount = Object.keys(layerGroups).length;
+            const totalPoints = Object.values(layerGroups).reduce((sum, points) => sum + points.length, 0);
+            
+        } else {
+            throw new Error(data.error || 'Unknown error occurred');
+        }
+    })
+    .catch(error => {
+        console.error('Error downloading annotations:', error);
+        alert('Error downloading annotations: ' + error.message);
+        
+        downloadBtn.innerHTML = '<i class="fa-solid fa-exclamation-triangle"></i> Error';
+        downloadBtn.style.backgroundColor = '#dc3545';
+        downloadBtn.style.borderColor = '#dc3545';
+    })
+    .finally(() => {
+        setTimeout(() => {
+            downloadBtn.innerHTML = originalText;
+            downloadBtn.disabled = false;
+            downloadBtn.style.backgroundColor = '';
+            downloadBtn.style.borderColor = '';
+        }, 3000);
+    });
+}
+
+export function loadSegmentationResultsAsAnnotations(segmentationData) {
+    if (!segmentationData || !segmentationData.final_mask) {
+        console.log('No segmentation results to load as annotations');
+        return;
+    }
+
+    const img = document.getElementById("uploadedImage");
+    const canvas = state.annotationCanvas;
+
+    console.log('Hiding contour predictions for editing mode');
+    state.scribbles = state.scribbles.filter(s => !s.isPrediction);
+    state.isEditingSegmentationResults = true;
+    state.showPredictions = false; // Explicitly hide predictions
+
+
+    state.scribbles = state.scribbles.filter(s => !s.isSegmentationResult);
+   
+    const layersContainer = document.getElementById('layersContainer');
+    
+    import('./layers.js').then(module => {
+        const { createLayer } = module;
+        
+        segmentationData.final_mask.forEach((maskData, index) => {
+            const regionId = maskData.regionId;
+            const pixels = maskData.pixels;
+            const color = maskData.color || "#ff0000";
+            
+            
+            const layerName = `Segmented ${regionId}`;
+            const layerId = createLayer(layerName, color);
+            
+            const points = pixels.map(pixel => {
+                let x = pixel[1];
+                let y = pixel[0]; 
+
+                x = x * state.displayScale;
+                y = y * state.displayScale;
+            
+                return { x, y };
+            });
+            
+            if (points.length > 0) {
+                const pointXs = points.map(p => p.x);
+                const pointYs = points.map(p => p.y);
+            }
+            
+            points.forEach(point => {
+                state.scribbles.push({
+                    points: [point], 
+                    isPrediction: false,
+                    color: color,
+                    layerId: layerId,
+                    isLoadedAnnotation: false, 
+                    isSegmentationResult: true, 
+                    isDot: true 
+                });
+            });
+            
+        });
+
+        showEditingModeIndicator();
+        import('./canvas-tools.js').then(module => {
+            const { redrawAnnotations } = module;
+            redrawAnnotations();
+        });
+        
+        console.log(`Successfully loaded ${segmentationData.final_mask.length} segmentation results as editable annotations!`);
+    });
+}
+
+function showEditingModeIndicator(autoMode= false) {
+    // Update the "Edit Results on Canvas" button to show active state
+    const loadBtn = document.getElementById('loadResultsAsAnnotationsBtn');
+    if (loadBtn) {
+        loadBtn.style.display = 'none'; // Hide the button for now can be deleted directly later
+    }
+}
+
+window.exitEditingMode = function() {
+    console.log('Exiting editing mode - restoring contours');
+    
+    state.isEditingSegmentationResults = false;
+    state.showPredictions = true; // Re-enable predictions
+    
+    const banner = document.getElementById('editingModeBanner');
+    if (banner) banner.remove();
+    
+    
+    
+    import('./canvas-tools.js').then(module => {
+        const { redrawAnnotations } = module;
+        redrawAnnotations();
+    });
+
+    };
+
+export function handleAnnotationsWithResultLoading() {
+    
+
+
+
+    const algorithm = document.getElementById('algorithm')?.value || window.algorithm || 'kite';
+    const segmentationMethod = state.segmentationMethod || 'traditional';
+    
+    console.log('Using algorithm:', algorithm);
+    console.log('Using segmentation method:', segmentationMethod);
+
+    if (!state.isEditingSegmentationResults) {
+        state.scribbles = state.scribbles.filter(s => !s.isPrediction);
+    } else {
+        state.scribbles = state.scribbles.filter(s => !s.isPrediction);
+    }
+
+    const allPoints = state.scribbles.flatMap(s =>
+        s.points.map(p => ({
+            x: p.x,
+            y: p.y,
+            color: s.color,
+            layerId: s.layerId
+        }))
+    );
+
+    const payload = {
+        image_name: state.imageName,
+        algorithm: algorithm,
+        segmentation_method: segmentationMethod,
+        use_unet: state.unetMode || false,
+        shapes: [{
+            label: "anomaly",
+            points: allPoints.map(p => [p.x, p.y]),
+            color: allPoints.map(p => p.color),
+            layerId: allPoints.map(p => p.layerId)
+        }]
+    };
+
+    return fetchWithCSRF("/segment/", {
+        method: "POST",
+        body: JSON.stringify(payload)
+    })
+    .then(res => {
+        console.log('Response status:', res.status);
+        if (!res.ok) {
+            return res.text().then(text => {
+                throw new Error(`HTTP error! status: ${res.status}, message: ${text}`);
+            });
+        }
+        return res.json();
+    })
+    .then(data => {
+        
+        console.log("Segmentation response:", data);
+
+        resetZoom();
+        window.lastSegmentationData = data;
+
+        const resultImage = document.getElementById("segmentedResultImage");
+
+        if (!data.segmented_image) {
+            console.error("No segmented_image returned!");
+            return;
+        }
+
+        resultImage.src = `data:image/png;base64,${data.segmented_image}`;
+        document.getElementById("segmentationResult").style.display = "block";
+        
+        const downloadBtn = document.getElementById("downloadSegmentedImage");
+        downloadBtn.href = resultImage.src;
+        downloadBtn.download = "segmented_result.png";
+        downloadBtn.style.display = "inline-block";
+
+        if (data.segmentation_map) {
+            segmentationMapData = data.segmentation_map;
+            const showSegMapBtn = document.getElementById("showSegMapBtn");
+            if (showSegMapBtn) {
+                showSegMapBtn.style.display = "inline-block";
+            }
+        } else {
+            const showSegMapBtn = document.getElementById("showSegMapBtn");
+            if (showSegMapBtn) {
+                showSegMapBtn.style.display = "none";
+            }
+        }
+
+        const stageContainer = document.getElementById("segmentationStage");
+        if (stageContainer) {
+            stageContainer.innerHTML = "";
+            const width = resultImage.naturalWidth || resultImage.clientWidth;
+            const height = resultImage.naturalHeight || resultImage.clientHeight;
+            stageContainer.style.width = width + "px";
+            stageContainer.style.height = height + "px";
+        }
+
+        if (data.segmentation_masks && data.segmentation_masks.individual_masks && data.segmentation_masks.individual_masks.length > 0) {
+            createMaskPreviewPanel(data.segmentation_masks);
+        }
+
+        if (data.final_mask && data.final_mask.length > 0) {
+            console.log('Auto-loading segmentation results as editable annotations');
+            loadSegmentationResultsAsAnnotations(data);
+            showEditingModeIndicator(true);
+
+            
+        }
+
+        // ✅ CHECK FOR PREDICTIONS AND SHOW/HIDE TOGGLE BUTTON
+        if (!data.predicted_annotations || data.predicted_annotations.length === 0) {
+            console.log("No predicted annotations found");
+            hidePredictionToggleButton(); // Hide toggle when no predictions
+            redrawAnnotations();
+            return;
+        }
+        
+        try {
+            state.scribbles = state.scribbles.filter(s => !s.isPrediction);
+
+            const predictedAnnotations = data.predicted_annotations;
+
+            if (Array.isArray(predictedAnnotations)) {
+                const processedPoints = [];
+
+                predictedAnnotations.forEach((annotation, index) => {
+                    if (annotation && annotation.shape_type === "polygon" && Array.isArray(annotation.points)) {
+                        const points = annotation.points.map(p => ({
+                            x: p[0] * state.displayScale,
+                            y: p[1] * state.displayScale,
+                            color: "cyan"
+                        }));
+
+                        state.scribbles.push({
+                            points: points,
+                            isPrediction: true,
+                            color: annotation.color ? `rgb(${annotation.color[0]}, ${annotation.color[1]}, ${annotation.color[2]})` : "cyan",
+                            class_id: annotation.class_id || "fluid"
+                        });
+                    }
+                    else if (Array.isArray(annotation)) {
+                        if (Array.isArray(annotation[0])) {
+                            const [[x, y], color] = annotation;           
+                            const scaleX = state.originalImageDimensions.width / 512;  
+                            const scaleY = state.originalImageDimensions.height / 224; 
+                            
+                            const scaledX = x * scaleX;
+                            const scaledY = y * scaleY;                     
+                            processedPoints.push({ 
+                                x: scaledX, 
+                                y: scaledY, 
+                                color: color || "blue"
+                            });
+                        } else {
+                            const [x, y] = annotation;
+                            const scaleX = state.originalImageDimensions.width / 512;  
+                            const scaleY = state.originalImageDimensions.height / 224; 
+                            
+                            const scaledX = x * scaleX;
+                            const scaledY = y * scaleY;                     
+                            processedPoints.push({ 
+                                x: scaledX, 
+                                y: scaledY, 
+                                color: "blue" 
+                            });
+                        }
+                    }
+                });
+
+                if (processedPoints.length > 0) {
+                    state.scribbles.push({
+                        points: processedPoints,
+                        isPrediction: true,
+                        color: "blue"
+                    });
+                }
+
+                if (data.class_info) {
+                    createClassLegend(data.class_info);
+                }
+                showPredictionToggleButton();
+            }
+
+            redrawAnnotations();
+        } catch (err) {
+            console.error("Error processing annotations:", err);
+            hidePredictionToggleButton(); // Hide toggle on error
+            redrawAnnotations();
+        }
+    })
+    .catch(error => {
+        console.error("Error in handleAnnotations:", error);
+        hidePredictionToggleButton();
+        redrawAnnotations();
+        alert('Error processing segmentation: ' + error.message);
+    });
+}
+
+function showPredictionToggleButton() {
+    const toggleBtn = document.getElementById('togglePredictionsBtn');
+    
+    if (toggleBtn) {
+        toggleBtn.style.display = 'inline-block';
+        const toggleText = document.getElementById('predictionToggleText');
+        if (state.showPredictions) {
+            toggleBtn.classList.remove('btn-outline-secondary');
+            toggleBtn.classList.add('btn-outline-info');
+            toggleText.innerHTML = '<i class="fa-solid fa-eye-slash me-2"></i>Hide Contours';
+        } else {
+            toggleBtn.classList.remove('btn-outline-info');
+            toggleBtn.classList.add('btn-outline-secondary');
+            toggleText.innerHTML = '<i class="fa-solid fa-eye me-2"></i>Show Contours';
+        }
+    }
+}
+
+function hidePredictionToggleButton() {
+    const toggleBtn = document.getElementById('togglePredictionsBtn');
+    
+    if (toggleBtn) {
+        toggleBtn.style.display = 'none';
+    }
+}
+
+export function loadMask() {
+    console.log('loadMask function called');
+    const fileInput = document.getElementById('maskFileInput');
+    console.log('fileInput element:', fileInput);
+    
+    if (!fileInput) {
+        console.error('maskFileInput element not found');
+        return;
+    }
+    
+    fileInput.click();
+    
+    fileInput.onchange = function(event) {
+        console.log('File selected:', event.target.files[0]);
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        if (!file.name.endsWith('.npy')) {
+            alert('Please select a .npy file');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('mask_file', file);
+        formData.append('image_name', state.imageName);
+        
+        const csrfToken = getCSRFToken();
+        console.log('Sending request to /load-mask/');
+        
+        fetch('/load-mask/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken
+            },
+            credentials: 'same-origin',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Response from server:', data);
+            if (data.success && data.mask_data) {
+                displayLoadedMask(data.mask_data);
+            } else {
+                alert('Error loading mask: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error loading mask:', error);
+            alert('Error loading mask: ' + error.message);
+        });
+    };
+}
+
+function displayLoadedMask(maskData) {
+    console.log('Loading mask data:', maskData);
+    console.log('Mask data type:', typeof maskData);
+    
+    // Get mask dimensions from the array structure
+    const maskHeight = maskData.length;
+    const maskWidth = maskData[0].length;
+    console.log('Mask dimensions:', { width: maskWidth, height: maskHeight });
+    console.log('Mask data sample:', maskData.slice(0, 5).map(row => row.slice(0, 5)));
+    
+    // Clear existing annotations first
+    state.scribbles = state.scribbles.filter(s => s.isPrediction);
+    console.log('Cleared existing annotations, current scribbles:', state.scribbles);
+    
+    const layersContainer = document.getElementById('layersContainer');
+    if (layersContainer) {
+        while (layersContainer.firstChild) {
+            layersContainer.removeChild(layersContainer.firstChild);
+        }
+        console.log('Cleared layers container');
+    }
+    state.visibleLayerIds = [];
+    state.layerCounter = 0;
+    
+    import('./layers.js').then(module => {
+        const { createLayer } = module;
+        console.log('Imported createLayer function');
+        
+        // Get canvas dimensions for scaling
+        const canvas = state.annotationCanvas;
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        
+        // Calculate scaling factors
+        const scaleX = canvasWidth / maskWidth;
+        const scaleY = canvasHeight / maskHeight;
+        
+        console.log('Canvas dimensions:', { width: canvasWidth, height: canvasHeight });
+        console.log('Mask dimensions:', { width: maskWidth, height: maskHeight });
+        console.log('Scaling factors:', { scaleX, scaleY });
+        
+        // Find unique values in the mask
+        const uniqueValues = new Set();
+        for (let y = 0; y < maskHeight; y++) {
+            for (let x = 0; x < maskWidth; x++) {
+                if (maskData[y][x] > 0) {
+                    uniqueValues.add(maskData[y][x]);
+                }
+            }
+        }
+        console.log('Unique values in mask:', Array.from(uniqueValues));
+        
+        // Create a color mapping for different values
+        const colorMap = {
+            1: '#ff0000', // red
+            2: '#00ff00', // green
+            3: '#0000ff', // blue
+            4: '#ffff00', // yellow
+            5: '#ff00ff', // magenta
+            6: '#00ffff', // cyan
+            7: '#ff8000', // orange
+            8: '#8000ff', // purple
+            9: '#008080', // teal
+            10: '#800080' // purple
+        };
+        
+        // Process each unique value
+        Array.from(uniqueValues).forEach(value => {
+            console.log(`Processing value ${value}`);
+            
+            // Get color for this value
+            const color = colorMap[value] || `#${Math.floor(Math.random()*16777215).toString(16)}`;
+            console.log(`Using color ${color} for value ${value}`);
+            
+            // Create a new layer for this value
+            const layerName = `Loaded Mask ${value}`;
+            const layerId = createLayer(layerName, color);
+            console.log(`Created layer ${layerId} for value ${value}`);
+            
+            // Find all pixels with this value
+            const pixels = [];
+            for (let y = 0; y < maskHeight; y++) {
+                for (let x = 0; x < maskWidth; x++) {
+                    if (maskData[y][x] === value) {
+                        pixels.push([y, x]);
+                    }
+                }
+            }
+            
+            console.log(`Found ${pixels.length} pixels for value ${value}`);
+            
+            // Convert pixels to points with proper scaling
+            const points = pixels.map(pixel => {
+                const x = Math.round(pixel[1] * scaleX);
+                const y = Math.round(pixel[0] * scaleY);
+                return { x, y };
+            });
+            
+            // Add each pixel as an individual dot annotation
+            points.forEach(point => {
+                state.scribbles.push({
+                    points: [point],
+                    isPrediction: false,
+                    color: color,
+                    layerId: layerId,
+                    isLoadedAnnotation: true,
+                    isDot: true
+                });
+            });
+            
+            console.log(`Added ${points.length} dots for mask value ${value}`);
+        });
+        
+        console.log('Final scribbles state:', state.scribbles);
+        
+        import('./canvas-tools.js').then(module => {
+            const { redrawAnnotations } = module;
+            console.log('Calling redrawAnnotations');
+            redrawAnnotations();
+        });
+        
+        console.log(`Loaded ${uniqueValues.size} mask regions`);
+    }).catch(error => {
+        console.error('Error in displayLoadedMask:', error);
     });
 }

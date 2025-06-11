@@ -23,6 +23,7 @@ from io import BytesIO
 import numpy as np
 import torch
 import cv2 as cv
+from django.views.decorators.http import require_http_methods
 
 preprocessor = Preprocessor()
 segmentation_model = SegmentationModel(preprocessor)
@@ -697,3 +698,394 @@ def create_combined_mask_array(selected_masks):
                 combined_mask[y, x] = region_number
 
     return combined_mask
+
+
+def load_annotations(request):
+    if request.method == "POST":
+        try:
+            if 'annotation_file' in request.FILES:
+                annotation_file = request.FILES['annotation_file']
+                image_name = request.POST.get('image_name', '') 
+                
+                print(f"Loading annotation file: {annotation_file.name}")
+                print(f"For image: {image_name}")
+                
+                # Verify it's a .npy file.
+                if not annotation_file.name.endswith('.npy'):
+                    return JsonResponse({"error": "Only .npy files are supported"}, status=400)
+                
+                # Read the .npy file.
+                annotation_data = np.load(annotation_file, allow_pickle=True)
+                print(f"Loaded annotation data with shape: {annotation_data.shape}")
+                print(f"Data type: {annotation_data.dtype}")
+                
+                is_dict_format = False
+                
+                if isinstance(annotation_data, dict):
+                    is_dict_format = True
+                elif annotation_data.ndim == 0: 
+                    try:
+                        item_data = annotation_data.item()
+                        if isinstance(item_data, dict):
+                            is_dict_format = True
+                            annotation_data = item_data
+                    except (ValueError, AttributeError):
+                        is_dict_format = False
+                elif annotation_data.dtype == 'object' and annotation_data.size == 1:
+                    try:
+                        item_data = annotation_data.flat[0]
+                        if isinstance(item_data, dict):
+                            is_dict_format = True
+                            annotation_data = item_data
+                    except (ValueError, AttributeError, IndexError):
+                        is_dict_format = False
+                
+                if is_dict_format:
+                    print(f"Processing old format dictionary: {annotation_data.keys()}")
+                    colored_annotations = [{
+                        "regionId": annotation_data.get("regionId", "loaded_region_1"),
+                        "pixels": annotation_data.get("pixels", []),
+                        "color": annotation_data.get("color", "#FF0000"),
+                        "value": 1
+                    }]
+                else:
+                    print(f"Processing array format with unique values: {np.unique(annotation_data)}")
+                    colored_annotations = process_annotation_data(annotation_data)
+                
+                return JsonResponse({
+                    "success": True,
+                    "annotations": colored_annotations,
+                    "message": f"Loaded {len(colored_annotations)} annotation regions"
+                })
+            else:
+                return JsonResponse({"error": "No annotation file provided"}, status=400)
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({'error': 'Only POST requests allowed'}, status=405)
+
+def process_annotation_data(annotation_data):
+    """
+    Process .npy annotation data and convert to colored regions
+    annotation_data: numpy array where 0=background, 1,2,3...=different layers
+    """
+    # Define colors for different annotation values
+    colors = [
+        "#000000",  # 0: Background (black, will be transparent)
+        "#FF0000",  # 1: Red
+        "#00FF00",  # 2: Green  
+        "#0000FF",  # 3: Blue
+        "#FFFF00",  # 4: Yellow
+        "#FF00FF",  # 5: Magenta
+        "#00FFFF",  # 6: Cyan
+        "#FFA500",  # 7: Orange
+        "#800080",  # 8: Purple
+        "#FFC0CB",  # 9: Pink
+        "#A52A2A",  # 10: Brown
+        "#808080",  # 11: Gray
+    ]
+    
+    annotations = []
+    unique_values = np.unique(annotation_data)
+    
+    print(f"Processing annotation data with shape: {annotation_data.shape}")
+    print(f"Unique values found: {unique_values}")
+    
+    # Process each unique value (skip 0 as it's background!!!)
+    for value in unique_values:
+        if value == 0:
+            continue
+            
+        mask = (annotation_data == value).astype(np.uint8)
+        
+        # Find all pixels with this value.
+        ys, xs = np.where(mask == 1)
+        
+        if len(ys) == 0:
+            continue
+            
+        pixels = [[int(y), int(x)] for y, x in zip(ys, xs)]
+        
+        color_index = int(value) % len(colors)
+        color = colors[color_index]
+        
+        print(f"Found {len(pixels)} pixels for value {value}, assigned color {color}")
+        
+        annotations.append({
+            "regionId": f"loaded_region_{value}",
+            "pixels": pixels,
+            "color": color,
+            "value": int(value)
+        })
+    
+    return annotations
+
+def download_annotations(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            annotations_data = data.get("annotations", [])
+            image_dimensions = data.get("image_dimensions", {"width": 512, "height": 224})
+            filename = data.get("image_name", "")
+
+            if not annotations_data:
+                return JsonResponse({"error": "No annotations to download"}, status=400)
+
+            annotation_mask = create_annotation_mask_array(annotations_data, image_dimensions)
+
+            annotations_dir = os.path.join(settings.MEDIA_ROOT, "annotations")
+            os.makedirs(annotations_dir, exist_ok=True)
+
+            filename_base = os.path.splitext(filename)[0] if filename else "annotations"
+            annotation_filename = f"{filename_base}_annotations.npy"
+            annotation_path = os.path.join(annotations_dir, annotation_filename)
+
+            # Save the annotations as a .npy file (FOR NOW, maybe we can change it to .npz to add the layer name?)
+            np.save(annotation_path, annotation_mask)
+
+            download_url = f"{settings.MEDIA_URL}annotations/{annotation_filename}"
+            return JsonResponse({
+                "download_url": download_url,
+                "filename": annotation_filename,
+                "shape": annotation_mask.shape,
+                "unique_values": np.unique(annotation_mask).tolist()
+            })
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({'error': 'Only POST requests allowed'}, status=405)
+
+
+def create_annotation_mask_array(annotations_data, image_dimensions):
+    # Convert to integers to handle float values from frontend.
+    width = int(round(image_dimensions["width"]))
+    height = int(round(image_dimensions["height"]))
+    
+    print(f"Creating annotation mask with dimensions: {width} x {height}")
+    print(f"Number of layers to process: {len(annotations_data)}")
+    
+    annotation_mask = np.zeros((height, width), dtype=np.uint8)
+    
+    sorted_layers = sorted(annotations_data, key=lambda x: x.get("layer_order", 0))
+    
+    # Process each layer and assign incremental values for different layers.
+    for layer_index, layer_data in enumerate(sorted_layers, start=1):
+        strokes = layer_data.get("strokes", [])
+        print(f"Layer {layer_index}: {len(strokes)} strokes")
+        if strokes and all(stroke.get("type") == "dot" for stroke in strokes) and len(strokes) > 10:
+            # For the fill tool, render all the dots as filled area
+            all_fill_points = []
+            for stroke in strokes:
+                all_fill_points.extend(stroke.get("points", []))
+            
+            if all_fill_points:
+                render_fill_dots(annotation_mask, all_fill_points, layer_index, width, height)
+        else:
+            for stroke in strokes:
+                stroke_type = stroke.get("type", "line")  # 4 options: line, box, dot, fill!
+                points = stroke.get("points", [])
+                
+                if not points:
+                    continue
+                    
+                if stroke_type == "dot" or len(points) == 1:
+                    render_dot(annotation_mask, points[0], layer_index, width, height)
+                    
+                elif stroke_type == "box":
+                    render_box(annotation_mask, points, layer_index, width, height)
+                    
+                elif stroke_type == "fill":
+                    render_filled_polygon(annotation_mask, points, layer_index, width, height)
+                    
+                else:
+                    render_line(annotation_mask, points, layer_index, width, height)
+    
+    print(f"Annotation mask created with unique values: {np.unique(annotation_mask)}")
+    return annotation_mask
+
+# Here I added functions to render different shapes and save them as an annotation. Nornally, each annotation is stored as separate dots and the lines are drawn 
+# on the front end. This is why when we load the annotations without this processing step, we would only get dots.
+
+def render_fill_dots(mask, points, layer_value, width, height):
+    for point in points:
+        x = int(round(point["x"]))
+        y = int(round(point["y"]))
+        
+        for dy in range(-1, 2):
+            for dx in range(-1, 2):
+                px, py = x + dx, y + dy
+                if 0 <= px < width and 0 <= py < height:
+                    mask[py, px] = layer_value
+
+
+def render_dot(mask, point, layer_value, width, height, radius=1):
+    x = int(round(point["x"]))
+    y = int(round(point["y"]))
+
+    for dy in range(-radius, radius + 1):
+        for dx in range(-radius, radius + 1):
+            if dx*dx + dy*dy <= radius*radius:  # Circle equation
+                px, py = x + dx, y + dy
+                if 0 <= px < width and 0 <= py < height:
+                    mask[py, px] = layer_value
+
+
+def render_line(mask, points, layer_value, width, height, line_width=1):
+    if len(points) < 2:
+        return
+        
+    for i in range(len(points) - 1):
+        x1 = int(round(points[i]["x"]))
+        y1 = int(round(points[i]["y"]))
+        x2 = int(round(points[i + 1]["x"]))
+        y2 = int(round(points[i + 1]["y"]))
+        
+        draw_line(mask, x1, y1, x2, y2, layer_value, width, height, line_width)
+
+
+def render_box(mask, points, layer_value, width, height, line_width=1):
+    if len(points) < 4:
+        return
+        
+    for i in range(len(points)):
+        next_i = (i + 1) % len(points)
+        x1 = int(round(points[i]["x"]))
+        y1 = int(round(points[i]["y"]))
+        x2 = int(round(points[next_i]["x"]))
+        y2 = int(round(points[next_i]["y"]))
+        
+        draw_line(mask, x1, y1, x2, y2, layer_value, width, height, line_width)
+
+
+def render_filled_polygon(mask, points, layer_value, width, height):
+    """Render a filled polygon using scanline algorithm"""
+    if len(points) < 3:
+        return
+        
+    polygon_points = [(int(round(p["x"])), int(round(p["y"]))) for p in points]
+    
+    # Find bounding box.
+    min_y = max(0, min(p[1] for p in polygon_points))
+    max_y = min(height - 1, max(p[1] for p in polygon_points))
+    
+    for y in range(min_y, max_y + 1):
+        intersections = []
+        
+        # Find intersections with polygon edges.
+        for i in range(len(polygon_points)):
+            j = (i + 1) % len(polygon_points)
+            x1, y1 = polygon_points[i]
+            x2, y2 = polygon_points[j]
+            
+            if y1 <= y < y2 or y2 <= y < y1:
+                if y2 != y1:  # Avoid division by zero here!
+                    x_intersect = x1 + (y - y1) * (x2 - x1) / (y2 - y1)
+                    intersections.append(x_intersect)
+        
+        intersections.sort()
+        for i in range(0, len(intersections), 2):
+            if i + 1 < len(intersections):
+                x_start = max(0, int(intersections[i]))
+                x_end = min(width - 1, int(intersections[i + 1]))
+                for x in range(x_start, x_end + 1):
+                    mask[y, x] = layer_value
+
+# NOTE TO DURU:
+# The lines are drawn a bit thicker than usual, I feel like the issue is somewhere here.
+def draw_line(mask, x1, y1, x2, y2, layer_value, width, height, thickness=1):
+    # Bresenham's line algorithm:
+    dx = abs(x2 - x1)
+    dy = abs(y2 - y1)
+    sx = 1 if x1 < x2 else -1
+    sy = 1 if y1 < y2 else -1
+    err = dx - dy
+    
+    x, y = x1, y1
+    
+    radius = thickness // 2
+    
+    while True:
+        for dy_offset in range(-radius, radius + 1):
+            for dx_offset in range(-radius, radius + 1):
+                if dx_offset * dx_offset + dy_offset * dy_offset <= radius * radius:
+                    px = x + dx_offset
+                    py = y + dy_offset
+                    if 0 <= px < width and 0 <= py < height:
+                        mask[py, px] = layer_value
+        
+        if x == x2 and y == y2:
+            break
+            
+        e2 = 2 * err
+        if e2 > -dy:
+            err -= dy
+            x += sx
+        if e2 < dx:
+            err += dx
+            y += sy
+
+@require_http_methods(["POST"])
+def load_mask(request):
+    if request.method == "POST":
+        try:
+            if 'mask_file' in request.FILES:
+                mask_file = request.FILES['mask_file']
+                image_name = request.POST.get('image_name', '') 
+                
+                print(f"Loading mask file: {mask_file.name}")
+                print(f"For image: {image_name}")
+                
+                # Verify it's a .npy file
+                if not mask_file.name.endswith('.npy'):
+                    return JsonResponse({"error": "Only .npy files are supported"}, status=400)
+                
+                # Read the .npy file
+                mask_data = np.load(mask_file, allow_pickle=True)
+                print(f"Loaded mask data with shape: {mask_data.shape}")
+                print(f"Data type: {mask_data.dtype}")
+                print(f"Data min/max values: {mask_data.min()}/{mask_data.max()}")
+                
+                # Ensure mask is binary (0 or 1)
+                if mask_data.max() > 1:
+                    mask_data = (mask_data > 0).astype(np.uint8)
+                
+                # Convert mask data to list for JSON serialization
+                mask_list = mask_data.tolist()
+                
+                # Get image dimensions from the database or file system
+                try:
+                    image_path = os.path.join(settings.MEDIA_ROOT, 'uploads', image_name)
+                    if os.path.exists(image_path):
+                        img = cv2.imread(image_path)
+                        if img is not None:
+                            height, width = img.shape[:2]
+                            print(f"Original image dimensions: {width}x{height}")
+                            return JsonResponse({
+                                "success": True,
+                                "mask_data": mask_list,
+                                "image_dimensions": {
+                                    "width": width,
+                                    "height": height
+                                }
+                            })
+                except Exception as e:
+                    print(f"Error getting image dimensions: {str(e)}")
+                
+                return JsonResponse({
+                    "success": True,
+                    "mask_data": mask_list
+                })
+            else:
+                return JsonResponse({"error": "No mask file provided"}, status=400)
+                
+        except Exception as e:
+            print(f"Error loading mask: {str(e)}")
+            return JsonResponse({"error": str(e)}, status=500)
+    
+    return JsonResponse({"error": "Invalid request method"}, status=405)

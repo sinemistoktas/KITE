@@ -42,7 +42,8 @@ class SegmentationModel():
     def grow_region(self, image, seed_mask, fluid_mask=None, threshold=5, max_area=4000):
         height, width = image.shape
         grown_mask = seed_mask.copy()
-        seeds = list(zip(*np.nonzero(seed_mask)))
+        seed_rows, seed_cols = np.nonzero(seed_mask)
+        seeds = list(zip(seed_rows, seed_cols))
         visited = set(seeds)
         if not seeds:
             return grown_mask
@@ -50,18 +51,19 @@ class SegmentationModel():
         print("Using seed value:", seed_value)
 
         while seeds:
-            x, y = seeds.pop()
-            for dx, dy in [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]:
-                nx, ny = x + dx, y + dy
-                if (0 <= nx < height) and (0 <= ny < width):
-                    if (nx, ny) in visited:
+            row, col = seeds.pop()
+            # Check 8-connected neighbors
+            for dr, dc in [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]:
+                new_row, new_col = row + dr, col + dc
+                if (0 <= new_row < height) and (0 <= new_col < width):
+                    if (new_row, new_col) in visited:
                         continue
-                    visited.add((nx, ny))
-                    if grown_mask[nx, ny] == 0:
-                        intensity = image[nx, ny]
-                        if intensity <= seed_value + threshold and (fluid_mask is None or fluid_mask[nx, ny]):
-                            grown_mask[nx, ny] = 1
-                            seeds.append((nx, ny))
+                    visited.add((new_row, new_col))
+                    if grown_mask[new_row, new_col] == 0:
+                        intensity = image[new_row, new_col]
+                        if intensity <= seed_value + threshold and (fluid_mask is None or fluid_mask[new_row, new_col]):
+                            grown_mask[new_row, new_col] = 1
+                            seeds.append((new_row, new_col))              
             if grown_mask.sum() > max_area:
                 print("Region grew too large, reverting to seed only.")
                 return seed_mask
@@ -422,13 +424,13 @@ class SegmentationModel():
 
             npy_path = os.path.join(segmentation_dir, npy_filename)
             png_path = os.path.join(segmentation_dir, png_filename)
-
-            individual_mask_data = {
-                "regionId": region_id,
-                "pixels": pixels,
-                "color": color
-            }
-            np.save(npy_path, individual_mask_data)
+            binary_mask = np.zeros((max_y, max_x), dtype=np.uint8)
+            for pixel in pixels:
+                y, x = pixel[0], pixel[1]
+                if 0 <= y < max_y and 0 <= x < max_x:
+                    binary_mask[y, x] = 1
+            
+            np.save(npy_path, binary_mask)
 
             # Create visual mask image (RGBA with transparency for .png)
             mask_image = np.zeros((max_y, max_x, 4), dtype=np.uint8)  # RGBA

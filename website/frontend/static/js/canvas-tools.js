@@ -1,3 +1,5 @@
+// website/frontend/static/js/canvas-tools.js
+
 import { state } from './state.js';
 import { distance } from './canvas-utils.js';
 import { drawBoxPreview } from './box-tool.js';
@@ -25,29 +27,31 @@ export function redrawAnnotations() {
         .forEach(stroke => {
             adjustForZoom(aCtx);
 
-            // Special handling for box annotations
-            if (stroke.isBox) {
-                aCtx.strokeStyle = stroke.color || "red";
-                aCtx.lineWidth = 2 / state.zoomLevel;
+            if (stroke.isLoadedAnnotation || stroke.isDot || stroke.isSegmentationResult || stroke.points.length === 1) {
+                aCtx.fillStyle = stroke.color || "red";
+
+                const radius = (stroke.radius || 2) / state.zoomLevel;
+                stroke.points.forEach(point => {
+                    aCtx.beginPath();
+                    aCtx.arc(point.x, point.y, radius, 0, 2 * Math.PI);
+                    aCtx.fill();
+                });
+            }
+            else if (stroke.isFilled || stroke.type === 'fill') {
+                aCtx.fillStyle = stroke.color || "red";
                 aCtx.beginPath();
                 aCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
                 for (let i = 1; i < stroke.points.length; i++) {
                     aCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
                 }
-                aCtx.stroke();
-                
-                // Log that we've drawn a box
-                console.log('Redraw: Drawing box annotation');
-
-            // dot
-            } else if (stroke.points.length === 1) {
-                aCtx.fillStyle = stroke.color || "red";
-                aCtx.beginPath();
-                aCtx.arc(stroke.points[0].x, stroke.points[0].y, 2, 0, 2 * Math.PI);
+                aCtx.closePath();
                 aCtx.fill();
-            
-            // line
-            } else {
+
+                aCtx.strokeStyle = stroke.color || "red";
+                aCtx.lineWidth = 1 / state.zoomLevel;
+                aCtx.stroke();
+            }
+            else if (stroke.isBox) {
                 aCtx.strokeStyle = stroke.color || "red";
                 aCtx.lineWidth = 2 / state.zoomLevel;
                 aCtx.beginPath();
@@ -57,6 +61,17 @@ export function redrawAnnotations() {
                 }
                 aCtx.stroke();
             }
+            else {
+                aCtx.strokeStyle = stroke.color || "red";
+                aCtx.lineWidth = (stroke.thickness || 2) / state.zoomLevel;
+                aCtx.beginPath();
+                aCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+                for (let i = 1; i < stroke.points.length; i++) {
+                    aCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+                }
+                aCtx.stroke();
+            }
+
             restoreZoom(aCtx);
         });
 
@@ -76,6 +91,7 @@ export function redrawAnnotations() {
                     pCtx.fill();
                 }
             }
+
             restoreZoom(pCtx);
         }
     }
@@ -84,7 +100,7 @@ export function redrawAnnotations() {
     if (state.isDrawing && state.currentStroke.length > 0) {
         adjustForZoom(aCtx);
         aCtx.strokeStyle = state.currentStrokeColor;
-        aCtx.lineWidth = 2 / state.zoomLevel;
+        aCtx.lineWidth = (state.lineThickness || 2) / state.zoomLevel;
         aCtx.beginPath();
         aCtx.moveTo(state.currentStroke[0].x, state.currentStroke[0].y);
         for (let i = 1; i < state.currentStroke.length; i++) {
@@ -102,8 +118,9 @@ export function redrawAnnotations() {
         adjustForZoom(aCtx);
         aCtx.strokeStyle = "rgba(0,255,255,0.9)";
         aCtx.lineWidth = 1 / state.zoomLevel;
+        const radius = (state.eraserRadius || 10);
         aCtx.beginPath();
-        aCtx.arc(state.mouseX, state.mouseY, 10, 0, 2 * Math.PI);
+        aCtx.arc(state.mouseX, state.mouseY, radius, 0, 2 * Math.PI);
         aCtx.stroke();
         restoreZoom(aCtx);
     }
@@ -121,6 +138,11 @@ export function redrawAnnotations() {
         if (state.boundaryComplete) aCtx.closePath();
         aCtx.stroke();
         restoreZoom(aCtx);
+    }
+
+    if (state.isEditingSegmentationResults) {
+        const segmentationStrokes = state.scribbles.filter(s => s.isSegmentationResult);
+        console.log(`🏏 Editing mode: Rendering ${segmentationStrokes.length} editable segmentation strokes, predictions hidden`);
     }
 }
 
@@ -169,7 +191,6 @@ export function updateZoom() {
     img.style.left = `${-offsetX * state.zoomLevel}px`;
     img.style.top = `${-offsetY * state.zoomLevel}px`;
 
-    // Reset canvas transform
     state.annotationCanvas.style.transform = "";
     state.predictionCanvas.style.transform = "";
 
