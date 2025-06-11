@@ -17,6 +17,7 @@ import base64
 from io import BytesIO
 from PIL import Image
 import logging
+import cv2
 
 logger = logging.getLogger(__name__)
 
@@ -458,7 +459,7 @@ def health_check(request):
     })
 
 def convert_mask_to_npy(mask_path):
-    """Convert PNG mask to NPY format with binary values (0 for background, 1 for mask)"""
+    """Convert PNG mask to NPY format with incremental values for different regions"""
     try:
         logger.info(f"Starting NPY conversion for mask: {mask_path}")
         
@@ -490,13 +491,26 @@ def convert_mask_to_npy(mask_path):
             logger.error(f"Failed to convert image to numpy array: {str(e)}")
             return None
         
-        # Convert to binary: background (black) = 0, mask (white) = 1
-        logger.info("Converting to binary mask")
+        # Find connected components in the mask
+        logger.info("Finding connected components")
         try:
+            # Threshold the image to get binary mask
             binary_mask = (mask_array > 127).astype(np.uint8)
-            logger.info(f"Binary mask shape: {binary_mask.shape}, dtype: {binary_mask.dtype}, unique values: {np.unique(binary_mask)}")
+            
+            # Find connected components
+            num_labels, labels = cv2.connectedComponents(binary_mask)
+            logger.info(f"Found {num_labels-1} connected components")
+            
+            # Create output mask with incremental values
+            output_mask = np.zeros_like(binary_mask, dtype=np.uint8)
+            
+            # Assign incremental values to each component (starting from 1)
+            for i in range(1, num_labels):
+                output_mask[labels == i] = i
+                
+            logger.info(f"Output mask shape: {output_mask.shape}, dtype: {output_mask.dtype}, unique values: {np.unique(output_mask)}")
         except Exception as e:
-            logger.error(f"Failed to create binary mask: {str(e)}")
+            logger.error(f"Failed to process connected components: {str(e)}")
             return None
         
         # Create NPY file path
@@ -505,7 +519,7 @@ def convert_mask_to_npy(mask_path):
         
         # Save as NPY file
         try:
-            np.save(npy_path, binary_mask)
+            np.save(npy_path, output_mask)
         except Exception as e:
             logger.error(f"Failed to save NPY file: {str(e)}")
             return None
@@ -515,11 +529,11 @@ def convert_mask_to_npy(mask_path):
             # Verify the file is readable
             try:
                 loaded_mask = np.load(npy_path)
-                if loaded_mask.shape == binary_mask.shape:
+                if loaded_mask.shape == output_mask.shape:
                     logger.info(f"Successfully saved and verified NPY file: {npy_path}")
                     return npy_path
                 else:
-                    logger.error(f"Saved NPY file has incorrect shape: {loaded_mask.shape} vs {binary_mask.shape}")
+                    logger.error(f"Saved NPY file has incorrect shape: {loaded_mask.shape} vs {output_mask.shape}")
                     return None
             except Exception as e:
                 logger.error(f"Failed to verify NPY file: {str(e)}")

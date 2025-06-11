@@ -1317,7 +1317,7 @@ export function loadMask() {
         .then(data => {
             console.log('Response from server:', data);
             if (data.success && data.mask_data) {
-                displayLoadedMask(data.mask_data, data.image_dimensions);
+                displayLoadedMask(data.mask_data);
             } else {
                 alert('Error loading mask: ' + (data.error || 'Unknown error'));
             }
@@ -1329,77 +1329,129 @@ export function loadMask() {
     };
 }
 
-function displayLoadedMask(maskData, imageDimensions) {
+function displayLoadedMask(maskData) {
     console.log('Loading mask data:', maskData);
-    console.log('Image dimensions:', imageDimensions);
+    console.log('Mask data type:', typeof maskData);
+    
+    // Get mask dimensions from the array structure
+    const maskHeight = maskData.length;
+    const maskWidth = maskData[0].length;
+    console.log('Mask dimensions:', { width: maskWidth, height: maskHeight });
+    console.log('Mask data sample:', maskData.slice(0, 5).map(row => row.slice(0, 5)));
     
     // Clear existing annotations first
     state.scribbles = state.scribbles.filter(s => s.isPrediction);
+    console.log('Cleared existing annotations, current scribbles:', state.scribbles);
     
     const layersContainer = document.getElementById('layersContainer');
     if (layersContainer) {
         while (layersContainer.firstChild) {
             layersContainer.removeChild(layersContainer.firstChild);
         }
+        console.log('Cleared layers container');
     }
     state.visibleLayerIds = [];
     state.layerCounter = 0;
     
     import('./layers.js').then(module => {
         const { createLayer } = module;
+        console.log('Imported createLayer function');
         
-        // Create a new layer for the mask
-        const layerName = 'Loaded Mask';
-        const layerId = createLayer(layerName, '#ff0000'); // Default red color
-        
-        // Get the mask dimensions
-        const maskHeight = maskData.length;
-        const maskWidth = maskData[0].length;
-        
-        // Get the canvas dimensions
+        // Get canvas dimensions for scaling
         const canvas = state.annotationCanvas;
         const canvasWidth = canvas.width;
         const canvasHeight = canvas.height;
         
-        console.log('Canvas dimensions:', { canvasWidth, canvasHeight });
-        console.log('Mask dimensions:', { maskWidth, maskHeight });
-        
-        // Calculate scaling factors based on canvas dimensions
+        // Calculate scaling factors
         const scaleX = canvasWidth / maskWidth;
         const scaleY = canvasHeight / maskHeight;
         
+        console.log('Canvas dimensions:', { width: canvasWidth, height: canvasHeight });
+        console.log('Mask dimensions:', { width: maskWidth, height: maskHeight });
         console.log('Scaling factors:', { scaleX, scaleY });
         
-        // Convert mask data to points with proper scaling
-        const points = [];
-        for (let y = 0; y < maskData.length; y++) {
-            for (let x = 0; x < maskData[y].length; x++) {
+        // Find unique values in the mask
+        const uniqueValues = new Set();
+        for (let y = 0; y < maskHeight; y++) {
+            for (let x = 0; x < maskWidth; x++) {
                 if (maskData[y][x] > 0) {
-                    // Scale the coordinates to match canvas dimensions
-                    const scaledX = Math.round(x * scaleX);
-                    const scaledY = Math.round(y * scaleY);
-                    points.push({ x: scaledX, y: scaledY });
+                    uniqueValues.add(maskData[y][x]);
                 }
             }
         }
+        console.log('Unique values in mask:', Array.from(uniqueValues));
         
-        // Add points as individual dot annotations
-        points.forEach(point => {
-            state.scribbles.push({
-                points: [point],
-                isPrediction: false,
-                color: '#ff0000',
-                layerId: layerId,
-                isLoadedMask: true,
-                isDot: true
+        // Create a color mapping for different values
+        const colorMap = {
+            1: '#ff0000', // red
+            2: '#00ff00', // green
+            3: '#0000ff', // blue
+            4: '#ffff00', // yellow
+            5: '#ff00ff', // magenta
+            6: '#00ffff', // cyan
+            7: '#ff8000', // orange
+            8: '#8000ff', // purple
+            9: '#008080', // teal
+            10: '#800080' // purple
+        };
+        
+        // Process each unique value
+        Array.from(uniqueValues).forEach(value => {
+            console.log(`Processing value ${value}`);
+            
+            // Get color for this value
+            const color = colorMap[value] || `#${Math.floor(Math.random()*16777215).toString(16)}`;
+            console.log(`Using color ${color} for value ${value}`);
+            
+            // Create a new layer for this value
+            const layerName = `Loaded Mask ${value}`;
+            const layerId = createLayer(layerName, color);
+            console.log(`Created layer ${layerId} for value ${value}`);
+            
+            // Find all pixels with this value
+            const pixels = [];
+            for (let y = 0; y < maskHeight; y++) {
+                for (let x = 0; x < maskWidth; x++) {
+                    if (maskData[y][x] === value) {
+                        pixels.push([y, x]);
+                    }
+                }
+            }
+            
+            console.log(`Found ${pixels.length} pixels for value ${value}`);
+            
+            // Convert pixels to points with proper scaling
+            const points = pixels.map(pixel => {
+                const x = Math.round(pixel[1] * scaleX);
+                const y = Math.round(pixel[0] * scaleY);
+                return { x, y };
             });
+            
+            // Add each pixel as an individual dot annotation
+            points.forEach(point => {
+                state.scribbles.push({
+                    points: [point],
+                    isPrediction: false,
+                    color: color,
+                    layerId: layerId,
+                    isLoadedAnnotation: true,
+                    isDot: true
+                });
+            });
+            
+            console.log(`Added ${points.length} dots for mask value ${value}`);
         });
         
-        console.log(`Added ${points.length} dots for mask`);
+        console.log('Final scribbles state:', state.scribbles);
         
         import('./canvas-tools.js').then(module => {
             const { redrawAnnotations } = module;
+            console.log('Calling redrawAnnotations');
             redrawAnnotations();
         });
+        
+        console.log(`Loaded ${uniqueValues.size} mask regions`);
+    }).catch(error => {
+        console.error('Error in displayLoadedMask:', error);
     });
 }
