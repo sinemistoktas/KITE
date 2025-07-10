@@ -8,7 +8,7 @@
 
 <!--add in the future-->
 <!--[Demo Video](#demo) • [Documentation](#documentation) -->
-[Screenshots](#screenshot) • [Installation](#installation) • [Usage](#usage)
+[Screenshots](#-screenshots) • [Installation](#-installation) • [Usage](#-usage)
 
 
 </div>
