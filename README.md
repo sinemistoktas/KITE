@@ -158,11 +158,11 @@ Upload Image → Draw Bounding Boxes → AI Segmentation → Manual Refinement �
 (from KITE mode)
 * Annotation
 
-<img src="media/screenshot-annotation.png" alt="Annotation" width="300" />
+<img src="media/screenshot-annotation.png" alt="Annotation" width="600" />
 
 * Segmentation
 
-<img src="media/screenshot-segmentation.png" alt="Segmentation" width="300" />
+<img src="media/screenshot-segmentation.png" alt="Segmentation" width="400" />
 
 * Mask Layers
 
