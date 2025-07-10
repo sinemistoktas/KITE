@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![KITE Logo](media/kite-logo.png)
+<img src="media/kite-logo.png" alt="Light Theme" width="200" />
 
 **An interactive web application for segmenting retinal fluid regions in OCT images**
 
