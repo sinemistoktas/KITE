@@ -7,7 +7,9 @@
 **An interactive web application for segmenting retinal fluid regions in OCT images**
 
 <!--add in the future-->
-<!--[Demo Video](#demo) • [Documentation](#documentation) • [Installation](#installation) • [Usage](#usage)-->
+<!--[Demo Video](#demo) • [Documentation](#documentation) -->
+[Screenshots](#screenshot) • [Installation](#installation) • [Usage](#usage)
+
 
 </div>
 
@@ -151,6 +153,20 @@ Upload Image → Draw Bounding Boxes → AI Segmentation → Manual Refinement �
 - **PyTorch**: Deep learning framework
 - **U-Net**: Custom trained model on DUKE dataset
 - **MedSAM**: Foundation model integration
+
+## 📷 Screenshots 
+(from KITE mode)
+* Annotation
+
+<img src="media/screenshot-annotation.png" alt="Annotation" width="300" />
+
+* Segmentation
+
+<img src="media/screenshot-segmentation.png" alt="Segmentation" width="300" />
+
+* Mask Layers
+
+<img src="media/screenshot-mask-layers.png" alt="Segmentation" width="300" />
 
 
 ## 📄 License
